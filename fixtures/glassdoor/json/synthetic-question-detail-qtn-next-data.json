@@ -1,0 +1,54 @@
+{
+  "buildId": "synthetic-build-id",
+  "page": "/Interview/[questionSlug]",
+  "props": {
+    "pageProps": {
+      "apolloState": {
+        "InterviewQuestion:QTN_2000000001": {
+          "__typename": "InterviewQuestion",
+          "answers": [
+            {
+              "__typename": "InterviewAnswer",
+              "body": "Synthetic answer: outline thesis, valuation, risks, and catalyst.",
+              "helpfulCount": 12,
+              "id": "ANS_1"
+            },
+            {
+              "__typename": "InterviewAnswer",
+              "body": "Synthetic answer: discuss industry context and downside case.",
+              "helpfulCount": 5,
+              "id": "ANS_2"
+            }
+          ],
+          "comments": [
+            {
+              "__typename": "InterviewComment",
+              "body": "Synthetic comment asking for clarification on assumptions.",
+              "id": "COM_1"
+            }
+          ],
+          "employer": {
+            "__typename": "Employer",
+            "id": 2800,
+            "name": "Goldman Sachs"
+          },
+          "id": "QTN_2000000001",
+          "jobTitle": "Investment Banking Analyst",
+          "questionText": "Pitch me a stock you follow."
+        },
+        "ROOT_QUERY": {
+          "__typename": "Query",
+          "interviewQuestion({\"id\":\"QTN_2000000001\"})": {
+            "__ref": "InterviewQuestion:QTN_2000000001"
+          }
+        }
+      },
+      "canonicalUrl": "/Interview/Goldman-Sachs-Investment-Banking-Analyst-Interview-Question-QTN_2000000001.htm",
+      "questionId": "QTN_2000000001"
+    }
+  },
+  "runtimeConfig": {
+    "appName": "glassdoor-interviews",
+    "fixture_origin": "synthetic"
+  }
+}

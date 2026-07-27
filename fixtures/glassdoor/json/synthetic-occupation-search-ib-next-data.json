@@ -1,0 +1,71 @@
+{
+  "buildId": "synthetic-build-id",
+  "page": "/Interview/[searchSlug]",
+  "props": {
+    "pageProps": {
+      "apolloState": {
+        "InterviewQuestion:QTN_1000000001": {
+          "__typename": "InterviewQuestion",
+          "answerCount": 4,
+          "commentCount": 1,
+          "company": {
+            "__typename": "Employer",
+            "ei": 111111,
+            "name": "Example Capital Partners"
+          },
+          "detailUrl": "/Interview/Investment-Banking-Analyst-Interview-Question-QTN_1000000001.htm",
+          "id": "QTN_1000000001",
+          "jobTitle": "Investment Banking Analyst",
+          "questionText": "Walk me through a discounted cash flow analysis."
+        },
+        "InterviewQuestion:QTN_1000000002": {
+          "__typename": "InterviewQuestion",
+          "answerCount": 2,
+          "commentCount": 0,
+          "company": {
+            "__typename": "Employer",
+            "ei": 222222,
+            "name": "Sample Bank"
+          },
+          "detailUrl": "/Interview/Investment-Banking-Analyst-Interview-Question-QTN_1000000002.htm",
+          "id": "QTN_1000000002",
+          "jobTitle": "Investment Banking Analyst",
+          "questionText": "How do the three financial statements connect?"
+        },
+        "ROOT_QUERY": {
+          "__typename": "Query",
+          "interviewQuestions({\"keyword\":\"Investment Banking Analyst\",\"page\":1})": {
+            "__typename": "InterviewQuestionSearchResult",
+            "pageInfo": {
+              "__typename": "PageInfo",
+              "currentPage": 1,
+              "nextPage": 2,
+              "totalPages": 3
+            },
+            "results": [
+              {
+                "__ref": "InterviewQuestion:QTN_1000000001"
+              },
+              {
+                "__ref": "InterviewQuestion:QTN_1000000002"
+              }
+            ],
+            "totalCount": 128
+          }
+        }
+      },
+      "canonicalUrl": "/Interview/investment-banking-analyst-interview-questions-SRCH_KO0,26.htm",
+      "keyword": "Investment Banking Analyst",
+      "page": 1,
+      "searchType": "occupation",
+      "totalPages": 3
+    }
+  },
+  "query": {
+    "keyword": "investment banking analyst interview questions"
+  },
+  "runtimeConfig": {
+    "appName": "glassdoor-interviews",
+    "fixture_origin": "synthetic"
+  }
+}

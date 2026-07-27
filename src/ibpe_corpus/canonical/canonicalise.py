@@ -216,7 +216,11 @@ def _occurrence_from_meta(
     outcome = meta.get("outcome")
     detail_url = meta.get("detail_url")
     employer_id = meta.get("employer_id")
+    if employer_id is not None:
+        employer_id = str(employer_id)
     recruiting_cycle = meta.get("recruiting_cycle")
+    if recruiting_cycle is not None:
+        recruiting_cycle = str(recruiting_cycle)
     confidence = float(meta.get("occurrence_confidence", record.grounding_confidence))
 
     has_context = any(
@@ -226,20 +230,23 @@ def _occurrence_from_meta(
     if not has_context:
         return None
 
+    def _s(v: Any) -> str | None:
+        return None if v is None else str(v)
+
     return InterviewOccurrence(
         question_variant_id=variant_id,
-        interview_review_id=review_id,
-        employer=employer,
+        interview_review_id=_s(review_id),
+        employer=_s(employer),
         employer_id=employer_id,
-        role=role,
-        office=office,
-        round=round_,
-        interview_date=interview_date,
+        role=_s(role),
+        office=_s(office),
+        round=_s(round_),
+        interview_date=_s(interview_date),
         recruiting_cycle=recruiting_cycle,
-        outcome=outcome,
+        outcome=_s(outcome),
         source_id=record.source_artefact_id,
         confidence=confidence,
-        detail_url=detail_url,
+        detail_url=_s(detail_url),
     )
 
 

@@ -1,0 +1,109 @@
+sources:
+  - repo: ddeng5/Capital-Markets-Question-Bank-App
+    commit_sha: 05dca57601532f95f7be72b83b76ce80a5c7dcca
+    paths:
+      - www/investment-banking-qb-export.json
+      - www/js/controllers.js
+      - www/templates/*.html
+    format: firebase_export_json
+    import_priority: high
+    notes: 385 IB-focused question/answer pairs; strongest specified ready-import source; review license before production import.
+
+  - repo: Marvin-Deng/Interview-Scraper
+    commit_sha: fcfad8f7358dfd2b6ca6278315a272859fa346f1
+    paths:
+      - main.py
+      - scrapers/scraper.py
+      - scrapers/exporter.py
+      - scraper_utils/*.py
+    format: python_selenium_scraper_runtime_exports_csv_txt_docx_pdf
+    import_priority: pattern_only
+    notes: No bundled corpus; useful only for legacy Glassdoor Selenium/export patterns.
+
+  - repo: franziskavonalbedyll/GlassdoorInterviewExpert
+    commit_sha: 6e2ea076b28a012eac8e4bea4060dda4a1ae95c6
+    paths:
+      - src/get_interviewquestions_from_glassdoor.py
+      - src/build_index.py
+      - src/ask.py
+      - questions.txt
+    format: python_scraper_runtime_txt_plus_llm_summary
+    import_priority: pattern_only
+    notes: No bundled interview corpus; useful data-test QuestionsContainer parsing pattern and LLM summarization workflow.
+
+  - repo: williamxie11/glassdoor-interview-scraper
+    commit_sha: 465e8bd14b91277190bee0acfd056e695816e966
+    paths:
+      - scraper_v1.2.py
+      - previous_versions/*.py
+      - Review.py
+    format: python2_selenium_beautifulsoup_runtime_json
+    import_priority: pattern_only
+    notes: No bundled corpus; historical Glassdoor review/question JSON exporter using span.interviewQuestion and _IP pagination.
+
+  - repo: jarus-singh/Glassdoor-Interview-Scraper
+    commit_sha: c084025a33e58489bf8dfbc8845a9bbd69c96d32
+    paths:
+      - interview_parser.py
+      - README
+    format: python_rss_to_csv
+    import_priority: "no"
+    notes: Scrapes Glassdoor RSS metadata only; does not capture interview question text or answers.
+
+  - repo: raghuboosetty/glassdoor-interview-questions-scrapper
+    commit_sha: 1084a839e0a015db6f8c4d2d9c14923202c8ab64
+    paths:
+      - glassdoor.py
+      - README.md
+    format: aborted_python_selenium_script
+    import_priority: "no"
+    notes: Aborted project; no bundled corpus; cookie/undetected_chromedriver notes only.
+
+  - repo: HireAbo/awesome-interview-questions-5000-jobs
+    commit_sha: 837a40fbf61a502b3f6d68eca2d32c8d70e0eec5
+    paths:
+      - Business and Management/Finance/*.md
+      - Business and Management/Finance/Investment Banker.md
+      - Business and Management/Finance/Private Equity Analyst.md
+      - Business and Management/Finance/Mergers and Acquisitions MA Analyst.md
+    format: markdown_numbered_question_lists
+    import_priority: low
+    notes: Finance subset has about 250 visible questions and no answers; broad templated source for supplemental question-only seeds.
+
+  - repo: mikinty/Trading-Interview-Questions
+    commit_sha: 933451601c57ccd5e978988a4c0d844c9bd030d9
+    paths:
+      - README.md
+      - chapters/*.md
+      - appendix/sequences.md
+      - site/src/games/*.tsx
+    format: markdown_curriculum_plus_react_practice_games
+    import_priority: low
+    notes: Quant trading curriculum, not IB/PE; only useful for optional trading/market-making appendix.
+
+  - repo: offergenieai/Finance-Interview-Questions
+    commit_sha: b651edc039fe9fcded7a6b071eb65b23dfc76a5f
+    paths:
+      - README.md
+      - .github/workflows/update-daily.yml
+    format: markdown_table_question_titles
+    import_priority: medium
+    notes: 20 JPMorgan/Goldman finance question titles with company/category/difficulty metadata; no answers.
+
+  - repo: coryjburk/intv-playbook-ib_vc
+    commit_sha: c174e326e0325c31c50a734c71d86fae254f44b6
+    paths:
+      - index.html
+      - README.md
+    format: single_file_html_js_structured_questions
+    import_priority: high
+    notes: 100 IB questions with model answers, deep dives, coaching notes, red flags, categories, and difficulty; review license before production import.
+
+  - repo: coryjburk/intv-playbook-pe_vc
+    commit_sha: ae3b269379dd972277e6f3089e76b130ced1f098
+    paths:
+      - index.html
+      - README.md
+    format: single_file_html_js_structured_questions
+    import_priority: high
+    notes: 100 PE/value-creation questions with model answers, deep dives, coaching notes, red flags, categories, and difficulty; review license before production import.

@@ -1,0 +1,21 @@
+{
+  "created_at_utc": "2026-07-27T05:45:13.222522+00:00",
+  "fixture_origin": "synthetic",
+  "fixtures": [
+    {
+      "html": "/workspace/fixtures/glassdoor/html/synthetic-occupation-search-ib.html",
+      "id": "synthetic-occupation-search-ib",
+      "json": "/workspace/fixtures/glassdoor/json/synthetic-occupation-search-ib-next-data.json"
+    },
+    {
+      "html": "/workspace/fixtures/glassdoor/html/synthetic-company-interviews-goldman.html",
+      "id": "synthetic-company-interviews-goldman",
+      "json": "/workspace/fixtures/glassdoor/json/synthetic-company-interviews-goldman-next-data.json"
+    },
+    {
+      "html": "/workspace/fixtures/glassdoor/html/synthetic-question-detail-qtn.html",
+      "id": "synthetic-question-detail-qtn",
+      "json": "/workspace/fixtures/glassdoor/json/synthetic-question-detail-qtn-next-data.json"
+    }
+  ]
+}
