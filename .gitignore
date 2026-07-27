@@ -1,0 +1,23 @@
+# Python
+__pycache__
+
+# Environment
+venv
+.venv
+.env
+
+# Auth session cache (do not commit)
+data/glassdoor_session.json
+
+# Driver
+chromedriver.exe
+downloaded_files
+
+# Output
+*.txt
+!requirements.txt
+*.csv
+*.docx
+*.pdf
+*_questions.json
+!data/question_bank.json
