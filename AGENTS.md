@@ -1,49 +1,59 @@
 # Concord — Agent Instructions
 
+This repo contains **GlassCleaner2**: a Glassdoor interview-question scraper plus Flask UI.
+
 ## Cursor Cloud specific instructions
 
-### Toolchain (preinstalled on this environment)
+### Toolchain
 
 | Tool | Notes |
 |------|--------|
-| Node.js 22 + npm / pnpm / yarn | User CLIs under `~/.npm-global/bin` |
-| Python 3.12 + `uv` | `uv` at `~/.local/bin` |
-| Docker + Compose | `fuse-overlayfs` storage; start via `sudo service docker start` |
-| PostgreSQL client (`psql`) | 16.x |
-| Redis CLI | 7.x |
-| Vercel CLI / Supabase CLI | Global via npm user prefix |
-| Rust, Go, Java 21 | Available if needed |
-
-Ensure PATH includes user tools:
+| Python 3.12 + `.venv` | Create/activate via `.cursor/install.sh` |
+| Google Chrome | Installed for Selenium / SeleniumBase |
+| Docker + Compose | Optional; `sudo service docker start` |
+| Node 22, `uv`, Vercel/Supabase CLIs | Available under `~/.npm-global/bin` / `~/.local/bin` |
 
 ```bash
 export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"
+source .venv/bin/activate
 ```
 
 ### Install / start
 
-- Update (cached): `bash .cursor/install.sh` — installs deps when manifests exist
-- Start: `bash .cursor/start.sh` — brings up Docker (and compose if present)
+- Update (cached): `bash .cursor/install.sh`
+- Start: `bash .cursor/start.sh` (Docker)
+
+### App commands
+
+```bash
+source .venv/bin/activate
+
+# Help
+python main.py --help
+
+# Query local question bank (no browser)
+python main.py query --track PE
+
+# Browse UI
+python main.py ui --port 5050
+# → http://127.0.0.1:5050
+
+# Batch scrape (needs interactive Chrome login)
+python main.py batch --track IB --limit 1
+```
+
+Scraping opens Chrome and waits for manual Glassdoor login, then Enter in the terminal. Prefer `query` / `ui` for non-interactive verification.
 
 ### Secrets
 
-Add API keys and DB URLs in the [Cloud Agents Secrets](https://cursor.com/dashboard/cloud-agents) tab. Do not commit `.env` files with real credentials.
-
-### Working on this repo
-
-The repo starts empty aside from Cloud environment config. When application code lands:
-
-1. Prefer committing lockfiles so `install.sh` can use frozen installs.
-2. Document run/test commands in this file under a new section.
-3. Put long-running app processes in `.cursor/environment.json` `terminals` (or start them during the task).
+Optional `.env` for local secrets. Prefer [Cloud Agents Secrets](https://cursor.com/dashboard/cloud-agents). Do not commit real credentials.
 
 ### Verification checklist
 
-Before finishing setup-related work:
-
 ```bash
-node -v && npm -v
-python3 --version && uv --version
-docker info >/dev/null && docker compose version
-vercel --version && supabase --version
+source .venv/bin/activate
+python -c "import flask, selenium, seleniumbase"
+python main.py query --track IB | head
+google-chrome --version
+docker info >/dev/null && echo docker_ok
 ```

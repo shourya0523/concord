@@ -1,0 +1,19 @@
+# Python
+__pycache__
+
+# Environment
+venv
+.venv
+.env
+
+# Driver
+chromedriver.exe
+downloaded_files
+
+# Output
+*.txt
+*.csv
+*.docx
+*.pdf
+*_questions.json
+!data/question_bank.json
