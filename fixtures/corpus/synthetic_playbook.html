@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head><title>Synthetic IB Playbook Fixture</title></head>
+<body>
+<script>
+        const MA_CATEGORIES = [
+            "Accounting & Financial Statements",
+            "Enterprise & Equity Value"
+        ];
+        const IB_QUESTIONS = [];
+        function addQuestion(track, category, difficulty, question, competency, intent, answer, deep, coaching, redflag) {
+            IB_QUESTIONS.push({
+                id: IB_QUESTIONS.length + 1,
+                track: track,
+                category: category,
+                difficulty: difficulty,
+                question: question,
+                competency: competency,
+                recruiterIntent: intent,
+                conversational: answer,
+                deepdive: deep,
+                coaching: coaching,
+                redFlag: redflag
+            });
+        }
+        (function loadQuestions() {
+            addQuestion("M&A / Coverage", MA_CATEGORIES[0], "Foundational",
+                "Walk me through how $10 of depreciation flows through the three financial statements, assuming a 25% tax rate.",
+                "Three-Statement Linkage Mechanics",
+                "Tests statement linkage.",
+                "On the Income Statement, operating income falls by $10, and net income falls by $7.50 after the 25% tax shield. On the Cash Flow Statement, cash rises by $2.50. On the Balance Sheet, assets fall $7.50 matching retained earnings.",
+                "Depreciation tax shield equals $2.50.",
+                "Follow IS then CFS then BS.",
+                "Forgetting the tax effect.");
+
+            addQuestion("M&A / Coverage", MA_CATEGORIES[1], "Core",
+                "What is the difference between enterprise value and equity value?",
+                "EV vs Equity",
+                "Tests capital structure bridging.",
+                "Equity value is the residual claim of shareholders. Enterprise value includes all capital providers: equity value plus net debt and other claims.",
+                "Bridge carefully for cash and debt.",
+                "State the bridge formula clearly.",
+                "Equating EV with market cap.");
+        })();
+</script>
+</body>
+</html>

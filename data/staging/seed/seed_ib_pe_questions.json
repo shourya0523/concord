@@ -1,0 +1,152 @@
+{
+  "fixture_id": "seed_ib_pe_questions",
+  "fixture_origin": "synthetic_seed",
+  "description": "Offline synthetic IB/PE interview Q&A seed for unit tests and bootstrap. Not captured from Glassdoor.",
+  "not_glassdoor": true,
+  "questions": [
+    {
+      "id": "seed_001",
+      "domain": "ib",
+      "topic": "accounting",
+      "difficulty": "foundational",
+      "question": "Walk me through the three financial statements and how they link together.",
+      "answer": "The income statement shows revenue and expenses ending in net income. Net income flows to the top of the cash flow statement and into retained earnings on the balance sheet. The cash flow statement reconciles net income to ending cash, which appears on the balance sheet. Balance sheet changes in working capital, debt, and PP&E feed back into cash flow and income statement line items."
+    },
+    {
+      "id": "seed_002",
+      "domain": "ib",
+      "topic": "accounting",
+      "difficulty": "core",
+      "question": "How does $10 of depreciation flow through the three statements at a 25% tax rate?",
+      "answer": "Income statement: EBIT down $10, net income down $7.50. Cash flow: start $7.50 lower, add back $10 depreciation, cash up $2.50. Balance sheet: cash +$2.50, PP&E -$10, assets -$7.50 matching retained earnings -$7.50."
+    },
+    {
+      "id": "seed_003",
+      "domain": "ib",
+      "topic": "enterprise_value",
+      "difficulty": "foundational",
+      "question": "What is the difference between enterprise value and equity value?",
+      "answer": "Equity value is the value of shareholders' residual claim (share price × diluted shares). Enterprise value is the value of core operations attributable to all capital providers: equity value + net debt + preferred + NCI − non-operating assets (or equivalently equity value + net debt on a simple basis)."
+    },
+    {
+      "id": "seed_004",
+      "domain": "ib",
+      "topic": "valuation",
+      "difficulty": "core",
+      "question": "Walk me through a DCF.",
+      "answer": "Project unlevered free cash flows for a forecast period, discount at WACC to get PV of UFCFs, estimate terminal value (Gordon growth or exit multiple), discount TV, sum to enterprise value, then bridge to equity value by subtracting net debt and other claims and divide by diluted shares."
+    },
+    {
+      "id": "seed_005",
+      "domain": "ib",
+      "topic": "valuation",
+      "difficulty": "core",
+      "question": "When would you use levered free cash flow instead of unlevered free cash flow in a DCF?",
+      "answer": "Levered FCF (FCFE) is used when valuing equity directly and discounting at the cost of equity. Unlevered FCF (FCFF) values the firm and is discounted at WACC. Most IB interviews default to unlevered DCF unless specifically asked about equity-value DCF."
+    },
+    {
+      "id": "seed_006",
+      "domain": "ib",
+      "topic": "merger_models",
+      "difficulty": "core",
+      "question": "What makes a deal accretive or dilutive to EPS?",
+      "answer": "A deal is accretive if the acquirer's pro forma EPS rises versus standalone. Roughly, if the acquirer pays with cash/debt and the target's after-tax earnings yield exceeds the after-tax cost of financing, or if the acquirer's P/E exceeds the seller's effective purchase P/E in an all-stock deal (with important caveats around synergies, interest, and share count)."
+    },
+    {
+      "id": "seed_007",
+      "domain": "both",
+      "topic": "lbo",
+      "difficulty": "core",
+      "question": "Walk me through a basic LBO.",
+      "answer": "A financial sponsor buys a company using a mix of debt and equity, operates it for several years while using free cash flow to pay down debt, then exits (sale or IPO). Returns come from debt paydown, EBITDA growth, and multiple expansion/contraction. Key outputs are MOIC and IRR on the equity check."
+    },
+    {
+      "id": "seed_008",
+      "domain": "pe",
+      "topic": "lbo",
+      "difficulty": "advanced",
+      "question": "What are the main value creation levers in an LBO?",
+      "answer": "EBITDA growth (revenue growth and margin expansion), free cash flow generation and debt paydown, multiple expansion at exit, and capital structure optimization. Operational improvements and add-on acquisitions are common PE levers beyond pure financial engineering."
+    },
+    {
+      "id": "seed_009",
+      "domain": "pe",
+      "topic": "investment_thesis",
+      "difficulty": "core",
+      "question": "How would you underwrite an investment thesis for a PE target?",
+      "answer": "Define the core insight (why this asset, why now), map value creation initiatives with owners and timing, stress key assumptions (growth, margins, exits), assess downside protection and capital structure, and articulate risks that would invalidate the thesis."
+    },
+    {
+      "id": "seed_010",
+      "domain": "pe",
+      "topic": "due_diligence",
+      "difficulty": "core",
+      "question": "What is quality of earnings (QoE) and why does it matter in PE diligence?",
+      "answer": "QoE assesses whether reported EBITDA/earnings are sustainable and normalized. Adjustments may remove one-time items, add run-rate synergies carefully, and normalize working capital. PE uses adjusted EBITDA as the basis for valuation, leverage, and covenant capacity."
+    },
+    {
+      "id": "seed_011",
+      "domain": "ib",
+      "topic": "capital_structure",
+      "difficulty": "core",
+      "question": "Rank capital structure claims from most to least senior in a typical leveraged capital structure.",
+      "answer": "Typically: first-lien / senior secured debt, second-lien, senior unsecured, subordinated / mezzanine, preferred equity, then common equity. Exact priority depends on intercreditor agreements and jurisdiction."
+    },
+    {
+      "id": "seed_012",
+      "domain": "ib",
+      "topic": "restructuring",
+      "difficulty": "advanced",
+      "question": "What is the difference between a fulcrum security and other claims in restructuring?",
+      "answer": "The fulcrum security is the most junior claim that is still partially in the money and likely to receive equity or recoveries in a reorganization. Claims senior to it are expected to recover closer to par; claims junior are often out of the money."
+    },
+    {
+      "id": "seed_013",
+      "domain": "ib",
+      "topic": "valuation",
+      "difficulty": "foundational",
+      "question": "What are the main valuation methodologies used in IB?",
+      "answer": "Comparable company analysis, precedent transactions, and DCF are the core three. LBO analysis is often a fourth for PE-relevant situations; sum-of-the-parts and liquidation analysis appear in specific contexts."
+    },
+    {
+      "id": "seed_014",
+      "domain": "pe",
+      "topic": "returns",
+      "difficulty": "core",
+      "question": "What is the difference between MOIC and IRR?",
+      "answer": "MOIC (multiple on invested capital) is total value returned divided by capital invested, ignoring time. IRR is the annualized discount rate that sets NPV of cash flows to zero, so timing of contributions and distributions matters."
+    },
+    {
+      "id": "seed_015",
+      "domain": "ib",
+      "topic": "behavioral",
+      "difficulty": "foundational",
+      "question": "Why investment banking?",
+      "answer": "Give a specific, credible answer: interest in transactions and markets, evidence from deals/news/coursework/networking, and why the role's skill set (modeling, process, client work) fits your goals—without generic prestige framing alone."
+    },
+    {
+      "id": "seed_016",
+      "domain": "pe",
+      "topic": "value_creation",
+      "difficulty": "advanced",
+      "question": "How do PE firms create value beyond leverage?",
+      "answer": "Operational improvement (pricing, procurement, SG&A), commercial growth (salesforce, new products, geographies), M&A roll-ups / buy-and-build, governance and talent upgrades, and strategic repositioning. Leverage amplifies returns but is not the sole thesis in modern PE."
+    },
+    {
+      "id": "seed_017",
+      "domain": "both",
+      "topic": "working_capital",
+      "difficulty": "core",
+      "question": "How does an increase in accounts receivable affect cash flow?",
+      "answer": "An increase in AR is a use of cash (working capital outflow) on the cash flow statement: revenue was recognized but cash has not yet been collected, so CFO is lower than net income by the AR increase."
+    },
+    {
+      "id": "seed_018",
+      "domain": "ib",
+      "topic": "enterprise_value",
+      "difficulty": "advanced",
+      "question": "How do you treat non-controlling interest and equity investments when bridging equity value to enterprise value?",
+      "answer": "Add NCI (and preferred, net debt, other claims) when moving from equity value to enterprise value so EV reflects the whole firm. Subtract non-operating equity investments / associates (or use other consistent treatments) so EV focuses on core operating assets—be consistent with how comps treat them."
+    }
+  ]
+}
