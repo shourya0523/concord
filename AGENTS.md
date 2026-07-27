@@ -23,6 +23,19 @@ source .venv/bin/activate
 - Update (cached): `bash .cursor/install.sh`
 - Start: `bash .cursor/start.sh` (Docker)
 
+### Secrets / login
+
+Create a local `.env` (gitignored) from `.env.example`:
+
+```bash
+GLASSDOOR_EMAIL=...
+GLASSDOOR_PASSWORD=...
+```
+
+Prefer [Cloud Agents Secrets](https://cursor.com/dashboard/cloud-agents) with the same variable names in cloud runs. Do not commit real credentials.
+
+Automated login uses Indeed SSO and may hit Cloudflare on datacenter IPs. If auto login fails, use `--manual-login` or reuse `data/glassdoor_session.json` cookies after one successful login.
+
 ### App commands
 
 ```bash
@@ -38,21 +51,19 @@ python main.py query --track PE
 python main.py ui --port 5050
 # → http://127.0.0.1:5050
 
-# Batch scrape (needs interactive Chrome login)
+# Batch scrape with .env auto-login
 python main.py batch --track IB --limit 1
+
+# Force manual browser login
+python main.py batch --track IB --limit 1 --manual-login
 ```
-
-Scraping opens Chrome and waits for manual Glassdoor login, then Enter in the terminal. Prefer `query` / `ui` for non-interactive verification.
-
-### Secrets
-
-Optional `.env` for local secrets. Prefer [Cloud Agents Secrets](https://cursor.com/dashboard/cloud-agents). Do not commit real credentials.
 
 ### Verification checklist
 
 ```bash
 source .venv/bin/activate
 python -c "import flask, selenium, seleniumbase"
+python -c "from dotenv import load_dotenv; load_dotenv(); from scrapers.auth import credentials_configured; print(credentials_configured())"
 python main.py query --track IB | head
 google-chrome --version
 docker info >/dev/null && echo docker_ok

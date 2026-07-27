@@ -76,12 +76,12 @@ def run_batch(
     total_updated = 0
     skipped = 0
 
+    from scrapers.auth import ensure_login
     from scrapers.driver import (
         GLASSDOOR_SEEKER_HOME,
         browser_alive,
         create_driver,
         open_url,
-        wait_for_manual_login,
     )
     from scrapers.scraper import GlassdoorScraper
 
@@ -93,12 +93,11 @@ def run_batch(
             from scrapers.driver import GLASSDOOR_FALLBACK_HOME
 
             open_url(driver, GLASSDOOR_FALLBACK_HOME)
-        if manual_login:
-            try:
-                wait_for_manual_login(driver)
-            except RuntimeError as e:
-                print(f"Login aborted: {e}")
-                return
+        try:
+            ensure_login(driver, manual_login=manual_login)
+        except RuntimeError as e:
+            print(f"Login aborted: {e}")
+            return
 
         for i, job in enumerate(jobs, start=1):
             if not browser_alive(driver):

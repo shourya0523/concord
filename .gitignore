@@ -6,6 +6,9 @@ venv
 .venv
 .env
 
+# Auth session cache (do not commit)
+data/glassdoor_session.json
+
 # Driver
 chromedriver.exe
 downloaded_files

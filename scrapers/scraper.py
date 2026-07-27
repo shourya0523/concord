@@ -14,12 +14,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from scrapers.auth import ensure_login
 from scrapers.driver import (
     GLASSDOOR_SEEKER_HOME,
     create_driver,
     install_web_driver,
     open_url,
-    wait_for_manual_login,
 )
 from scrapers.exporter import (
     export_to_csv,
@@ -47,8 +47,7 @@ class GlassdoorScraper:
         if driver is None:
             # Start on homepage so user can log in before company navigation.
             self.driver = install_web_driver(GLASSDOOR_SEEKER_HOME)
-            if manual_login:
-                wait_for_manual_login(self.driver)
+            ensure_login(self.driver, manual_login=manual_login)
             open_url(self.driver, url)
         else:
             self.driver = driver

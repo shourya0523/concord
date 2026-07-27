@@ -4,8 +4,16 @@ import sys
 
 from dotenv import load_dotenv
 
+load_dotenv()
+
+from scrapers.auth import credentials_configured
 from scrapers.bank import DEFAULT_BANK_PATH, load_bank, query_bank
 from scrapers.batch import DEFAULT_TARGETS_PATH, run_batch
+
+
+def _default_manual_login() -> bool:
+    """Prefer automated login when .env credentials are present."""
+    return not credentials_configured()
 
 
 def _add_scrape_args(parser: argparse.ArgumentParser) -> None:
@@ -34,8 +42,11 @@ def _add_scrape_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--manual-login",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Pause so you can log into Glassdoor in the browser (default: on)",
+        default=_default_manual_login(),
+        help=(
+            "Pause for manual Glassdoor login. Default: off when "
+            "GLASSDOOR_EMAIL/GLASSDOOR_PASSWORD are set in .env, otherwise on."
+        ),
     )
 
 
@@ -81,8 +92,11 @@ def _build_parser() -> argparse.ArgumentParser:
     batch_parser.add_argument(
         "--manual-login",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Pause so you can log into Glassdoor in the browser (default: on)",
+        default=_default_manual_login(),
+        help=(
+            "Pause for manual Glassdoor login. Default: off when "
+            "GLASSDOOR_EMAIL/GLASSDOOR_PASSWORD are set in .env, otherwise on."
+        ),
     )
     batch_parser.add_argument(
         "--force",
@@ -176,8 +190,6 @@ def _run_query(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    load_dotenv()
-
     # Preserve: python main.py -c ... -p ... -e ...
     # Also support: python main.py batch|query|ui ...
     if len(sys.argv) > 1 and sys.argv[1] in ("batch", "query", "ui"):

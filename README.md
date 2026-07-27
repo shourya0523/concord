@@ -28,7 +28,12 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. (Optional) Keep a `.env` file if you still want local secrets around; login is done manually in the browser now.
+4. Configure login credentials in a local `.env` (gitignored):
+
+```shell
+cp .env.example .env
+# edit GLASSDOOR_EMAIL and GLASSDOOR_PASSWORD
+```
 
 With the venv activated, `python` / `python3` use that environment. If you skip activation, call the venv explicitly:
 
@@ -38,14 +43,24 @@ With the venv activated, `python` / `python3` use that environment. If you skip 
 
 ## Login flow
 
-Glassdoor blocks automated login, so the scraper opens Chrome and waits for you:
+Glassdoor uses Indeed SSO. When `GLASSDOOR_EMAIL` and `GLASSDOOR_PASSWORD` are set in `.env`, the scraper logs in automatically (and caches cookies in `data/glassdoor_session.json`).
+
+```shell
+# Auto login from .env (default when credentials are set)
+python main.py batch --track IB --limit 1
+
+# Force the old manual browser pause instead
+python main.py batch --track IB --limit 1 --manual-login
+```
+
+Manual fallback (no `.env`, or `--manual-login`):
 
 1. Browser opens to glassdoor.com
 2. Sign in normally in that window
 3. Press Enter in the terminal
 4. Scraping continues in the same session
 
-For batch runs you only log in once; the browser is reused for every company/role.
+For batch runs you only log in once; the browser is reused for every company/role. Cookie reuse skips login on later runs until the session expires.
 
 ## Single-company scrape
 
@@ -77,7 +92,7 @@ Useful flags:
 - `--sleep 5` — seconds between jobs (default 5)
 - `--targets PATH` — custom targets file
 - `--bank PATH` — custom bank file
-- `--manual-login` / `--no-manual-login` — pause for browser login (default: on)
+- `--manual-login` / `--no-manual-login` — force manual pause or automated `.env` login (default: auto when credentials exist)
 - `--force` — redo jobs already marked complete (also backfills blurred `process` text onto existing questions)
 
 ### Interruptions / resume
