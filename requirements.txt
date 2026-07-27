@@ -1,0 +1,6 @@
+python-dotenv>=1.0.1
+selenium>=4.21
+seleniumbase>=4.27
+python-docx>=1.1
+reportlab>=4.2
+flask>=3.0

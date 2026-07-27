@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Interview Bank</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="hero">
+        <div class="hero-inner">
+          <p class="brand">Interview Bank</p>
+          <h1>IB, PE &amp; banking questions, ready to drill.</h1>
+          <p class="lede">
+            Browse what you scraped from Glassdoor. Filter by track, firm, or role.
+          </p>
+          <p class="meta" id="meta">Loading bank…</p>
+        </div>
+      </header>
+
+      <section class="controls" aria-label="Filters">
+        <label>
+          <span>Track</span>
+          <select id="track">
+            <option value="">All tracks</option>
+          </select>
+        </label>
+        <label>
+          <span>Company</span>
+          <select id="company">
+            <option value="">All companies</option>
+          </select>
+        </label>
+        <label>
+          <span>Position</span>
+          <select id="position">
+            <option value="">All positions</option>
+          </select>
+        </label>
+        <label class="search">
+          <span>Search</span>
+          <input id="q" type="search" placeholder="e.g. DCF, LBO, walk me through" />
+        </label>
+      </section>
+
+      <main>
+        <div class="results-bar">
+          <p id="count">—</p>
+        </div>
+        <ol id="list" class="question-list"></ol>
+        <p id="empty" class="empty" hidden>No questions match these filters.</p>
+      </main>
+    </div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
