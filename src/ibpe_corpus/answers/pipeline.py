@@ -21,33 +21,31 @@ def fill_answers(
     existing_answers: Sequence[Answer],
     source_responses: Sequence[QuestionResponse],
     corpus_answers: Sequence[Answer],
+    *,
+    max_generate: int | None = None,
 ) -> list[Answer]:
     """Fill answers for canonical questions using a layered strategy.
 
     Order per unanswered question:
     1. Source-provided ingest from ``source_responses``
     2. High-confidence corpus match (hash / rapidfuzz)
-    3. Deterministic synthesis
+    3. Deterministic synthesis (capped by ``max_generate`` when set)
     4. Validation (updates synthesised provenance)
 
     Existing answers for a canonical id are preserved (not overwritten).
     """
     by_q: dict[str, Answer] = {}
     for ans in existing_answers:
-        # Prefer first existing; caller owns dedup policy upstream.
         by_q.setdefault(ans.canonical_question_id, ans)
 
     responses_by_q: dict[str, list[QuestionResponse]] = {}
     for resp in source_responses:
         responses_by_q.setdefault(resp.question_id, []).append(resp)
 
-    # Corpus pairs: prefer questions that already have corpus answers.
-    # Include all canonical questions so fuzzy reuse can map across near-duplicates.
     corpus_pairs = build_corpus_pairs(canonical_questions, corpus_answers)
-    # Also allow corpus answers whose questions are only represented via existing_answers
-    # ids already in canonical_questions (handled by build_corpus_pairs).
 
     output: list[Answer] = []
+    generated = 0
 
     for cq in canonical_questions:
         if cq.id in by_q:
@@ -56,7 +54,6 @@ def fill_answers(
 
         filled: Answer | None = None
 
-        # Layer 1 — source
         for resp in responses_by_q.get(cq.id, []):
             ingested = ingest_question_response(
                 resp, canonical_question_id=cq.id
@@ -65,14 +62,11 @@ def fill_answers(
                 filled = ingested
                 break
 
-        # Layer 2 — corpus match (strict threshold inside find_corpus_match)
         if filled is None and corpus_pairs:
-            # Exclude pairs whose answer targets this same id without content reuse need
             match = find_corpus_match(cq, corpus_pairs)
             if match is not None:
                 filled = match.answer
 
-        # Direct corpus hit: answer already keyed to this canonical id
         if filled is None:
             for ans in corpus_answers:
                 if ans.canonical_question_id == cq.id and (
@@ -86,11 +80,12 @@ def fill_answers(
                     )
                     break
 
-        # Layer 3 — synthesise
         if filled is None:
+            if max_generate is not None and generated >= max_generate:
+                continue
             filled = generate_answer(cq)
+            generated += 1
 
-        # Layer 4 — validate (especially synthesised)
         filled = validate_answer(filled)
         by_q[cq.id] = filled
         output.append(filled)

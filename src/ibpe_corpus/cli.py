@@ -9,9 +9,18 @@ from typing import Optional
 import typer
 from rich import print as rprint
 
+from ibpe_corpus.adapters.glassdoor.browser_fetch import choose_fetcher
 from ibpe_corpus.adapters.glassdoor.fetch import GlassdoorFetcher
 from ibpe_corpus.adapters.glassdoor.parse import parse_html
-from ibpe_corpus.adapters.glassdoor.urls import occupation_search_url
+from ibpe_corpus.adapters.glassdoor.question_bank import import_question_bank
+from ibpe_corpus.adapters.glassdoor.session import (
+    credentials_available,
+    has_usable_session,
+)
+from ibpe_corpus.adapters.glassdoor.urls import (
+    company_interview_url,
+    occupation_search_url,
+)
 from ibpe_corpus.adapters.github.adapter import GitHubSourceAdapter
 from ibpe_corpus.adapters.static.seed_corpus import load_seed_corpus
 from ibpe_corpus.orchestration.pipeline import run_fixture_pipeline
@@ -52,25 +61,76 @@ def replay_fixture(
     )
 
 
+@app.command("fetch-status")
+def fetch_status() -> None:
+    """Show which live Glassdoor access paths are available."""
+    from ibpe_corpus.adapters.glassdoor.browser_fetch import BrowserGlassdoorFetcher
+
+    browser = BrowserGlassdoorFetcher()
+    rprint(
+        {
+            "session_cookies": has_usable_session(),
+            "credentials_configured": credentials_available(),
+            "browser_stack": browser.available(),
+            "browser_reason": browser.availability_reason(),
+            "recommended_mode": (
+                "session"
+                if has_usable_session()
+                else (
+                    "browser"
+                    if credentials_available() or browser.available()
+                    else "fixtures"
+                )
+            ),
+        }
+    )
+
+
 @app.command("fetch-glassdoor")
 def fetch_glassdoor(
     url: Optional[str] = typer.Option(None, help="Absolute Glassdoor URL"),
     role: Optional[str] = typer.Option(None, help="Occupation search phrase"),
+    company: Optional[str] = typer.Option(None, help="Company slug for interview page"),
+    employer_id: Optional[int] = typer.Option(None, help="Glassdoor employer id"),
+    mode: str = typer.Option(
+        "auto",
+        help="auto|http|session|browser — session uses saved cookies; browser uses UC Chrome",
+    ),
+    manual_login: bool = typer.Option(False, help="Pause for manual browser login"),
     raw_dir: Path = typer.Option(ROOT / "data" / "raw" / "glassdoor"),
 ) -> None:
-    """Fetch one Glassdoor URL (expects block in restricted environments)."""
-    target = url or (occupation_search_url(role) if role else None)
+    """Fetch one Glassdoor URL via http / session cookies / browser UC."""
+    target = url
+    if not target and role:
+        target = occupation_search_url(role)
+    if not target and company and employer_id is not None:
+        target = company_interview_url(company, employer_id)
     if not target:
-        raise typer.BadParameter("Provide --url or --role")
-    fetcher = GlassdoorFetcher(raw_dir=raw_dir)
-    result = fetcher.fetch_url(target)
+        raise typer.BadParameter("Provide --url, --role, or --company + --employer-id")
+
+    fetcher, resolved = choose_fetcher(
+        mode=mode, raw_dir=raw_dir, manual_login=manual_login
+    )
+    try:
+        result = fetcher.fetch_url(target)
+    finally:
+        close = getattr(fetcher, "close", None)
+        if callable(close):
+            close()
+
     rprint(
         {
             "url": target,
+            "fetch_mode": resolved,
             "access_state": result.access_state.value,
+            "exact_questions": sum(
+                1 for e in result.extracted if e.record_type.value == "exact_question"
+            ),
+            "responses": len(result.responses),
             "diagnostics": result.diagnostics,
             "metrics": result.metrics,
             "artefacts": [a.id for a in result.artefacts],
+            "raw_paths": [a.raw_html_path for a in result.artefacts],
         }
     )
 
@@ -97,6 +157,27 @@ def import_seed() -> None:
     rprint(result.metrics)
 
 
+@app.command("import-question-bank")
+def import_bank_cmd(
+    path: Path = typer.Option(ROOT / "data" / "question_bank.json"),
+    track: Optional[str] = typer.Option(None, help="Filter IB|PE|Banking"),
+) -> None:
+    """Import legacy GlassCleaner question_bank.json into ExtractedRecords."""
+    tracks = {track.upper()} if track else None
+    result = import_question_bank(path, tracks=tracks)
+    rprint(
+        {
+            "access_state": result.access_state.value,
+            "metrics": result.metrics,
+            "diagnostics": result.diagnostics,
+            "sample": [
+                e.exact_source_text[:120] for e in result.extracted[:5]
+                if e.record_type.value == "exact_question"
+            ],
+        }
+    )
+
+
 @app.command("import-github")
 def import_github(
     priority: Optional[str] = typer.Option("high", help="import_priority filter"),
@@ -112,18 +193,96 @@ def import_github(
 
 @app.command("run-pipeline")
 def run_pipeline(
-    mode: str = typer.Option("fixtures", help="fixtures (offline) | live"),
+    mode: str = typer.Option(
+        "fixtures",
+        help="fixtures (offline) | live (fixtures + question bank still; live fetch optional)",
+    ),
     db: Path = typer.Option(ROOT / "data" / "db" / "corpus.db"),
     force: bool = typer.Option(False, help="Re-run completed jobs"),
 ) -> None:
-    """Run the controlled collection pipeline."""
-    if mode != "fixtures":
+    """Run the controlled collection pipeline (includes question_bank import)."""
+    if mode not in {"fixtures", "live"}:
+        raise typer.BadParameter("mode must be fixtures or live")
+    if mode == "live":
         rprint(
-            "[yellow]Live Glassdoor mode is blocked in this environment; "
-            "falling back to fixtures with honest access-state handling.[/yellow]"
+            "[cyan]Live mode still runs the offline corpus assembly; "
+            "use `ibpe fetch-glassdoor --mode auto` for authenticated/browser fetches.[/cyan]"
         )
     summary = run_fixture_pipeline(db_path=db, force=force)
-    rprint(json.dumps({k: summary[k] for k in ("canonical_questions", "answers", "metrics", "alerts") if k in summary}, indent=2, default=str))
+    rprint(
+        json.dumps(
+            {
+                k: summary[k]
+                for k in ("canonical_questions", "answers", "metrics", "alerts")
+                if k in summary
+            },
+            indent=2,
+            default=str,
+        )
+    )
+
+
+@app.command("crawl-roles")
+def crawl_roles(
+    roles: Optional[str] = typer.Option(
+        None,
+        help="Comma-separated roles (default: PE Associate + IB Analyst)",
+    ),
+    mode: str = typer.Option("auto", help="auto|session|browser|http"),
+    pages: int = typer.Option(1, help="Pages per role (pagination)"),
+    manual_login: bool = typer.Option(False),
+    raw_dir: Path = typer.Option(ROOT / "data" / "raw" / "glassdoor"),
+) -> None:
+    """Crawl occupation search pages and parse questions into stdout summary."""
+    role_list = [
+        r.strip()
+        for r in (roles or "Private Equity Associate,Investment Banking Analyst").split(",")
+        if r.strip()
+    ]
+    fetcher, resolved = choose_fetcher(
+        mode=mode, raw_dir=raw_dir, manual_login=manual_login
+    )
+    totals = {"pages": 0, "questions": 0, "blocked": 0, "responses": 0}
+    try:
+        for role in role_list:
+            for page in range(1, max(1, pages) + 1):
+                url = occupation_search_url(role, page=page)
+                result = fetcher.fetch_url(url)
+                totals["pages"] += 1
+                n_q = sum(
+                    1
+                    for e in result.extracted
+                    if e.record_type.value == "exact_question"
+                )
+                totals["questions"] += n_q
+                totals["responses"] += len(result.responses)
+                if result.access_state.value in {"blocked", "captcha", "throttled"}:
+                    totals["blocked"] += 1
+                    rprint(
+                        {
+                            "role": role,
+                            "page": page,
+                            "access_state": result.access_state.value,
+                            "mode": resolved,
+                            "diagnostics": result.diagnostics[:3],
+                        }
+                    )
+                    break
+                rprint(
+                    {
+                        "role": role,
+                        "page": page,
+                        "mode": resolved,
+                        "access_state": result.access_state.value,
+                        "questions": n_q,
+                        "responses": len(result.responses),
+                    }
+                )
+    finally:
+        close = getattr(fetcher, "close", None)
+        if callable(close):
+            close()
+    rprint({"totals": totals, "fetch_mode": resolved})
 
 
 @app.command("inspect-dead-letters")

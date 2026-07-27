@@ -1,9 +1,9 @@
 # Data quality report
 
-- Canonical questions: 419
-- Answers with provenance source_ids: 365/419
+- Canonical questions: 3310
+- Answers with provenance source_ids: 687/837
 - Glassdoor responses extracted: 3
-- Exact questions metric: 1211
+- Exact questions metric: 9737
 - Pages blocked: 6
 - Zero-result anomalies: 3
 

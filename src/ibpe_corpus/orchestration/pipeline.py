@@ -9,6 +9,7 @@ from typing import Any
 from ibpe_corpus import GENERATOR_VERSION, PARSER_VERSION, VALIDATOR_VERSION
 from ibpe_corpus.adapters.github.importers import import_firebase_qb_export
 from ibpe_corpus.adapters.glassdoor.parse import parse_html
+from ibpe_corpus.adapters.glassdoor.question_bank import import_question_bank
 from ibpe_corpus.adapters.static.seed_corpus import load_seed_corpus
 from ibpe_corpus.answers.ingest_source import ingest_extracted_record
 from ibpe_corpus.answers.pipeline import fill_answers
@@ -196,6 +197,7 @@ def run_fixture_pipeline(
     exports_dir: Path | str = EXPORTS_DIR,
     reports_dir: Path | str = REPORTS_DIR,
     force: bool = False,
+    include_question_bank: bool = True,
 ) -> dict[str, Any]:
     """Run the full controlled collection pipeline in fixture/offline mode."""
     db_path = Path(db_path)
@@ -280,11 +282,13 @@ def run_fixture_pipeline(
     def import_corpora() -> dict[str, Any]:
         nonlocal all_extracted
         count = 0
+        sources = 0
         seed = load_seed_corpus()
         _persist_artefacts(store, seed.artefacts)
         _persist_extracted(store, seed.extracted)
         all_extracted.extend(seed.extracted)
         count += len(seed.extracted)
+        sources += 1
         if CM_EXPORT.is_file():
             gh = import_firebase_qb_export(
                 CM_EXPORT,
@@ -295,9 +299,20 @@ def run_fixture_pipeline(
             _persist_extracted(store, gh.extracted)
             all_extracted.extend(gh.extracted)
             count += len(gh.extracted)
+            sources += 1
             metrics.add_from(gh.metrics)
+        bank_result = None
+        if include_question_bank:
+            bank_result = import_question_bank()
+            if bank_result.extracted:
+                _persist_artefacts(store, bank_result.artefacts)
+                _persist_extracted(store, bank_result.extracted)
+                all_extracted.extend(bank_result.extracted)
+                count += len(bank_result.extracted)
+                sources += 1
+                metrics.add_from(bank_result.metrics)
         return {
-            "input_count": 2,
+            "input_count": sources,
             "output_count": count,
             "metrics": {
                 "exact_questions": sum(
@@ -309,7 +324,12 @@ def run_fixture_pipeline(
         }
 
     import_payload = import_corpora()
-    _record("discover_sources", "import:seed+github:v1", import_payload)
+    bank_suffix = "bank" if include_question_bank else "nobank"
+    _record(
+        "discover_sources",
+        f"import:seed+github+{bank_suffix}:v1",
+        import_payload,
+    )
 
     # --- PE classify ---
     def classify_pe() -> dict[str, Any]:
@@ -353,7 +373,11 @@ def run_fixture_pipeline(
 
     def do_canonicalise() -> dict[str, Any]:
         nonlocal canon_result
-        canon_result = canonicalise(all_extracted)
+        canon_result = canonicalise(
+            all_extracted,
+            # Exact-hash merge only at bank scale; fuzzy O(n²) is too slow for 2k+ rows.
+            fuzzy_threshold=100.5 if len(all_extracted) > 400 else 92.0,
+        )
         existing_cq = {
             row["normalised_hash"]: row["id"]
             for row in store.fetch_all(cq_table)
@@ -463,7 +487,11 @@ def run_fixture_pipeline(
     )
     assert canon_result is not None
 
-    relationships = build_relationship_graph(canon_result.questions)
+    relationships = (
+        build_relationship_graph(canon_result.questions)
+        if len(canon_result.questions) <= 500
+        else []
+    )
 
     # --- answers ---
     filled_answers: list[Answer] = []
@@ -517,6 +545,8 @@ def run_fixture_pipeline(
             existing_answers=corpus_answers,
             source_responses=mapped_responses,
             corpus_answers=corpus_answers,
+            # Cap synthesis so bank-scale runs stay tractable; source/corpus still attach.
+            max_generate=150 if len(canon_result.questions) > 500 else None,
         )
         existing_ans = {
             row["canonical_question_id"]: row["id"]

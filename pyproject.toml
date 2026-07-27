@@ -21,10 +21,12 @@ dependencies = [
   "rich>=13.7",
   "jsonschema>=4.21",
   "python-dateutil>=2.9",
+  "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-cov>=5.0"]
+browser = ["selenium>=4.21", "seleniumbase>=4.27"]
 
 [project.scripts]
 ibpe = "ibpe_corpus.cli:app"

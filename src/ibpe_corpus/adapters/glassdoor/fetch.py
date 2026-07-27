@@ -29,10 +29,11 @@ def content_hash(data: bytes | str) -> str:
 
 
 class GlassdoorFetcher:
-    """Fetch Glassdoor interview pages with rate limiting and honest block handling.
+    """Fetch Glassdoor interview pages with rate limiting and block handling.
 
-    Cookies are not used by default. CAPTCHA/blocked responses are archived and
-    returned without question parsing or challenge replay.
+    By default starts without cookies. Call ``load_session_cookies()`` or pass
+    ``cookies`` to reuse a saved authenticated session from GlassCleaner login.
+    CAPTCHA/blocked responses are archived and stop expansion.
     """
 
     def __init__(
@@ -44,26 +45,50 @@ class GlassdoorFetcher:
         client: httpx.Client | None = None,
         user_agent: str = DEFAULT_USER_AGENT,
         parse_on_success: bool = True,
+        cookies: dict[str, str] | None = None,
+        session_class: str = "unauthenticated",
     ) -> None:
         self.timeout_s = timeout_s
         self.rate_limit_s = rate_limit_s
         self.raw_dir = Path(raw_dir)
         self.user_agent = user_agent
         self.parse_on_success = parse_on_success
+        self.session_class = session_class
+        self._cookie_seed = dict(cookies or {})
         self._client = client
         self._owns_client = client is None
         self._last_request_at: float | None = None
         self._backoff_until: float | None = None
         self._stop_fetching = False
 
+    def load_session_cookies(self) -> int:
+        """Load cookies from ``data/glassdoor_session.json`` into the client."""
+        from ibpe_corpus.adapters.glassdoor.session import cookies_for_httpx
+
+        cookie_map = cookies_for_httpx()
+        if not cookie_map:
+            return 0
+        self._cookie_seed.update(cookie_map)
+        self.session_class = "authenticated_cookie"
+        if self._client is not None:
+            for name, value in cookie_map.items():
+                self._client.cookies.set(name, value, domain=".glassdoor.com")
+        return len(cookie_map)
+
     def _get_client(self) -> httpx.Client:
         if self._client is None:
+            jar = httpx.Cookies()
+            for name, value in self._cookie_seed.items():
+                jar.set(name, value, domain=".glassdoor.com")
             self._client = httpx.Client(
                 timeout=self.timeout_s,
                 follow_redirects=True,
-                headers={"User-Agent": self.user_agent, "Accept": "text/html"},
-                # Explicitly no cookie jar / credentials.
-                cookies=httpx.Cookies(),
+                headers={
+                    "User-Agent": self.user_agent,
+                    "Accept": "text/html,application/xhtml+xml",
+                    "Accept-Language": "en-US,en;q=0.9",
+                },
+                cookies=jar,
             )
         return self._client
 
@@ -131,7 +156,7 @@ class GlassdoorFetcher:
             content_hash=content_hash(html),
             parser_version=PARSER_VERSION,
             access_state=access_state,
-            session_class="unauthenticated",
+            session_class=self.session_class,
             metadata=metadata or {},
         )
 

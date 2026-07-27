@@ -69,9 +69,20 @@ and workstream docs under `docs/`. Cloud agent setup: [`AGENTS.md`](AGENTS.md).
 
 ## Honest limitations
 
-Live Glassdoor application HTML was not reachable in the fixture-first research
-environment. Coverage targets that depend on live employer crawls are measured
-from the PE matrix + imported corpora and documented shortfalls in `reports/`.
+Bare httpx to Glassdoor is usually Cloudflare/CAPTCHA blocked from datacenter IPs.
+Workarounds integrated in this repo (no credentials committed):
+
+1. Import existing `data/question_bank.json` (legacy Selenium scrapes) — **default in pipeline**
+2. Reuse `data/glassdoor_session.json` after a successful `main.py` login (`--mode session`)
+3. SeleniumBase UC browser fetch (`--mode browser`) with optional `.env` credentials
+
+```bash
+ibpe fetch-status
+ibpe import-question-bank
+ibpe fetch-glassdoor --mode auto --role "Private Equity Associate"
+```
+
+Coverage targets that still need live employer crawls are documented in `reports/`.
 
 ---
 

@@ -1,12 +1,12 @@
 # Answer coverage report
 
-- Canonical questions: 419
-- Answers (non-rejected): 419
-- Coverage: 100.0%
-- Source-provided: 365
-- Corpus-matched: 0
-- Generated: 54
-- Validated: 55
+- Canonical questions: 3310
+- Answers (non-rejected): 837
+- Coverage: 25.3%
+- Source-provided: 377
+- Corpus-matched: 310
+- Generated: 150
+- Validated: 461
 - Rejected: 0
 
 ## Provenance rule

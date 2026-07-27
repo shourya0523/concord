@@ -25,9 +25,24 @@ class GlassdoorAdapter:
         *,
         fetcher: GlassdoorFetcher | None = None,
         fixture_mode: bool = True,
+        fetch_mode: str = "auto",
+        manual_login: bool = False,
     ) -> None:
-        self.fetcher = fetcher or GlassdoorFetcher()
         self.fixture_mode = fixture_mode
+        self.fetch_mode = fetch_mode
+        self.manual_login = manual_login
+        if fetcher is not None:
+            self.fetcher = fetcher
+            self._resolved_mode = "custom"
+        elif fixture_mode:
+            self.fetcher = GlassdoorFetcher()
+            self._resolved_mode = "fixtures"
+        else:
+            from ibpe_corpus.adapters.glassdoor.browser_fetch import choose_fetcher
+
+            self.fetcher, self._resolved_mode = choose_fetcher(
+                mode=fetch_mode, manual_login=manual_login
+            )
 
     def discover(self, config: dict[str, Any]) -> list[dict[str, Any]]:
         """Build fetch targets from role list and/or employer list in config."""

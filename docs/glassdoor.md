@@ -1,99 +1,68 @@
 # Glassdoor adapter
 
-Fixture-first Glassdoor interview fetch/parse for the IB/PE corpus.
+Multi-path Glassdoor interview fetch/parse for the IB/PE corpus.
 
-Live Glassdoor requests from this environment return HTTP 403 Cloudflare/CAPTCHA
-pages. The adapter detects that honestly, archives the response, and does **not**
-attempt CAPTCHA solving, cookie reuse, or challenge replay.
+## Access ladder (most effective first)
+
+| Priority | Mode | When | Command |
+|----------|------|------|---------|
+| 1 | **question_bank** | Already scraped JSON | `ibpe import-question-bank` (bundled in pipeline) |
+| 2 | **session** | `data/glassdoor_session.json` exists | `ibpe fetch-glassdoor --mode session --role "..."` |
+| 3 | **browser** | SeleniumBase UC + `.env` login | `ibpe fetch-glassdoor --mode browser --role "..."` |
+| 4 | **http** | Bare httpx (often 403) | `ibpe fetch-glassdoor --mode http --role "..."` |
+| 5 | **fixtures** | Offline / CI | `ibpe replay-fixture …` |
+
+`auto` picks session → browser (if creds/session) → http.
+
+**No credentials are committed.** Use `.env` / Cloud Agent secrets:
+
+```bash
+cp .env.example .env
+# GLASSDOOR_EMAIL=...
+# GLASSDOOR_PASSWORD=...
+```
+
+Login once via legacy scraper to cache cookies:
+
+```bash
+pip install -r requirements.txt
+python main.py batch --track PE --limit 1
+# writes data/glassdoor_session.json (gitignored)
+```
+
+Then corpus fetches reuse that session:
+
+```bash
+ibpe fetch-status
+ibpe fetch-glassdoor --mode auto --role "Private Equity Associate"
+ibpe crawl-roles --mode auto --pages 2 --roles "Private Equity Associate,Growth Equity Associate"
+```
+
+On CAPTCHA/block the fetcher archives HTML, sets `access_state`, and stops expansion for that run.
 
 ## Layout
 
 | Module | Role |
 |--------|------|
-| `adapters/glassdoor/urls.py` | Occupation / company / pagination URLs; `QTN_` extraction |
-| `adapters/glassdoor/access.py` | `AccessState` from status + HTML signals |
-| `adapters/glassdoor/fetch.py` | Rate-limited fetcher; fixture loader; raw HTML archive |
-| `adapters/glassdoor/parse.py` | `__NEXT_DATA__` / Apollo + DOM fallback parser |
-| `adapters/glassdoor/adapter.py` | `discover` / `fetch` / `parse_artefact` |
+| `urls.py` | Occupation / company / pagination URLs; `QTN_` extraction |
+| `access.py` | `AccessState` from status + HTML signals |
+| `fetch.py` | httpx fetcher; optional session cookies; fixture loader |
+| `session.py` | Load `glassdoor_session.json` for authenticated HTTP |
+| `browser_fetch.py` | SeleniumBase UC browser + GlassCleaner `ensure_login` |
+| `question_bank.py` | Import `data/question_bank.json` (legacy scraper output) |
+| `parse.py` | `__NEXT_DATA__` / Apollo + DOM fallback |
+| `adapter.py` | `discover` / `fetch` / `parse_artefact` |
 
-Parser version: `glassdoor-parser-v1` (`ibpe_corpus.PARSER_VERSION`).
-
-## Replay synthetic fixtures
-
-```bash
-cd /workspace
-python -c "
-from pathlib import Path
-from ibpe_corpus.adapters.glassdoor import GlassdoorFetcher
-
-f = GlassdoorFetcher()
-occ = f.fetch_fixture('fixtures/glassdoor/html/synthetic-occupation-search-ib.html')
-print(occ.access_state, len(occ.extracted), occ.artefacts[0].metadata.get('pagination_next_urls'))
-
-detail = f.fetch_fixture('fixtures/glassdoor/html/synthetic-question-detail-qtn.html')
-print(detail.access_state, len(detail.responses), [r.response_type for r in detail.responses])
-"
-```
-
-## Fetch (expects block)
+## Replay fixtures
 
 ```bash
-python -c "
-from ibpe_corpus.adapters.glassdoor import GlassdoorFetcher
-from ibpe_corpus.adapters.glassdoor.urls import occupation_search_url
-
-url = occupation_search_url('Investment Banking Analyst')
-with GlassdoorFetcher(rate_limit_s=1.5) as f:
-    result = f.fetch_url(url)
-print(result.access_state, result.diagnostics)
-print('questions', len(result.extracted))  # expected 0 when blocked
-"
+ibpe replay-fixture fixtures/glassdoor/html/synthetic-question-detail-qtn.html
+ibpe replay-fixture fixtures/glassdoor/html/occupation-investment-banking-analyst-httpx.html
 ```
 
-Raw HTML is written under `data/raw/glassdoor/<sha256>.html` with a sidecar meta JSON.
-
-## Occupation search URL shape
-
-```text
-/Interview/<slug>-interview-questions-SRCH_KO0,<len>.htm
-/Interview/<slug>-interview-questions-SRCH_KO0,<len>_IP{n}.htm   # page n >= 2
-```
-
-Example:
-
-```python
-from ibpe_corpus.adapters.glassdoor.urls import occupation_search_url
-occupation_search_url('Investment Banking Analyst')
-# .../investment-banking-analyst-interview-questions-SRCH_KO0,26.htm
-occupation_search_url('Investment Banking Analyst', page=2)
-# .../investment-banking-analyst-interview-questions-SRCH_KO0,26_IP2.htm
-```
-
-Company pages:
-
-```text
-/Interview/<Company-Slug>-Interview-Questions-E{id}.htm
-```
-
-## Discover targets
-
-```python
-from ibpe_corpus.adapters.glassdoor import GlassdoorAdapter
-
-adapter = GlassdoorAdapter(fixture_mode=True)
-targets = adapter.discover({
-    'roles': ['Investment Banking Analyst', 'Private Equity Associate'],
-    'employers': [{'name': 'Goldman Sachs', 'slug': 'Goldman-Sachs', 'employer_id': 2800}],
-})
-```
-
-## Tests
+## Pipeline
 
 ```bash
-cd /workspace && python -m pytest tests/unit/test_glassdoor*.py -q
+ibpe run-pipeline --mode fixtures --force
+# imports fixtures + seed + GitHub CM export + question_bank.json
 ```
-
-## Fixtures
-
-- Synthetic (parser development): `fixtures/glassdoor/html/synthetic-*.html`
-- Live sanitized blocks: `fixtures/glassdoor/html/*-httpx.html` (`access_state` CAPTCHA/BLOCKED, zero questions)
