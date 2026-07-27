@@ -12,6 +12,7 @@ downloaded_files
 
 # Output
 *.txt
+!requirements.txt
 *.csv
 *.docx
 *.pdf
