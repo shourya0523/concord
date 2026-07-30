@@ -1,6 +1,11 @@
 -- 001_init.sql
 -- Additive SQL mirror of SQLAlchemy tables in src/ibpe_corpus/storage/db.py
--- SQLite dialect. Safe to apply once on an empty database.
+-- SQLite dialect ONLY. Safe to apply once on an empty SQLite database.
+--
+-- Dual path: Neon product schema lives in 010_neon_platform.sql (+ 020/030).
+-- Do not run this file against Neon/Postgres. Corpus Python code continues to
+-- use CorpusStore / METADATA.create_all for local SQLite.
+-- See migrations/README.md.
 
 PRAGMA foreign_keys = ON;
 
