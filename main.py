@@ -56,13 +56,38 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command")
 
+    login_parser = subparsers.add_parser(
+        "login",
+        help=(
+            "Capture Glassdoor session via Patchright (headed Chrome). "
+            "Solves captcha/2FA once; saves data/glassdoor_state.json for scrape/batch."
+        ),
+    )
+    login_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=600,
+        help="Seconds to wait for you to finish login (default: 600)",
+    )
+    login_parser.add_argument(
+        "--state",
+        type=str,
+        default=None,
+        help="Path for storage_state JSON (default: data/glassdoor_state.json)",
+    )
+    login_parser.add_argument(
+        "--no-enter",
+        action="store_true",
+        help="Do not wait for Enter; only auto-detect signed-in markers",
+    )
+
     batch_parser = subparsers.add_parser(
         "batch", help="Batch-scrape targets into the question bank"
     )
     batch_parser.add_argument(
         "--track",
         type=str,
-        choices=["IB", "PE", "Banking"],
+        choices=["IB", "PE", "Banking", "VC"],
         help="Only scrape targets for this track",
     )
     batch_parser.add_argument(
@@ -103,6 +128,23 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Re-scrape jobs even if they are marked completed in the bank",
     )
+    batch_parser.add_argument(
+        "--backend",
+        type=str,
+        choices=["browser", "bff"],
+        default="browser",
+        help=(
+            "browser = Selenium/Patchright login (hits Indeed Cloudflare on "
+            "datacenter IPs). bff = curl_cffi + Glassdoor BFF API (no browser "
+            "login; needs residential HTTPS_PROXY on cloud)."
+        ),
+    )
+    batch_parser.add_argument(
+        "--pages",
+        type=int,
+        default=5,
+        help="Max BFF interview pages per company (default: 5; --backend bff only)",
+    )
 
     query_parser = subparsers.add_parser(
         "query", help="Filter and print questions from the bank"
@@ -110,7 +152,7 @@ def _build_parser() -> argparse.ArgumentParser:
     query_parser.add_argument(
         "--track",
         type=str,
-        choices=["IB", "PE", "Banking"],
+        choices=["IB", "PE", "Banking", "VC"],
         help="Filter by track",
     )
     query_parser.add_argument(
@@ -189,13 +231,26 @@ def _run_query(args: argparse.Namespace) -> None:
         sys.stdout.write(text)
 
 
+def _run_login(args: argparse.Namespace) -> None:
+    from scrapers.session_state import capture_login_session
+
+    path = capture_login_session(
+        path=args.state,
+        timeout_seconds=args.timeout,
+        wait_for_enter=not args.no_enter,
+    )
+    print(f"Done. Scrape/batch will reuse: {path}")
+
+
 def main() -> None:
     # Preserve: python main.py -c ... -p ... -e ...
-    # Also support: python main.py batch|query|ui ...
-    if len(sys.argv) > 1 and sys.argv[1] in ("batch", "query", "ui"):
+    # Also support: python main.py login|batch|query|ui ...
+    if len(sys.argv) > 1 and sys.argv[1] in ("login", "batch", "query", "ui"):
         parser = _build_parser()
         args = parser.parse_args()
-        if args.command == "batch":
+        if args.command == "login":
+            _run_login(args)
+        elif args.command == "batch":
             run_batch(
                 targets_path=args.targets,
                 bank_path=args.bank,
@@ -204,6 +259,8 @@ def main() -> None:
                 sleep_seconds=args.sleep,
                 manual_login=args.manual_login,
                 force=args.force,
+                backend=args.backend,
+                max_pages=args.pages,
             )
         elif args.command == "query":
             _run_query(args)
@@ -217,7 +274,8 @@ def main() -> None:
         description="Scrape interview questions from Glassdoor.",
         epilog=(
             "Also available:\n"
-            "  python main.py batch [--track IB|PE|Banking] [--limit N]\n"
+            "  python main.py login [--timeout 600]\n"
+            "  python main.py batch [--backend bff] [--track IB|PE|Banking] [--limit N]\n"
             "  python main.py query [--track IB|PE|Banking] [--company NAME] [--position ROLE]\n"
             "  python main.py ui [--port 5050]"
         ),

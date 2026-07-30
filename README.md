@@ -41,9 +41,51 @@ With the venv activated, `python` / `python3` use that environment. If you skip 
 .venv/bin/python main.py query --track PE
 ```
 
-## Login flow
+## Login / Cloudflare bypass
 
-Glassdoor uses Indeed SSO. When `GLASSDOOR_EMAIL` and `GLASSDOOR_PASSWORD` are set in `.env`, the scraper logs in automatically (and caches cookies in `data/glassdoor_session.json`).
+Cloudflare on **Indeed Google OAuth** (`secure.indeed.com`) blocks most datacenter IPs even when you solve the checkbox. Two documented alternatives:
+
+### Preferred on cloud: BFF API (no browser login)
+
+Calls Glassdoor’s internal interview API with `curl_cffi` TLS impersonation — skips Indeed entirely. Needs a **residential** `HTTPS_PROXY`.
+
+```shell
+# .env / Cloud Agents Secrets:
+# HTTPS_PROXY=http://user:pass@host:port
+
+python main.py batch --backend bff --track IB --limit 1 --force
+```
+
+### Patchright session capture
+
+Headed Patchright Chrome → login once → save `storage_state` → reuse. Still needs a clean (ideally residential) IP for Indeed/Google.
+
+```shell
+pip install -r requirements.txt
+python main.py login          # solve captcha / 2FA in the Chrome window
+python main.py batch --limit 1
+```
+
+State file: `data/glassdoor_state.json` (gitignored). Or run `login` at home and copy that file into the cloud workspace.
+
+### Automated login (`.env`)
+
+Glassdoor uses Indeed SSO **or** Google OAuth. Automated login reads `.env`:
+
+```shell
+GLASSDOOR_EMAIL=...
+GLASSDOOR_PASSWORD=...
+GLASSDOOR_LOGIN_METHOD=auto   # auto|google|indeed
+# Optional for Google 2FA:
+# GLASSDOOR_TOTP_SECRET=BASE32SECRET
+# Optional for Indeed Cloudflare:
+# CAPSOLVER_API_KEY=...
+# HTTPS_PROXY=http://user:pass@host:port
+```
+
+- **Gmail accounts default to Google OAuth**, but Google auth still routes through Indeed (`secure.indeed.com`) and often hits Cloudflare on datacenter IPs.
+- If Google prompts 2FA, approve on your phone or set `GLASSDOOR_TOTP_SECRET`.
+- Prefer `--backend bff` + residential `HTTPS_PROXY` on cloud VMs to skip Indeed login entirely.
 
 ```shell
 # Auto login from .env (default when credentials are set)
@@ -60,7 +102,7 @@ Manual fallback (no `.env`, or `--manual-login`):
 3. Press Enter in the terminal
 4. Scraping continues in the same session
 
-For batch runs you only log in once; the browser is reused for every company/role. Cookie reuse skips login on later runs until the session expires.
+For batch runs you only log in once; the browser is reused for every company/role. Cookie / storage_state reuse skips login on later runs until the session expires.
 
 ## Single-company scrape
 
