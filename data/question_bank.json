@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-07-27T04:47:37+00:00",
+  "updated_at": "2026-07-30T07:23:45+00:00",
   "questions": [
     {
       "id": "8800312d2258755c7a9eb5b32e6a7d21175b62eb",
@@ -562,8 +562,8 @@
       "user": "Anonymous Interview CandidateSão Paulo, São PauloNo offerNeutral experienceDifficult interviewApplicationI applied online. The process took 2 months. I interviewed at Goldman Sachs (São Paulo, São Paulo) in Oct 2023InterviewApós análise de currículo, primeira fase envolve prova de matemática, situação macroeconômica e finanças básicas. Prova on-line ou presencial na sede da Goldman em SP. Prova de 1 hora, mas longa e difícil de terminar dentro do tempo alocado. Concomitante à prova, há processo de entrevista online (hirevue). Pode ser feito em qualquer dia da semana, em qualquer horário. Série de 6 perguntas (+/-), 1 minuto para se preparar e 2 para responder.read moreInterview questions [1]Question 1Prova técnica: que empresas passaram por RJ esse ano?",
       "experience": "Anonymous Interview CandidateSão Paulo, São PauloNo offerNeutral experienceDifficult interviewApplicationI applied online. The process took 2 months. I interviewed at Goldman Sachs (São Paulo, São Paulo) in Oct 2023InterviewApós análise de currículo, primeira fase envolve prova de matemática, situação macroeconômica e finanças básicas. Prova on-line ou presencial na sede da Goldman em SP. Prova de 1 hora, mas longa e difícil de terminar dentro do tempo alocado. Concomitante à prova, há processo de entrevista online (hirevue). Pode ser feito em qualquer dia da semana, em qualquer horário. Série de 6 perguntas (+/-), 1 minuto para se preparar e 2 para responder.read moreInterview questions [1]Question 1Prova técnica: que empresas passaram por RJ esse ano?",
       "question": "Prova técnica: que empresas passaram por RJ esse ano?\nDepreciação aumenta em R$ 10, o que acontece com o resultado financeiro da empresa? (presuma taxa de IR de 20%)",
-      "scraped_at": "2026-07-27T04:42:39+00:00",
-      "process": "I applied online. The process took 2 months. I interviewed at Goldman Sachs (São Paulo, São Paulo) in Oct 2023"
+      "scraped_at": "2026-07-30T07:22:39+00:00",
+      "process": "Prova técnica: que empresas passaram por RJ esse ano?\nDepreciação aumenta em R$ 10, o que acontece com o resultado financeiro da empresa? (presuma taxa de IR de 20%)"
     },
     {
       "id": "2927fe4093a14f039fa819998e6a8ed354074668",
@@ -1015,7 +1015,8 @@
       "user": "",
       "experience": "Personal experiences, logic kinda questilns",
       "question": "Personal experiences, logic kinda questilns",
-      "scraped_at": "2026-07-27T02:15:07+00:00"
+      "scraped_at": "2026-07-30T07:22:55+00:00",
+      "process": "Personal experiences, logic kinda questilns"
     },
     {
       "id": "aeec3870c870dc3f9b9bbb4dc238235a6ec19cae",
@@ -1086,8 +1087,8 @@
       "user": "Anonymous Interview CandidateAtlanta, GANo offerPositive experienceAverage interviewApplicationI applied online. I interviewed at Goldman Sachs (Atlanta, GA) in Apr 2021InterviewBasic questions,",
       "experience": "Anonymous Interview CandidateAtlanta, GANo offerPositive experienceAverage interviewApplicationI applied online. I interviewed at Goldman Sachs (Atlanta, GA) in Apr 2021InterviewBasic questions,",
       "question": "Basic questions,\r\n\r\nwalk me through accounting statements\r\n\r\nhow does depreciation effect statements\r\n\r\nwalk me through your resume\r\n\r\nwhy do you want to work in investment banking?\r\n\r\netc etc etc etc",
-      "scraped_at": "2026-07-27T04:42:57+00:00",
-      "process": "I applied online. I interviewed at Goldman Sachs (Atlanta, GA) in Apr 2021"
+      "scraped_at": "2026-07-30T07:22:57+00:00",
+      "process": "Basic questions,\r\n\r\nwalk me through accounting statements\r\n\r\nhow does depreciation effect statements\r\n\r\nwalk me through your resume\r\n\r\nwhy do you want to work in investment banking?\r\n\r\netc etc etc etc"
     },
     {
       "id": "f19bbfcf160f52da3e8a0823399ed0ae8f461128",
@@ -1361,8 +1362,8 @@
       "user": "Anonymous Interview CandidateStockholm, StockholmNo offerNeutral experienceDifficult interviewApplicationI applied online. The process took 1 week. I interviewed at Goldman Sachs (Stockholm, Stockholm) in Nov 2019InterviewApplied for a full-time position in London with start summer 2020. Got a 30 minuter phone interview with VP from London office and then got invited to two one hour face interviews at the Stockholm office.Interview questions [1]Question 1Walk me through a DCF, LBO, multiples evaluation and brain teasers. Behavioral questions, eg. “What would you do in situation X?”read moreAnswer questionHelpfulShare1",
       "experience": "Anonymous Interview CandidateStockholm, StockholmNo offerNeutral experienceDifficult interviewApplicationI applied online. The process took 1 week. I interviewed at Goldman Sachs (Stockholm, Stockholm) in Nov 2019InterviewApplied for a full-time position in London with start summer 2020. Got a 30 minuter phone interview with VP from London office and then got invited to two one hour face interviews at the Stockholm office.Interview questions [1]Question 1Walk me through a DCF, LBO, multiples evaluation and brain teasers. Behavioral questions, eg. “What would you do in situation X?”read moreAnswer questionHelpfulShare1",
       "question": "Walk me through a DCF, LBO, multiples evaluation and brain teasers. Behavioral questions, eg. “What would you do in situation X?”",
-      "scraped_at": "2026-07-27T04:43:07+00:00",
-      "process": "I applied online. The process took 1 week. I interviewed at Goldman Sachs (Stockholm, Stockholm) in Nov 2019"
+      "scraped_at": "2026-07-30T07:23:06+00:00",
+      "process": "Walk me through a DCF, LBO, multiples evaluation and brain teasers. Behavioral questions, eg. “What would you do in situation X?”"
     },
     {
       "id": "a7ada29548eaee0dd0d18c0669e7f2574d348351",
@@ -1469,8 +1470,8 @@
       "user": "Anonymous Interview CandidateNew York, NYDeclined offerNeutral experienceDifficult interviewApplicationI applied online. The process took 4 weeks. I interviewed at Goldman Sachs (New York, NY) in Aug 2017InterviewResume submission in school portal, HireVue, short interview with school alum, then superday in the office. Short interview with alum covered technicals and ranged from basic valuation methodologies to modeling-type questions given my resume. Superday was 4 behavioral interviews.Interview questions [1]Question 1What are the adjustments between EBITDA and adjusted EBITDA in a healthcare company? What are the different valuation methodologies? If cost of equity increases how does the value of your company change? read more1 AnswerHelpfulShare1",
       "experience": "Anonymous Interview CandidateNew York, NYDeclined offerNeutral experienceDifficult interviewApplicationI applied online. The process took 4 weeks. I interviewed at Goldman Sachs (New York, NY) in Aug 2017InterviewResume submission in school portal, HireVue, short interview with school alum, then superday in the office. Short interview with alum covered technicals and ranged from basic valuation methodologies to modeling-type questions given my resume. Superday was 4 behavioral interviews.Interview questions [1]Question 1What are the adjustments between EBITDA and adjusted EBITDA in a healthcare company? What are the different valuation methodologies? If cost of equity increases how does the value of your company change? read more1 AnswerHelpfulShare1",
       "question": "What are the adjustments between EBITDA and adjusted EBITDA in a healthcare company? What are the different valuation methodologies? If cost of equity increases how does the value of your company change?",
-      "scraped_at": "2026-07-27T04:43:11+00:00",
-      "process": "I applied online. The process took 4 weeks. I interviewed at Goldman Sachs (New York, NY) in Aug 2017"
+      "scraped_at": "2026-07-30T07:23:10+00:00",
+      "process": "Question 1What are the adjustments between EBITDA and adjusted EBITDA in a healthcare company? What are the different valuation methodologies? If cost of equity increases how does the value of your company change? read more1 Answer"
     },
     {
       "id": "69d79885ae17e6bb977194538d686ae39fe098c7",
@@ -1481,8 +1482,8 @@
       "user": "Anonymous Interview CandidateNo offerNeutral experienceApplicationI applied online. The process took 5 days. I interviewed at Goldman Sachs in Oct 2018InterviewApplied online and had one follow up call. Questions were a mixture of finances questions and current events. The interviewer was friendly and seemed to care a lot about how I think. Didn't progress past the phone screen so I can't say much beyond that.Interview questions [2]Question 1Explain depreciation.Answer questionQuestion 2How do you expect current trade policy and federal reserve policy to impact the markets over the next 12 months?Answer questionShow all 2 questionsHelpfulShare1",
       "experience": "Anonymous Interview CandidateNo offerNeutral experienceApplicationI applied online. The process took 5 days. I interviewed at Goldman Sachs in Oct 2018InterviewApplied online and had one follow up call. Questions were a mixture of finances questions and current events. The interviewer was friendly and seemed to care a lot about how I think. Didn't progress past the phone screen so I can't say much beyond that.Interview questions [2]Question 1Explain depreciation.Answer questionQuestion 2How do you expect current trade policy and federal reserve policy to impact the markets over the next 12 months?Answer questionShow all 2 questionsHelpfulShare1",
       "question": "Explain depreciation.",
-      "scraped_at": "2026-07-27T04:43:11+00:00",
-      "process": "I applied online. The process took 5 days. I interviewed at Goldman Sachs in Oct 2018"
+      "scraped_at": "2026-07-30T07:23:10+00:00",
+      "process": "How do you expect current trade policy and federal reserve policy to impact the markets over the next 12 months?"
     },
     {
       "id": "9ccd71646e211f26d2afe0c613a1e4368e59dd35",
@@ -1493,8 +1494,8 @@
       "user": "Anonymous Interview CandidateNo offerNeutral experienceApplicationI applied online. The process took 5 days. I interviewed at Goldman Sachs in Oct 2018InterviewApplied online and had one follow up call. Questions were a mixture of finances questions and current events. The interviewer was friendly and seemed to care a lot about how I think. Didn't progress past the phone screen so I can't say much beyond that.Interview questions [2]Question 1Explain depreciation.Answer questionQuestion 2How do you expect current trade policy and federal reserve policy to impact the markets over the next 12 months?Answer questionShow all 2 questionsHelpfulShare1",
       "experience": "Anonymous Interview CandidateNo offerNeutral experienceApplicationI applied online. The process took 5 days. I interviewed at Goldman Sachs in Oct 2018InterviewApplied online and had one follow up call. Questions were a mixture of finances questions and current events. The interviewer was friendly and seemed to care a lot about how I think. Didn't progress past the phone screen so I can't say much beyond that.Interview questions [2]Question 1Explain depreciation.Answer questionQuestion 2How do you expect current trade policy and federal reserve policy to impact the markets over the next 12 months?Answer questionShow all 2 questionsHelpfulShare1",
       "question": "How do you expect current trade policy and federal reserve policy to impact the markets over the next 12 months?",
-      "scraped_at": "2026-07-27T04:43:11+00:00",
-      "process": "I applied online. The process took 5 days. I interviewed at Goldman Sachs in Oct 2018"
+      "scraped_at": "2026-07-30T07:23:10+00:00",
+      "process": "How do you expect current trade policy and federal reserve policy to impact the markets over the next 12 months?"
     },
     {
       "id": "d2ddc59eda6661607efb37a6070a7b9ce639d3d5",
@@ -1625,7 +1626,8 @@
       "user": "",
       "experience": "Describe an experience when you worked in a team?",
       "question": "Describe an experience when you worked in a team?",
-      "scraped_at": "2026-07-27T02:15:07+00:00"
+      "scraped_at": "2026-07-30T07:23:14+00:00",
+      "process": "Describe an experience when you worked in a team?"
     },
     {
       "id": "2049a41eda1d006ccd2f4473fc435517cd7e6981",
@@ -1852,8 +1854,8 @@
       "user": "Anonymous Interview CandidateNew York, NYNo offerNegative experienceDifficult interviewApplicationI applied online. The process took 2 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2016InterviewI applied online, received an invitation to complete a HireVue interview and then a week later I was invited to NY to attend Superday. I had 3 interviews on site with 5 people total (2 - 1 - 2)Interview questions [1]Question 1- Walk me through your resume. - Walk me through a DCF - Tell me what would you be doing as an analyst. - How would you value XXXX company.read moreAnswer questionHelpfulShare1",
       "experience": "Anonymous Interview CandidateNew York, NYNo offerNegative experienceDifficult interviewApplicationI applied online. The process took 2 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2016InterviewI applied online, received an invitation to complete a HireVue interview and then a week later I was invited to NY to attend Superday. I had 3 interviews on site with 5 people total (2 - 1 - 2)Interview questions [1]Question 1- Walk me through your resume. - Walk me through a DCF - Tell me what would you be doing as an analyst. - How would you value XXXX company.read moreAnswer questionHelpfulShare1",
       "question": "- Walk me through your resume. - Walk me through a DCF - Tell me what would you be doing as an analyst. - How would you value XXXX company.",
-      "scraped_at": "2026-07-27T04:43:23+00:00",
-      "process": "I applied online. The process took 2 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2016"
+      "scraped_at": "2026-07-30T07:23:20+00:00",
+      "process": "- Walk me through your resume. - Walk me through a DCF - Tell me what would you be doing as an analyst. - How would you value XXXX company."
     },
     {
       "id": "5292c17f06a6f52c91566bc6d447ed0bac7086df",
@@ -1948,8 +1950,8 @@
       "user": "Anonymous Interview CandidateMiami, FLNo offerPositive experienceAverage interviewApplicationI applied through college or university. The process took 1 day. I interviewed at Goldman Sachs (Miami, FL) in Jun 2012InterviewMet with VP of investment banking. They were short and to the point. Asked questions about book knowledge of market valuations and cap structure. Also used a case study to better understand logical reasoning and problem solving.Interview questions [1]Question 11) Describe a time when you demonstrated leadership.",
       "experience": "Anonymous Interview CandidateMiami, FLNo offerPositive experienceAverage interviewApplicationI applied through college or university. The process took 1 day. I interviewed at Goldman Sachs (Miami, FL) in Jun 2012InterviewMet with VP of investment banking. They were short and to the point. Asked questions about book knowledge of market valuations and cap structure. Also used a case study to better understand logical reasoning and problem solving.Interview questions [1]Question 11) Describe a time when you demonstrated leadership.",
       "question": "1) Describe a time when you demonstrated leadership.\r\n2) T-Mobile is planning on placing orders for the new iPhone, how would you estimate how many phones they should order",
-      "scraped_at": "2026-07-27T04:43:27+00:00",
-      "process": "I applied through college or university. The process took 1 day. I interviewed at Goldman Sachs (Miami, FL) in Jun 2012"
+      "scraped_at": "2026-07-30T07:23:24+00:00",
+      "process": "1) Describe a time when you demonstrated leadership.\r\n2) T-Mobile is planning on placing orders for the new iPhone, how would you estimate how many phones they should order"
     },
     {
       "id": "c81d1801926bec5a08cebbb3feac6ee86da00c6d",
@@ -2068,7 +2070,8 @@
       "user": "",
       "experience": "Mainly asked about my previous iB experience, like rationale behind transactions and my role",
       "question": "Mainly asked about my previous iB experience, like rationale behind transactions and my role",
-      "scraped_at": "2026-07-27T02:15:07+00:00"
+      "scraped_at": "2026-07-30T07:23:28+00:00",
+      "process": "Mainly asked about my previous iB experience, like rationale behind transactions and my role"
     },
     {
       "id": "4a6e25a55d90355af301b66fad2dc1683a6a1847",
@@ -2139,8 +2142,8 @@
       "user": "Anonymous Interview CandidateNo offerNeutral experienceAverage interviewApplicationI applied through college or university. I interviewed at Goldman Sachs in Dec 2014InterviewOne 30m Prescreen, Talked with a VP in the NYC IBD. Nice guy, questions were nothing out of the ordinary, interview flowed like conversation. Was contacted the next day that I would be hearing back within the week - was never contacted (its been over 3 months).Interview questions [1]Question 1Tell me about a market your following?",
       "experience": "Anonymous Interview CandidateNo offerNeutral experienceAverage interviewApplicationI applied through college or university. I interviewed at Goldman Sachs in Dec 2014InterviewOne 30m Prescreen, Talked with a VP in the NYC IBD. Nice guy, questions were nothing out of the ordinary, interview flowed like conversation. Was contacted the next day that I would be hearing back within the week - was never contacted (its been over 3 months).Interview questions [1]Question 1Tell me about a market your following?",
       "question": "Tell me about a market your following?\r\nA company with high P/E aquires a target with low P/E - accretive or dilutive?\r\nWalk me through the cash flows statement.",
-      "scraped_at": "2026-07-27T04:43:33+00:00",
-      "process": "I applied through college or university. I interviewed at Goldman Sachs in Dec 2014"
+      "scraped_at": "2026-07-30T07:23:30+00:00",
+      "process": "Tell me about a market your following?\r\nA company with high P/E aquires a target with low P/E - accretive or dilutive?\r\nWalk me through the cash flows statement."
     },
     {
       "id": "7e9bce7ddbcba06f564c0e1298b8927fb27df463",
@@ -2246,8 +2249,8 @@
       "user": "Anonymous employeeAccepted offerDifficult interviewApplicationI applied through college or university. The process took 3 months. I interviewed at Goldman SachsInterviewThey held a few information sessions at my school. I attended all of them and reached out to a few contacts a made. Then, short \"informational interviews\" were held with a selected group of applicants. From there they invited a handful to an early super day and let the rest go through with first round interviews and potentially a later super day in January.read moreInterview questions [1]Question 1I was asked about all of the different methods used to value companies. DCF walkthrough, comparable analysis, etc. Specifically, I was asked about which ratios would be used to value a start-up vs. a highly leveraged company vs. a large conglomerate with steady earnings.read moreAnswer questionHelpfulShare6",
       "experience": "",
       "question": "I was asked about all of the different methods used to value companies. DCF walkthrough, comparable analysis, etc. Specifically, I was asked about which ratios would be used to value a start-up vs. a highly leveraged company vs. a large conglomerate with steady earnings.",
-      "scraped_at": "2026-07-27T04:43:37+00:00",
-      "process": "I applied through college or university. The process took 3 months. I interviewed at Goldman Sachs"
+      "scraped_at": "2026-07-30T07:23:34+00:00",
+      "process": "I was asked about all of the different methods used to value companies. DCF walkthrough, comparable analysis, etc. Specifically, I was asked about which ratios would be used to value a start-up vs. a highly leveraged company vs. a large conglomerate with steady earnings."
     },
     {
       "id": "339ec6847cf379997a50a42537ae634d7f9d7c09",
@@ -2306,8 +2309,8 @@
       "user": "Anonymous Interview CandidateNo offerAverage interviewApplicationI applied in-person. The process took 2 weeks. I interviewed at Goldman SachsInterviewThe process involved a phone screen and then I was flown out to interview that Friday. The interviews (3) were mainly behavioral with one being focused on my knowledge of the valuation process. I interviewed with three other people and none of us got an offer.Interview questions [1]Question 1Compare the volatility of a burger joint and an airplane manufacturer and how that would affect the valuation of the company.read moreAnswer questionHelpfulShare",
       "experience": "",
       "question": "Compare the volatility of a burger joint and an airplane manufacturer and how that would affect the valuation of the company.",
-      "scraped_at": "2026-07-27T04:43:39+00:00",
-      "process": "I applied in-person. The process took 2 weeks. I interviewed at Goldman Sachs"
+      "scraped_at": "2026-07-30T07:23:36+00:00",
+      "process": "Compare the volatility of a burger joint and an airplane manufacturer and how that would affect the valuation of the company."
     },
     {
       "id": "2ae06de5823ba79c28f89d188e90ba9430983398",
@@ -2377,8 +2380,8 @@
       "user": "Anonymous Interview CandidateNo offerDifficult interviewApplicationI applied online. The process took 2 weeks. I interviewed at Goldman Sachs in Nov 2013InterviewI went through the first and second round for the IBD in London. First interview was typical fit/technical questions (dcf, comps, etc.). 2nd round consisted of 3 interviews, and since I wasn't based in London, were over the phone as well. Asked fit questions such as why London? All sorts of technical (dcf, comps, can you use EV/Net Income?, etc.) nothing too crazy. Last interview was a little out of the box, but just be open minded and think through every step carefully.read moreInterview questions [1]Question 1Nothing too crazy. Just know your technicals in and out. Be able to walk through an LBO, and explain which ratios are more useful for some companies than others.read moreAnswer questionHelpfulShare2",
       "experience": "",
       "question": "Nothing too crazy. Just know your technicals in and out. Be able to walk through an LBO, and explain which ratios are more useful for some companies than others.",
-      "scraped_at": "2026-07-27T04:43:41+00:00",
-      "process": "I applied online. The process took 2 weeks. I interviewed at Goldman Sachs in Nov 2013"
+      "scraped_at": "2026-07-30T07:23:37+00:00",
+      "process": "Nothing too crazy. Just know your technicals in and out. Be able to walk through an LBO, and explain which ratios are more useful for some companies than others."
     },
     {
       "id": "a4dd94302594857e7541d511ecf3c2b2f860e303",
@@ -2520,7 +2523,8 @@
       "user": "",
       "experience": "How do your skills and experience apply to the demands of this job?",
       "question": "How do your skills and experience apply to the demands of this job?",
-      "scraped_at": "2026-07-27T02:15:07+00:00"
+      "scraped_at": "2026-07-30T07:23:43+00:00",
+      "process": "How do your skills and experience apply to the demands of this job?"
     },
     {
       "id": "fa457117648a040515caa9e5e0fa688643d69e6a",
@@ -2543,8 +2547,8 @@
       "user": "Anonymous employeeNew York, NYAccepted offerPositive experienceDifficult interviewApplicationThe process took 3 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2009InterviewPhone interview was very technical - going through the 3 financial statements and how they connect with each other.",
       "experience": "Anonymous employeeNew York, NYAccepted offerPositive experienceDifficult interviewApplicationThe process took 3 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2009InterviewPhone interview was very technical - going through the 3 financial statements and how they connect with each other.",
       "question": "If depreciation boes down by xx, how does this effect the financial statements of a company - where does it flow in each statement?",
-      "scraped_at": "2026-07-27T04:43:47+00:00",
-      "process": "The process took 3 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2009"
+      "scraped_at": "2026-07-30T07:23:43+00:00",
+      "process": "If depreciation boes down by xx, how does this effect the financial statements of a company - where does it flow in each statement?"
     },
     {
       "id": "74616bb58c8ba736fcb2580b48706dd32e6dcf28",
@@ -2555,8 +2559,8 @@
       "user": "Anonymous employeeNew York, NYAccepted offerPositive experienceDifficult interviewApplicationThe process took 3 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2009InterviewPhone interview was very technical - going through the 3 financial statements and how they connect with each other.",
       "experience": "Anonymous employeeNew York, NYAccepted offerPositive experienceDifficult interviewApplicationThe process took 3 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2009InterviewPhone interview was very technical - going through the 3 financial statements and how they connect with each other.",
       "question": "Where does  minority interest go on the financials statements (new rule in 2009)?",
-      "scraped_at": "2026-07-27T04:43:47+00:00",
-      "process": "The process took 3 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2009"
+      "scraped_at": "2026-07-30T07:23:43+00:00",
+      "process": "If depreciation boes down by xx, how does this effect the financial statements of a company - where does it flow in each statement?"
     },
     {
       "id": "0f272741708251a87edf8a59f2e864aa48e6895e",
@@ -2567,8 +2571,8 @@
       "user": "Anonymous employeeNew York, NYAccepted offerPositive experienceDifficult interviewApplicationThe process took 3 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2009InterviewPhone interview was very technical - going through the 3 financial statements and how they connect with each other.",
       "experience": "Anonymous employeeNew York, NYAccepted offerPositive experienceDifficult interviewApplicationThe process took 3 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2009InterviewPhone interview was very technical - going through the 3 financial statements and how they connect with each other.",
       "question": "How would you operate a hot dog stand?",
-      "scraped_at": "2026-07-27T04:43:47+00:00",
-      "process": "The process took 3 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2009"
+      "scraped_at": "2026-07-30T07:23:43+00:00",
+      "process": "If depreciation boes down by xx, how does this effect the financial statements of a company - where does it flow in each statement?"
     },
     {
       "id": "1395fa1ebf40b2608650b6b026b3213ddba560d6",
@@ -2579,8 +2583,8 @@
       "user": "Anonymous employeeNew York, NYAccepted offerPositive experienceDifficult interviewApplicationThe process took 3 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2009InterviewPhone interview was very technical - going through the 3 financial statements and how they connect with each other.",
       "experience": "Anonymous employeeNew York, NYAccepted offerPositive experienceDifficult interviewApplicationThe process took 3 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2009InterviewPhone interview was very technical - going through the 3 financial statements and how they connect with each other.",
       "question": "Last book you've read and what you thought about it?",
-      "scraped_at": "2026-07-27T04:43:47+00:00",
-      "process": "The process took 3 weeks. I interviewed at Goldman Sachs (New York, NY) in Dec 2009"
+      "scraped_at": "2026-07-30T07:23:43+00:00",
+      "process": "If depreciation boes down by xx, how does this effect the financial statements of a company - where does it flow in each statement?"
     },
     {
       "id": "10b2c6cee2705c3606c17a859e4a635044632c4e",
