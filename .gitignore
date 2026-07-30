@@ -48,11 +48,6 @@ data/parallel_batch/
 .idea/
 .vscode/
 
-<<<<<<< HEAD
-# Node monorepo (Wave 1 scaffold)
-node_modules/
-.worktrees/
-=======
 # Node / Next / Turbo (IBPE monorepo)
 node_modules/
 .pnp
@@ -74,4 +69,3 @@ yarn-error.log*
 coverage/
 .worktrees/
 next-env.d.ts
->>>>>>> origin/local/ws-design-system-a9ff
