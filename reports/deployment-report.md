@@ -41,8 +41,8 @@
 ## Secrets posture
 
 - **Worker / Cloud Agents:** `GLASSDOOR_*`, `HTTPS_PROXY`, session files, `GEMINI_API_KEY`
-- **Vercel server:** `DATABASE_URL`, Clerk secrets, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`, AI Gateway / OIDC
-- **Vercel public:** `NEXT_PUBLIC_CLERK_*` and non-secret product config only
+- **Vercel server:** `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`, AI Gateway / OIDC
+- **Vercel public:** `NEXT_PUBLIC_APP_URL` and non-secret product config only (no Glassdoor secrets)
 - **Forbidden in client:** cookies, proxy URL, Glassdoor credentials
 
 ## CI

@@ -17,6 +17,7 @@ SQLite corpus (ibpe_corpus)          Neon product (ADR 0001)
 001_init.sql (dialect mirror)        010_neon_platform.sql
 db.py METADATA.create_all            020_neon_published.sql
                                      030_neon_rls.sql
+                                     031_neon_auth_user_id.sql
 ```
 
 Corpus table names stay stable for Python (`interview_occurrences`, `source_artefacts`, …). Neon uses the §17 product names (`question_occurrences`, `source_artifacts`, …) with a documented mapping in `packages/database/README.md`.
@@ -28,6 +29,7 @@ export DATABASE_URL='postgresql://…'   # Neon pooled or direct; never commit
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/010_neon_platform.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/020_neon_published.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/030_neon_rls.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/031_neon_auth_user_id.sql
 ```
 
 Or from the package:
