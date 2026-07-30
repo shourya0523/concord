@@ -8,6 +8,8 @@ from typing import Optional
 _TRACK_FALLBACKS: dict[str, list[str]] = {
     "PE": [
         "Private Equity",
+        "Growth Equity",
+        "Summer Analyst",
         "Analyst",
         "Associate",
         "Investment Analyst",
@@ -16,6 +18,8 @@ _TRACK_FALLBACKS: dict[str, list[str]] = {
     "VC": [
         "Venture Capital",
         "Venture",
+        "Growth Equity",
+        "Summer Analyst",
         "Analyst",
         "Associate",
         "Investment Analyst",
@@ -120,6 +124,9 @@ def position_filter_candidates(
         add("Venture")
     if "private equity" in pos_l:
         add("Private Equity")
+    if "growth equity" in pos_l:
+        add("Growth Equity")
+        add("Growth")
 
     for fb in _TRACK_FALLBACKS.get((track or "").upper(), ["Analyst", "Associate", ""]):
         add(fb)
