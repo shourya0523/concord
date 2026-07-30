@@ -36,6 +36,8 @@ def expand_jobs(
     limit: Optional[int] = None,
 ) -> list[dict[str, str]]:
     """Expand targets into company+position jobs, optionally filtered."""
+    from scrapers.target_helpers import search_keyword
+
     jobs: list[dict[str, str]] = []
     track_filter = track.lower() if track else None
     for target in targets:
@@ -43,12 +45,14 @@ def expand_jobs(
         if track_filter and target_track.lower() != track_filter:
             continue
         company = target.get("company", "")
+        keyword = search_keyword(target)
         for position in target.get("positions", []):
             jobs.append(
                 {
                     "company": company,
                     "track": target_track,
                     "position": position,
+                    "search_as": keyword,
                 }
             )
             if limit is not None and len(jobs) >= limit:
@@ -233,6 +237,7 @@ def _run_batch_browser(
             company = job["company"]
             position = job["position"]
             job_track = job["track"]
+            search_as = job.get("search_as") or company
 
             if not force and is_job_completed(bank, company, position):
                 skipped += 1
@@ -275,6 +280,8 @@ def _run_batch_browser(
                     manual_login=False,
                     close_driver=False,
                     on_page=on_page,
+                    track=job_track,
+                    search_as=search_as,
                 )
                 records = [
                     enrich_question(

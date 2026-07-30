@@ -45,11 +45,14 @@ def _write_targets(path: Path, jobs: list[dict]) -> None:
     for job in jobs:
         key = (job["company"], job["track"])
         if key not in by_key:
-            by_key[key] = {
+            entry: dict = {
                 "company": job["company"],
                 "track": job["track"],
                 "positions": [],
             }
+            if job.get("search_as") and job["search_as"] != job["company"]:
+                entry["search_as"] = job["search_as"]
+            by_key[key] = entry
         if job["position"] not in by_key[key]["positions"]:
             by_key[key]["positions"].append(job["position"])
     path.write_text(
@@ -87,7 +90,7 @@ def _merge_banks(master_path: Path, shard_paths: list[Path]) -> tuple[int, int]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workers", type=int, default=3)
-    parser.add_argument("--track", choices=["IB", "PE", "Banking"], default=None)
+    parser.add_argument("--track", choices=["IB", "PE", "Banking", "VC"], default=None)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--sleep", type=float, default=3.0)
