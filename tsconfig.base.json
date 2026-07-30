@@ -18,7 +18,9 @@
       "@ibpe/contracts/*": ["packages/contracts/src/*"],
       "@ibpe/config": ["packages/config/src/index.ts"],
       "@ibpe/config/*": ["packages/config/src/*"],
-      "@ibpe/domain": ["packages/domain/src/index.ts"]
+      "@ibpe/domain": ["packages/domain/src/index.ts"],
+      "@ibpe/search": ["packages/search/src/index.ts"],
+      "@ibpe/search/*": ["packages/search/src/*"]
     }
   }
 }
