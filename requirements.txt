@@ -6,3 +6,4 @@ reportlab>=4.2
 flask>=3.0
 pyotp>=2.9
 patchright>=1.58
+curl_cffi>=0.7.4
