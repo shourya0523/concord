@@ -1,5 +1,6 @@
 # apps/web
 
+<<<<<<< HEAD
 Next.js App Router product (Wave 2 — `ibpe-frontend` / `ibpe-backend`).
 
 ## Scaffold only (Wave 1)
@@ -23,3 +24,15 @@ apps/web/
 ```
 
 Depends on: `@ibpe/contracts`, `@ibpe/config`, `@ibpe/ui`, `@ibpe/database`.
+=======
+Next.js product app.
+
+- Feature routes: owned by `ibpe-frontend` (Wave 2)
+- DS catalogue: `/ds` owned by `ibpe-design-system`
+
+```bash
+npm install
+npm run dev -w @ibpe/web
+# → http://127.0.0.1:3000/ds
+```
+>>>>>>> origin/local/ws-design-system-a9ff
