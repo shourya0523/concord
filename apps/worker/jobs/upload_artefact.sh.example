@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Example only — upload raw artefacts to private Blob/S3 from the worker.
+set -euo pipefail
+: "${BLOB_READ_WRITE_TOKEN:?set on worker host — never NEXT_PUBLIC_}"
+LOCAL_PATH="${1:?path to raw file}"
+REMOTE_KEY="${2:?object key}"
+echo "stub: upload ${LOCAL_PATH} -> ${REMOTE_KEY} (implement with @vercel/blob or S3 SDK)"

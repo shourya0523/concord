@@ -1,0 +1,23 @@
+# Keep Vercel product builds focused on apps/web (set Root Directory in project settings).
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+data/glassdoor_session.json
+data/glassdoor_state.json
+data/parallel_batch
+data/db
+data/raw
+exports
+fixtures
+scrapers
+src/ibpe_corpus
+tests
+web
+*.db
+.env
+.env.local
+.git

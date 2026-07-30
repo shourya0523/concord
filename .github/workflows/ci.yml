@@ -18,3 +18,16 @@ jobs:
         run: pytest -q
       - name: Fixture pipeline smoke
         run: ibpe run-pipeline --mode fixtures --force
+
+  node-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Node package placeholder checks
+        run: bash scripts/ci_node_packages.sh
+
+  # Deploy jobs intentionally omitted in Wave 1 — require VERCEL_* secrets + Next app.
+  # Preview-then-promote flow is documented in docs/deployment/vercel-project-link.md

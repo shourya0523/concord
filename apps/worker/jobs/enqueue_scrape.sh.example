@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Example only — do not enable unattended until proxy + cookies are configured.
+set -euo pipefail
+cd "$(dirname "$0")/../../.."
+source .venv/bin/activate
+# exec python main.py batch --backend bff --track PE --limit 1
+echo "stub: enqueue scrape (worker host); not a Vercel request handler"

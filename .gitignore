@@ -69,3 +69,7 @@ yarn-error.log*
 coverage/
 .worktrees/
 next-env.d.ts
+.env.local
+.env.*.local
+# Vercel CLI link metadata (use CI secrets; do not commit tokens)
+.vercel
