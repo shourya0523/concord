@@ -79,7 +79,7 @@ After Phase 0, launch **all Wave 1 agents in one assistant turn** using **multip
 
 | Wave | Agents (`.cursor/agents/`) | Focus |
 |------|----------------------------|--------|
-| **1** (parallel) | `ibpe-architecture`, `ibpe-design-system`, `ibpe-database`, `ibpe-glassdoor`, `ibpe-data-quality`, `ibpe-answers`, `ibpe-infra` | Contracts polish, DS, DB, scrape/PE, transform-on-fixtures, answer validators, CI/Vercel scaffold |
+| **1** (parallel) | `ibpe-architecture`, `ibpe-design-system`, `ibpe-database`, `ibpe-glassdoor`, `ibpe-data-quality`, `ibpe-answers`, `ibpe-infra` | Contracts, DS, DB, Glassdoor **signals**, **GitHub Q/A import**, **Gemini enrich**, CI/Vercel scaffold |
 | **2** (parallel, after Wave 1 integrate) | `ibpe-frontend`, `ibpe-backend`, `ibpe-search` | Product UI, APIs/auth, hybrid search |
 | **3** (parallel + orchestrator integrate) | `ibpe-qa`, resume `ibpe-infra`, any lagging streams | Gates, deploy, smoke, docs |
 
@@ -112,17 +112,18 @@ After each wave:
 
 1. Audit against §0.
 2. Apply skills in §O2.
-3. Shared contracts absorbing `question_bank.json`.
+3. Shared contracts absorbing bank + GitHub corpus shapes.
 4. Parallel workstreams via subagents (§O4).
-5. Extend Glassdoor scraper (browser + BFF).
-6. Fix PE coverage gap (~18 PE vs ~2,800+ IB).
-7. Answer acquisition + financial validation.
-8. Full Next.js product — **company prep rooms + concept labs** with weak-topic auto-focus, resource hyperlinks, embedded JS diagrams (replace Flask as product UI).
-9. Study, search, recommendation, and admin systems oriented to interactive learning.
-10. Test critical workflows (company session, concept page + diagram, weak-topic drill).
-11. Deploy app + workers.
-12. Validate production.
-13. Complete documentation + reports.
+5. **Prioritise open-source GitHub Q/A corpora as teaching source of truth** (absorb PR #2 importers); Glassdoor stays directional for firm preferences.
+6. Extend Glassdoor scraper only as a **firm-signal / occurrence** layer (browser + BFF), including PE coverage.
+7. **Gemini enrichment** — categorise, tag, link Q/A into company-prep and concept-lab graphs (`GEMINI_API_KEY` + `/ai-sdk`).
+8. Answer validation + diagram/resource attachment on enriched corpus.
+9. Full Next.js product — **company prep rooms + concept labs** with weak-topic auto-focus, resource hyperlinks, embedded JS diagrams.
+10. Study, search, recommendation, and admin systems oriented to interactive learning.
+11. Test critical workflows (company session, concept page + diagram, weak-topic drill, Gemini enrich job).
+12. Deploy app + workers.
+13. Validate production.
+14. Complete documentation + reports.
 
 Work autonomously on routine decisions. Pause only for true external blockers (credentials, deploy permissions, destructive migration, prohibited access circumvention). When one stream is blocked, continue every other stream.
 
@@ -191,27 +192,49 @@ Bank file also stores `version`, `updated_at`, `completed_jobs`.
 
 ### Related but unmerged work
 
-1. **`local/parallel-full-scrape-3a7e` / PR #7** — parallel Chrome batch + ongoing collection. Prefer merge or cherry-pick `scripts/parallel_batch.py` rather than rewriting concurrency.
-2. **`local/ibpe-interview-corpus-042f` / PR #2** — fixture-first `ibpe_corpus` pipeline (SQLite/SQL migrations, GitHub source adapters, PE taxonomy YAML, exports/reports). **Evaluate reuse** of schemas, fixtures, and docs; do **not** assume it is merged. Prefer absorbing proven pieces into the contract-first architecture rather than forking a second corpus stack.
+1. **`local/ibpe-interview-corpus-042f` / PR #2** — **priority absorb.** Fixture-first corpus with `config/github_sources.yml`, GitHub adapters (`src/ibpe_corpus/adapters/github/`), staged `ddeng5/Capital-Markets-Question-Bank-App` export (~385 IB Q/A pairs), answer pipeline, taxonomy/PE matrix. This is the best existing path to **teaching Q/A source of truth**. Merge/cherry-pick importers rather than re-scrape Glassdoor for answers.
+2. **`local/parallel-full-scrape-3a7e` / PR #7** — parallel Chrome batch + ongoing Glassdoor collection for **firm directional signals**. Prefer merge or cherry-pick `scripts/parallel_batch.py`; add BFF mode later.
 
-Before starting Glassdoor work, run:
+Before starting data work, run:
 
 ```bash
+gh pr view 2 --json state,updatedAt,files
 gh pr view 5 --json state,mergedAt
 gh pr view 7 --json state,updatedAt,body,commits
-git fetch origin local/parallel-full-scrape-3a7e
-# Inspect bank delta if present on that branch
+git fetch origin local/ibpe-interview-corpus-042f local/parallel-full-scrape-3a7e
 ```
+
+---
+
+# 0c. Source-of-truth model (product data thesis)
+
+**Do not treat Glassdoor as the teaching corpus.**
+
+| Source | Role in the product |
+|--------|---------------------|
+| **Open-source GitHub Q/A corpora** (and similar curated public banks) | **Primary source of truth** for questions + answers used to teach. Import, license-review, dedupe, then enrich. |
+| **Glassdoor** (browser / BFF / `question_bank.json`) | **Directional firm signal only** — which topics/firms/roles show up in reported interviews; occurrence heat for Mode A company rooms. Not authoritative answer text. |
+| **Gemini enrichment** (`GEMINI_API_KEY` + `/ai-sdk`) | Categorise, tag taxonomy, map to concepts, suggest firm relevance, draft diagrams/resource links, fill gaps with clearly labelled synthesised answers. |
+| **Deterministic validators / editorial** | Gate correctness for finance maths; human/editorial override. |
+
+This split powers the two product modes:
+
+* **Mode A — Company prep:** Glassdoor (and firm tags from enrichment) weight *what to practise at Firm X*; GitHub+Gemini supply *what good answers look like*.
+* **Mode B — Concept lab:** GitHub+Gemini supply concept curriculum, diagrams, resources; Glassdoor is optional “where this shows up in real interviews.”
+
+Never present Glassdoor `process` narrative as a validated model answer. Never attribute Gemini output to Glassdoor or to a GitHub repo.
 
 ## 0.2 Non-negotiable preservation rules
 
 * Do not delete or break `python main.py batch|query|login|ui` until a documented replacement exists.
-* Do not discard `data/question_bank.json`; migrate it into the new data layers as the primary seed.
+* Do not discard `data/question_bank.json`; keep it as the Glassdoor signal seed (occurrences), not as the answer bible.
+* **Prefer absorbing PR #2 GitHub import path** over inventing a second corpus stack.
 * Do not discard `config/targets.json`; extend it (PE matrix, role aliases) rather than replacing blindly.
 * Absorb or supersede `scripts/parallel_batch.py` from PR #7 rather than inventing a third batch runner.
 * Treat `web/` Flask UI as an interim operator tool until the Next.js product ships; keep it runnable during migration or document its retirement explicitly.
 * Keep Cloudflare / login workarounds documented in `AGENTS.md` and README in sync with code.
 * Never commit real credentials, `glassdoor_state.json`, or `glassdoor_session.json`.
+* Review licenses before publishing imported GitHub Q/A in production.
 
 ## 0.3 Current tree (authoritative starting layout)
 
@@ -256,13 +279,14 @@ git fetch origin local/parallel-full-scrape-3a7e
 
 # 0b. Sibling-agent check (orchestrator must run)
 
-When this programme starts, record progress of scrape-related sibling agents into `docs/agent-run/sibling-agents.md`:
+When this programme starts, record progress into `docs/agent-run/sibling-agents.md`:
 
-1. PR #5 BFF — expect **merged**; confirm `scrapers/bff_api.py` present.
-2. PR #7 parallel scrape — open/merged? bank row counts? PE delta?
-3. Any new commits on `*-3a7e` branches.
+1. PR #2 corpus / GitHub Q/A — **priority**; open/merged? importer paths present?
+2. PR #5 BFF — expect **merged**; confirm `scrapers/bff_api.py` present.
+3. PR #7 parallel scrape — open/merged? bank row counts? (firm-signal only)
+4. Any new commits on `*-042f` / `*-3a7e` branches.
 
-Do not duplicate finished BFF work. Do incorporate parallel-batch when available.
+Do not duplicate finished BFF work. **Absorb GitHub Q/A importers before treating Glassdoor as content.** Incorporate parallel-batch for firm-signal scale when available.
 
 ---
 
@@ -301,7 +325,9 @@ User picks a **concept track** (e.g. Accounting, Enterprise value, DCF, M&A, LBO
 * Practice drills that feed mastery / weak-topic signals
 * Optional “apply this concept at [Company]” bridges into Mode A
 
-Users can switch modes freely. Company mode may deep-link into concept pages; concept mode may deep-link into firm occurrences.
+Users can switch modes freely. Company mode deep-links into concept pages; concept mode deep-links into firm occurrence heat.
+
+**Data behind the modes:** GitHub (and similar) Q/A corpora are the teaching source of truth; Glassdoor only biases *which* topics matter at a firm; Gemini enriches and categorises into both graphs (§0c).
 
 ## 1.2 Learning behaviours (non-negotiable)
 
@@ -1035,102 +1061,68 @@ Other workstreams may propose schema changes through contract updates but must n
 
 ---
 
-## Workstream F — Glassdoor collection (extend existing)
+## Workstream F — Glassdoor collection (firm signals)
 
 **Agent:** `ibpe-glassdoor` · **Skills:** `AGENTS.md` + `/env-vars` (not `/auth`) · **Sibling:** PR #5 merged; PR #7 parallel batch open
 
+Owns firm-**signal** collection only — not the teaching answer corpus (that is G/H + GitHub).
+
 Owns:
 
-* Audit of current dual backends (`scrapers/scraper.py` browser DOM parse + `scrapers/bff_api.py` BFF JSON)
-* Glassdoor frontend / BFF research updates
-* Employer discovery (typeahead already exists in BFF path)
-* Interview-page collection
-* Pagination (browser Next-button + BFF `page` / `itemsPerPage`)
-* Role filtering (position token match already partial in BFF)
-* Private-equity expansion of `config/targets.json` and crawl coverage
-* Raw evidence storage (today only bank JSON — add artefact archive)
-* Parser fixtures (HTML + BFF JSON)
-* Failure diagnostics (CloudflareBlockError, layout-change detection)
-* Resume and checkpoint logic (extend `completed_jobs`)
-* Incremental crawling
-* Scraper tests
+* Audit of dual backends (`scrapers/scraper.py` + `scrapers/bff_api.py`)
+* Employer discovery, pagination, role filtering
+* PE expansion of crawl coverage for occurrence heat
+* Raw evidence storage for Glassdoor artefacts
+* Parser fixtures; Cloudflare / layout failure diagnostics
+* `completed_jobs` / incremental crawl
+* Absorbing `scripts/parallel_batch.py` (PR #7) + optional `--backend bff`
 * Keeping `python main.py batch --backend bff|browser` working
-* Absorbing `scripts/parallel_batch.py` (PR #7) and adding `--backend bff` + PE shards
 
-The existing scraper **must be analysed and extended** rather than discarded without justification. **Do not re-implement merged PR #5.**
-
-### Current capabilities to build on
-
-* Company search / overview navigation (browser)
-* Interview tab + position keyword filter (browser)
-* Page-number pagination with per-page bank saves (browser)
-* BFF employer lookup + paginated interviews (browserless) — **shipped via merged PR #5**
-* Overlay / cookie dismissal
-* Patchright session capture and Selenium cookie hydrate
-* Automated Google / Indeed login with optional TOTP and Capsolver hooks
-* Exact-string dedup into JSON bank
-* Parallel Chrome workers + shard merge — **PR #7 `scripts/parallel_batch.py` (absorb; not necessarily merged yet)**
-
-### Current gaps to close
-
-* Almost no PE volume relative to IB
-* No durable raw HTML/JSON artefact store
-* No answer extraction pipeline (process text ≠ validated answers)
-* Limited role-alias / firm-alias resolution
-* No layout-change detectors or fixture replay harness on mainline
-* No structured logging / dead-letter queue
-* Position match is heuristic; generic “Associate” false positives remain a risk for PE
-* Parallel runner lacks `--backend bff` (browser-only) — add BFF/worker parity
-* PR #7 full scrape may still be running; bank tip may lag — verify before claiming coverage wins
+**Must not** treat Glassdoor text as canonical teaching answers. Emit occurrences / topic signals for Mode A.
 
 ---
 
 ## Workstream G — Data transformation and quality
 
-**Agent:** `ibpe-data-quality` · **Skills:** contracts; `/ai-sdk` if structured extraction
+**Agent:** `ibpe-data-quality` · **Skills:** contracts; `/ai-sdk` for structured enrich staging if needed
 
 Owns:
 
-* Cleaning
-* Record classification
-* Extraction
-* Grounding validation
-* Normalisation
-* Entity resolution
-* Taxonomy assignment
-* Deduplication (beyond current SHA1 exact match)
-* Canonicalisation
-* Quality scoring
-* Publication gating
-* Dataset exports
-* One-shot and incremental import from `data/question_bank.json`
+* **GitHub / open-source corpus import** (absorb PR #2 adapters + `config/github_sources.yml`) as primary teaching intake
+* Pipeline: clean → classify → extract → ground → resolve → taxonomy → dedupe → publish
+* Joining Glassdoor occurrences onto canonical Qs as firm signals
+* Dataset exports under `exports/`
+* Quality / license reports under `reports/`
+* One-shot + incremental import from GitHub staging and from `question_bank.json` (signal path)
+
+Must:
+
+1. Prefer GitHub Q/A as teaching source of truth; Glassdoor bank is secondary signal.
+2. Unblock with PR #2 fixtures/staged exports when live crawl is blocked.
+3. Never publish `[Interview process]` placeholders as exact questions or answers.
+4. Dedup beyond SHA1; merges reversible.
+5. Update `docs/agent-run/status/data-quality.md`.
 
 ---
 
-## Workstream H — Answers and financial validation
+## Workstream H — Answers, Gemini enrichment, financial validation
 
 **Agent:** `ibpe-answers` · **Skills:** `/ai-sdk` `/vercel-functions` `/verification`
 
 Owns:
 
-* Answer-source import
-* Answer generation (use `GEMINI_API_KEY` / AI SDK patterns where appropriate)
-* Answer versioning
-* Formula validation
-* Accounting validation
-* Valuation validation
-* DCF validation
-* M&A validation
-* LBO validation
-* PE-case validation
-* Answer confidence
-* Editorial review queue
+* Answer versioning and origins (GitHub-first)
+* **Gemini enrichment jobs** — categorise into concepts/topics, firm soft-tags, Mode A/B routing, diagram/resource drafts (§21.2)
+* Deterministic finance calculators + fixtures
+* Editorial review queue hooks
+* Gap-fill synthesised answers only when corpus lacks coverage
 
-Where AI functionality is used, follow `/ai-sdk` and current AI SDK patterns.
+Must:
 
-Do not build bespoke streaming or tool-calling infrastructure where `/ai-sdk` already defines a suitable pattern.
-
-Never attribute generated answers to Glassdoor. Current bank `process` / experience fields are interview-report narrative, not editorial answers.
+1. Read `/ai-sdk`; use `GEMINI_API_KEY`; run enrich offline via workers.
+2. Never attribute Gemini or editorial answers to Glassdoor or to a GitHub path that did not contain them.
+3. Wire enrichment outputs into **company prep** and **concept lab** graphs.
+4. Update `docs/agent-run/status/answers.md`.
 
 ---
 
@@ -1734,6 +1726,13 @@ Success criterion: PE canonical volume and firm coverage must move from token pr
 
 Create a configuration-driven source registry.
 
+**Priority order for teaching content:**
+
+1. Licensed / clearly attributable **GitHub (and similar) Q/A corpora** — primary truth
+2. Curated public guides / PDFs / university notes — secondary truth
+3. Editorial + Gemini-enriched material — labelled, never laundered as “reported”
+4. Glassdoor — **firm preference / occurrence signals only**
+
 Every source must define:
 
 * Source ID
@@ -1749,24 +1748,24 @@ Every source must define:
 * Rate limits
 * Expected fields
 * Quality tier
-* Rights or use notes
+* **Rights / license / use notes** (blocking for GitHub publish)
 * Failure policy
+* **Product role:** `teaching_qa` | `firm_signal` | `enrichment` | `pattern_only`
 
 Source types may include:
 
-* Glassdoor browser
-* Glassdoor BFF API
-* Local `question_bank.json` import
-* Public GitHub datasets
-* Public interview guides
-* University resources
-* Public forums
-* Public PDFs
-* Existing repository files
+* Public GitHub datasets / question banks (**teaching_qa** — prefer first)
+* Glassdoor browser / BFF API / local `question_bank.json` (**firm_signal**)
+* Public interview guides, university resources, forums, PDFs
+* Existing repository files / PR #2 staged exports
 * User-provided data
-* Search-discovered interview reports
+* Gemini enrichment jobs (**enrichment** — not a scrape source)
 
-Register the current bank as source `glasscleaner2_question_bank` with lineage retained.
+Register at minimum:
+
+* `github_*` entries from `config/github_sources.yml` (absorb PR #2)
+* `glasscleaner2_question_bank` as firm-signal lineage
+* `gemini_enrichment_v*` for model-assisted categorisation outputs
 
 Maintain source lineage throughout the pipeline.
 
@@ -1790,31 +1789,37 @@ Validated
 Published
 ```
 
-Bootstrap path for this repo:
+Bootstrap path for this repo (**teaching content first**):
 
 ```text
-data/question_bank.json  →  Staging  →  …  →  Published
-Glassdoor BFF/browser    →  Raw      →  …
+GitHub Q/A corpora (PR #2 staging / github_sources.yml)
+        → Raw/Staging → Normalised → Canonical Q/A
+        → Gemini enrich (topics, concepts, firm hints, diagrams/resources)
+        → Validated → Published (Concept lab + answer bank)
+
+Glassdoor BFF/browser + question_bank.json
+        → Raw/Staging → firm occurrences / topic heat only
+        → join to canonical Qs as Mode A signals (not answer text)
 ```
 
 ## Raw
 
 Preserve:
 
-* URL
+* URL / repo / commit SHA
 * Retrieval timestamp
 * HTTP metadata
-* HTML
-* BFF JSON
+* HTML / BFF JSON / GitHub export JSON
 * PDF
 * Screenshot
 * Source hash
 * Main-content hash
-* Browser mode (`browser` | `bff`)
-* Crawl version
-* Parser version
+* Browser mode (`browser` | `bff` | `github_import` | `gemini_enrich`)
+* Crawl / import / enrich version
+* Parser or model version
 * Crawl status
 * Cloudflare / proxy diagnostics (no secrets)
+* License / attribution snapshot for GitHub imports
 
 ## Staging
 
@@ -1823,8 +1828,8 @@ Store:
 * Exact source text
 * Source span or JSON path
 * Extracted question
-* Extracted answer (if any)
-* Firm
+* Extracted answer (required for teaching_qa sources when present)
+* Firm (optional on GitHub; often absent)
 * Role
 * Office
 * Interview stage
@@ -1832,7 +1837,8 @@ Store:
 * Record type
 * Extraction confidence
 * Validation issues
-* Legacy bank `id` when imported
+* Legacy bank `id` when imported from Glassdoor signal seed
+* Gemini proposed labels (topics, concepts, firm relevance) pending validation
 
 ## Normalised
 
@@ -1852,6 +1858,7 @@ Normalise:
 * Quotation characters
 * Abbreviations
 * Track (`IB` | `PE` | `Banking` | …)
+* Concept slugs
 
 Always preserve original values.
 
@@ -1860,13 +1867,14 @@ Always preserve original values.
 Create canonical question concepts with:
 
 * Wording variants
-* Interview occurrences
-* Firm relationships
+* Interview occurrences (**Glassdoor firm signals attach here**)
+* Firm relationships (from signal + Gemini suggestions, confidence-scored)
 * Role relationships
-* Topic relationships
+* Topic / concept relationships
 * Follow-ups
-* Answer versions
+* Answer versions (**prefer GitHub source_provided, then validated enrichment**)
 * Source references
+* Diagram + learning-resource links
 
 ## Validated
 
@@ -1876,7 +1884,9 @@ Only content passing defined quality thresholds becomes eligible for publication
 
 Optimise published tables or views for application queries.
 
-The frontend should not query raw ingestion tables or the JSON bank file directly in production.
+* Concept lab reads published concepts + Q/A + diagrams + resources
+* Company rooms read firm occurrence heat joined to published Q/A
+* The frontend should not query raw ingestion tables or the JSON bank file directly in production
 
 ---
 
@@ -2146,19 +2156,42 @@ Merges must be reversible through the admin interface.
 
 ---
 
-# 21. Answer acquisition
+# 21. Answer acquisition and Gemini enrichment
 
-Glassdoor is an interview-report source, not a comprehensive answer source.
+## 21.1 Source hierarchy for answers
 
-The current bank largely lacks answers; `process` is not an answer.
+1. **`imported` / `source_provided` from GitHub (and similar) corpora** — default teaching answers when license allows.
+2. **`editorial`** — human-reviewed gold.
+3. **`deterministic_calculation`** — numeric/finance identities.
+4. **`synthesised` via Gemini** — gap-fill only; clearly labelled; never the silent default when a corpus answer exists.
+5. **Glassdoor** — do **not** mine `process` text as model answers. Use Glassdoor only to attach firm/role/stage **signals** onto canonical questions.
 
-Build a separate answer pipeline.
+The current `question_bank.json` largely lacks answers; treat it as occurrence fuel for Mode A.
+
+## 21.2 Gemini enrichment jobs (required for the two-mode app)
+
+Use `GEMINI_API_KEY` through `/ai-sdk` patterns (structured output). Batch offline in workers (`/workflow`), not in the question-browse request path.
+
+For each canonical question / imported Q/A pair, Gemini may propose:
+
+* Track / topic / subtopic labels
+* Concept lab slug(s) + prerequisites
+* Difficulty + interview stage hints
+* Firm-relevance suggestions (soft tags — join later with Glassdoor heat)
+* Mode routing: useful for `company_prep`, `concept_learn`, or both
+* Short “interview-ready” rewrite candidates (as new answer **versions**, not overwrites)
+* Diagram sketch specs (Mermaid or structured JSON) and resource link suggestions
+* PE vs IB relevance flags
+
+All Gemini outputs land in staging/enrichment tables with model version, prompt version, and confidence. **Publication requires schema validation + finance validators where numeric + provenance labels.**
+
+## 21.3 Answer origins and states
 
 Answer origins:
 
-* `source_provided`
+* `source_provided` (in-corpus)
 * `imported`
-* `synthesised`
+* `synthesised` (Gemini or other LLM)
 * `editorial`
 * `deterministic_calculation`
 
@@ -2176,14 +2209,12 @@ Every answer version must include:
 * Status
 * Version
 * Assumptions
-* Source references
+* Source references (GitHub repo/commit/path when imported)
 * Validator version
 * Validation results
 * Last validation date
 
-Never imply that a generated answer came from Glassdoor.
-
-`GEMINI_API_KEY` is already reserved in `.env.example` for LLM features — wire it through the AI SDK skill patterns rather than ad-hoc clients where possible.
+Never imply that a generated answer came from Glassdoor or from a GitHub file that did not contain it.
 
 ---
 

@@ -1,24 +1,26 @@
 ---
 name: ibpe-data-quality
-description: Workstream G — transform, classify, dedupe, canonicalize, quality gates from bank+fixtures. Use proactively in Wave 1/2 with fixtures even when live crawl is blocked.
+description: Workstream G — GitHub Q/A import as teaching truth, transform/dedupe/publish, join Glassdoor as firm signals only. Use proactively in Wave 1; absorb PR #2 github adapters first.
 ---
 
 You own **Workstream G — Data transformation and quality**.
 
 ## Skills
 
-- `/ai-sdk` only if using structured LLM extraction (prefer schemas from contracts)
+- `/ai-sdk` only for structured staging if needed (Gemini enrich owned primarily by `ibpe-answers`)
 - Contracts from `packages/contracts`
 
 ## Owns
 
-- Pipeline code for clean → classify → extract → ground → resolve → taxonomy → dedupe → publish
-- Dataset exports under `exports/`
-- Quality reports under `reports/`
+- GitHub / open-source corpus import (absorb PR #2 `adapters/github`, `config/github_sources.yml`, staged exports)
+- Pipeline: clean → classify → extract → ground → resolve → taxonomy → dedupe → publish
+- Join Glassdoor occurrences as **firm signals**, not answers
+- `exports/`, `reports/` quality + license notes
 
 ## Must
 
-1. Unblock with fixtures + `question_bank.json` when live Glassdoor is blocked.
-2. Never publish `[Interview process]` placeholders as exact questions.
-3. Dedup beyond SHA1; merges reversible.
-4. Update `docs/agent-run/status.md` for Workstream G.
+1. **GitHub Q/A = teaching source of truth**; Glassdoor bank = directional firm preferences only.
+2. License-review before production publish.
+3. Never publish `[Interview process]` placeholders as questions/answers.
+4. Dedup beyond SHA1; merges reversible.
+5. Update `docs/agent-run/status/data-quality.md`.

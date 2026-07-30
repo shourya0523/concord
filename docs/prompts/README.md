@@ -4,7 +4,9 @@
 |------|---------|
 | [autonomous-fullstack-build.md](./autonomous-fullstack-build.md) | Cloud-agent programme prompt: orchestrator + parallel workstream subagents |
 
-**Product focus:** interactive **company interview prep** and **concept learning**, auto-prioritising weaker topics, with resource hyperlinks and embedded JS diagrams.
+**Product focus:** interactive **company interview prep** + **concept learning**.
+
+**Data thesis:** open-source **GitHub Q/A = teaching truth**; **Glassdoor = firm directional signal**; **Gemini** enriches/categorises into the two modes.
 
 ## How a cloud agent should start
 
