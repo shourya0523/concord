@@ -16,7 +16,8 @@ fixtures
 scrapers
 src/ibpe_corpus
 tests
-web
+# Only the legacy Flask UI at repo root — do NOT use bare `web` (matches apps/web).
+/web
 *.db
 .env
 .env.local
