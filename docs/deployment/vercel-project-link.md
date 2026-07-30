@@ -12,9 +12,7 @@
 
 1. Vercel CLI authenticated: `vercel login` then `vercel whoami`
 2. Team selected: `vercel teams ls` / `vercel teams switch`
-3. Next.js app present under `apps/web` (Wave 2 frontend / architecture scaffold) with `package.json` `build` script
-
-Wave 1 ships root `vercel.json` + docs only. **Live `vercel link` / deploy is blocked until a Next.js app exists and a Vercel token/team is available in this environment.**
+3. Next.js app present under `apps/web` with `package.json` `build` script
 
 ## Link (monorepo)
 
@@ -26,9 +24,10 @@ Repo uses **npm workspaces** + Turbo (`package.json` `workspaces`: `apps/*`, `pa
 |---------|-------|
 | Root Directory | **`apps/web`** (not repo root) |
 | Framework Preset | Next.js |
-| Include source files outside Root Directory | **Enabled** |
+| Include source files outside Root Directory | **Enabled** (required for `@ibpe/ui` in `packages/`) |
 | Install Command | **empty** — use `apps/web/vercel.json` |
 | Build Command | **empty** — use `apps/web/vercel.json` |
+| Node.js Version | `22.x` |
 
 If Root Directory is the **repo root**, Vercel reads root `package.json` (no `next`) and fails:
 
@@ -43,9 +42,9 @@ Install Command: cd ../.. && npm ci
 Build Command:   cd ../.. && npm run build --workspace=@ibpe/web
 ```
 
-Do **not** paste the build command into Install Command.
+Do **not** paste the build command into Install Command. Install must run from the **monorepo root** so workspace packages link. `npm ci` requires `package-lock.json` to stay in sync with root `package.json` (enforced in CI).
 
-**Do not commit `pnpm-lock.yaml`** — npm only (`package-lock.json`).
+**Do not commit `pnpm-lock.yaml`** — npm only (`package-lock.json`). A stray pnpm lockfile makes Vercel pick pnpm and breaks workspace resolution.
 
 **`.vercelignore`:** ignore the Flask UI with `/web` (leading slash). A bare `web` pattern also matches `apps/web` and strips the Next app from uploads → `Root Directory "apps/web" does not exist` / `No Next.js version detected`.
 
