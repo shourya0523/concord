@@ -30,11 +30,14 @@ vercel link --yes --scope <team> --project concord-web
 Workspace packages (`@ibpe/ui`, etc.) resolve via `apps/web/vercel.json` when Root Directory is `apps/web`:
 
 ```text
-Install Command: cd ../.. && npm install
-Build Command:   cd ../.. && turbo run build --filter=@ibpe/web
+Build Command: cd ../.. && npm run build --workspace=@ibpe/web
 ```
 
-If the Vercel project Root Directory is the **repo root** (not recommended), root `vercel.json` sets `outputDirectory` to `apps/web/.next` and the same Turbo filter.
+Leave **Install Command** empty in the Vercel dashboard so Vercel runs `npm ci` from the monorepo root (do not paste the build command into Install).
+
+If the Vercel project Root Directory is the **repo root** (not recommended), root `vercel.json` sets `outputDirectory` to `apps/web/.next` and the same workspace build.
+
+**Do not commit `pnpm-lock.yaml`** — this repo uses npm workspaces (`package-lock.json` only). A stray pnpm lockfile makes Vercel pick pnpm and breaks workspace resolution.
 
 Do **not** leave an accidental root-only `.vercel/project.json` that points at the Python tree.
 

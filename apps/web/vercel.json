@@ -2,6 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "regions": ["iad1"],
-  "installCommand": "cd ../.. && npm install",
-  "buildCommand": "cd ../.. && turbo run build --filter=@ibpe/web"
+  "buildCommand": "cd ../.. && npm run build --workspace=@ibpe/web"
 }
