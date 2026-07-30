@@ -3,7 +3,13 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"],
-      "@ibpe/ui/*": ["../../packages/ui/src/*"]
+      "@ibpe/ui/*": ["../../packages/ui/src/*"],
+      "@ibpe/contracts": ["../../packages/contracts/src/index.ts"],
+      "@ibpe/contracts/*": ["../../packages/contracts/src/*"],
+      "@ibpe/config": ["../../packages/config/src/index.ts"],
+      "@ibpe/config/*": ["../../packages/config/src/*"],
+      "@ibpe/database": ["../../packages/database/src/index.ts"],
+      "@ibpe/database/*": ["../../packages/database/src/*"]
     },
     "plugins": [
       {
