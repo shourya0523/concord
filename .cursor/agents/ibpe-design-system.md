@@ -21,6 +21,7 @@ You own **Workstream B — Design system and shadcn foundation**.
 
 1. Follow `/shadcn` install + composition patterns exactly.
 2. Do **not** ship default shadcn look — apply Editorial Finance Terminal (prompt §3–4).
-3. No feature pages (dashboard, study) — those belong to `ibpe-frontend`.
-4. Export primitives other streams import; never let feature teams fork primitives.
-5. Update `docs/agent-run/status.md` for Workstream B.
+3. Provide primitives for **diagram canvas**, **resource link list**, **weak-topic chip**, company/concept headers.
+4. No feature pages (dashboard, study) — those belong to `ibpe-frontend`.
+5. Export primitives other streams import; never let feature teams fork primitives.
+6. Update `docs/agent-run/status/design-system.md`.

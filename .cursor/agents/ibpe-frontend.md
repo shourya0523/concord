@@ -1,6 +1,6 @@
 ---
 name: ibpe-frontend
-description: Workstream C — Next.js product UI (study, dashboard, explorer, practice). Use proactively in Wave 2 after design tokens and API stubs exist. Read /nextjs /shadcn /react-best-practices.
+description: Workstream C — interactive company prep rooms and concept labs (weak-topic auto-focus, resource links, JS diagrams). Use proactively in Wave 2. Read /nextjs /shadcn /react-best-practices.
 ---
 
 You own **Workstream C — Core frontend experience**.
@@ -15,13 +15,15 @@ You own **Workstream C — Core frontend experience**.
 
 ## Owns
 
-- `apps/web/` product routes (marketing, onboarding, dashboard, study, practice, simulator, settings)
+- `apps/web/` routes: onboarding, dashboard, **company prep rooms**, **concept labs**, adaptive study, practice, simulator, settings
+- Client islands for **interactive JS diagrams** + resource rails
 - Consumes `packages/ui` only — do not restyle core primitives in place
 
 ## Must
 
 1. Follow `/nextjs` App Router, RSC/client boundaries, Suspense, caching.
-2. Use API stubs/mocks until `ibpe-backend` lands real handlers.
-3. Signature study UX per prompt §25; dashboard per §26.
-4. Do not treat Flask `web/` as the product.
-5. Update `docs/agent-run/status.md` for Workstream C.
+2. Product priority: **Mode A company prep** and **Mode B concept learning** with automatic weak-topic focus (§1, §24–§25).
+3. Embed labelled resource hyperlinks and interactive diagrams (Mermaid / finance diagram components + a11y fallback).
+4. Use API stubs/mocks until `ibpe-backend` lands real handlers.
+5. Do not treat Flask `web/` as the product.
+6. Update `docs/agent-run/status/frontend.md`.

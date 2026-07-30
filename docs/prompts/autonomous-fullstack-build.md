@@ -117,9 +117,9 @@ After each wave:
 5. Extend Glassdoor scraper (browser + BFF).
 6. Fix PE coverage gap (~18 PE vs ~2,800+ IB).
 7. Answer acquisition + financial validation.
-8. Full Next.js product (replace Flask as product UI).
-9. Study, search, recommendations, admin.
-10. Test critical workflows.
+8. Full Next.js product — **company prep rooms + concept labs** with weak-topic auto-focus, resource hyperlinks, embedded JS diagrams (replace Flask as product UI).
+9. Study, search, recommendation, and admin systems oriented to interactive learning.
+10. Test critical workflows (company session, concept page + diagram, weak-topic drill).
 11. Deploy app + workers.
 12. Validate production.
 13. Complete documentation + reports.
@@ -268,38 +268,60 @@ Do not duplicate finished BFF work. Do incorporate parallel-batch when available
 
 # 1. Product mission
 
-Build a distinctive, professional interview-preparation platform for:
+Build a distinctive, **interactive, company-based learning** platform for high-stakes finance interviews.
 
-* Investment Banking Analyst recruiting
-* Investment Banking Associate recruiting
-* Private Equity Analyst recruiting
-* Private Equity Associate recruiting
-* Growth Equity recruiting
-* Restructuring recruiting
-* Capital Markets recruiting
-* Private Credit recruiting where relevant
+Primary audiences:
+
+* Investment Banking Analyst / Associate recruiting
+* Private Equity Analyst / Associate recruiting
+* Growth Equity, Restructuring, Capital Markets, Private Credit where relevant
+
+## 1.1 Two primary learning modes
+
+The product is organised around **two equal entry paths** (not a generic question dump):
+
+### Mode A — Company interview prep
+
+User picks a **target firm** (and optionally role / interview date). The experience becomes that company’s prep room:
+
+* Questions and occurrences reported at that firm
+* Firm-specific frequency, difficulty, and stage patterns
+* “Why this firm / why banking / why PE” framing for that house
+* Adaptive queue that **automatically prioritises the user’s weaker topics** relative to that firm’s interview profile
+* Hyperlinks out to firm-relevant primers, deal examples, and concept deep-dives
+* Embedded interactive diagrams for the technical topics that firm over-indexes on
+
+### Mode B — Concept learning
+
+User picks a **concept track** (e.g. Accounting, Enterprise value, DCF, M&A, LBO / paper LBO, Behavioural story bank) without requiring a firm first:
+
+* Structured concept pages with progressive disclosure
+* Interactive diagrams (statement linkages, WACC build-up, sources & uses, value-creation bridge, etc.)
+* Curated resource hyperlinks (internal concept pages + external high-quality references)
+* Practice drills that feed mastery / weak-topic signals
+* Optional “apply this concept at [Company]” bridges into Mode A
+
+Users can switch modes freely. Company mode may deep-link into concept pages; concept mode may deep-link into firm occurrences.
+
+## 1.2 Learning behaviours (non-negotiable)
 
 The platform should help users:
 
-* Discover high-quality interview questions
-* Study validated answers
-* Identify questions reported at specific firms
+* **Prep interactively** for interviews at large IB / PE / growth firms — not only browse a bank
+* **Learn concepts** with diagrams, worked examples, and resource links
+* **Auto-focus weaker topics** from confidence, mastery, misses, and time-since-review (default session bias toward weakness, explainable)
+* Study validated answers with layered reveal
+* See firm-reported vs editorial content clearly
 * Practise by topic, role, firm, and interview stage
-* Complete realistic interview simulations
-* Track confidence and mastery
-* Review weak areas through spaced repetition
-* Prepare against a target interview date
-* Build behavioural and deal-experience responses
-* Understand answer assumptions and common mistakes
-* Distinguish reported content from editorially generated content
-* View provenance and validation status
-* Create notes, bookmarks, and custom collections
-* Receive adaptive recommendations
-* Measure firm-specific and role-specific readiness
+* Run realistic simulations and track readiness to a target date
+* Follow **hyperlinks to resources** (internal concepts, related questions, external references with provenance)
+* View **embedded JS diagrams** inline in study / concept surfaces (see §25.1) — not image-only screenshots as the primary teaching medium
+* Keep notes, bookmarks, collections
+* Receive adaptive recommendations with “why this” explanations
 
-The platform must not feel like a generic flashcard app, university learning-management system, HR portal, or templated SaaS dashboard.
+The platform must not feel like a generic flashcard app, university LMS, HR portal, or templated SaaS dashboard.
 
-It should feel like a premium, focused preparation environment for high-stakes finance interviews.
+It should feel like a premium, focused **interactive prep studio** for high-stakes finance interviews — company rooms and concept labs first; explorer/admin second.
 
 The current Flask bank browser is **not** this product; it is only a local data-inspection tool.
 
@@ -619,7 +641,7 @@ This is a **multi-subagent programme**, not a single-threaded coding session.
 | `packages/contracts/**` | `ibpe-architecture` |
 | `packages/ui/**` | `ibpe-design-system` |
 | `packages/database/**`, migrations | `ibpe-database` |
-| `scrapers/bank.py`, `scrapers/batch.py`, `scrapers/bff_api.py` | `ibpe-glassdoor` |
+| `scrapers/bank.py`, `scrapers/batch.py`, `scrapers/bff_api.py`, `scripts/parallel_batch.py` | `ibpe-glassdoor` |
 | `data/question_bank.json` | `ibpe-glassdoor` (writes) / `ibpe-data-quality` (import only) |
 | `apps/web/**` feature routes | `ibpe-frontend` |
 | API/auth server modules | `ibpe-backend` |
@@ -735,7 +757,10 @@ The shared contracts must define:
 * Firm schema
 * Role schema
 * Topic taxonomy
-* Practice-session schema
+* **Concept schema** (slug, prerequisites, firm relevance weights)
+* **Diagram schema** (id, type, source format e.g. mermaid|interactive-json, version, a11y fallback)
+* **Learning-resource schema** (label, url, kind internal|external, provenance, concept/firm links)
+* Practice-session schema (mode: company|concept|adaptive_weak|…)
 * Attempt schema
 * Mastery schema
 * Study-plan schema
@@ -747,6 +772,7 @@ The shared contracts must define:
 * Provenance enums
 * Validation enums
 * Scrape-job / completed-job schema (absorb current `completed_jobs`)
+* Learning-mode enum (`company_prep` | `concept_learn`)
 
 Use runtime validation, not TypeScript types alone.
 
@@ -892,6 +918,10 @@ The design-system team should create reusable components such as:
 * Validation label
 * Confidence control
 * Mastery control
+* **Diagram canvas** (Mermaid / interactive finance diagram host + reduced-motion fallback)
+* **Resource link list** (labelled hyperlinks, internal/external)
+* **Weak-topic chip** / focus callout
+* **Company room header** / **Concept lab header**
 * Empty state
 * Skeleton
 * Error state
@@ -911,18 +941,15 @@ Do not ship default shadcn visual styling.
 
 Owns:
 
-* App shell
-* Onboarding
-* Dashboard
-* Question explorer
-* Question detail
-* Practice mode
+* App shell with **Company prep** / **Concept lab** navigation
+* Onboarding (mode + firms + role + interview date)
+* Dashboard (weak-topic auto-focus)
+* Company prep rooms
+* Concept lab pages (diagrams + resource hyperlinks)
+* Question study (layered reveal + diagram slot + resource rail)
+* Adaptive / company / concept practice modes
 * Interview simulator
-* Notes
-* Bookmarks
-* Study plan
-* Analytics
-* User settings
+* Notes, bookmarks, study plan, analytics, user settings
 
 Must consume design-system components from Workstream B.
 
@@ -942,10 +969,13 @@ Must follow `/nextjs` and related skills for:
 * Fonts
 * Images
 * Bundle optimisation
+* Client islands for interactive JS diagrams without abandoning RSC by default
 
 May use fixtures / bank-import stubs before live APIs exist.
 
 Must not treat the Flask `web/` UI as the product frontend.
+
+Product UX priority: **interactive company + concept learning** (§1, §24–§25) over generic explorer chrome.
 
 ---
 
@@ -1006,7 +1036,7 @@ Other workstreams may propose schema changes through contract updates but must n
 
 ## Workstream F — Glassdoor collection (extend existing)
 
-**Agent:** `ibpe-glassdoor` · **Skills:** `AGENTS.md` + `/env-vars` (not `/auth`)
+**Agent:** `ibpe-glassdoor` · **Skills:** `AGENTS.md` + `/env-vars` (not `/auth`) · **Sibling:** PR #5 merged; PR #7 parallel batch open
 
 Owns:
 
@@ -1024,19 +1054,21 @@ Owns:
 * Incremental crawling
 * Scraper tests
 * Keeping `python main.py batch --backend bff|browser` working
+* Absorbing `scripts/parallel_batch.py` (PR #7) and adding `--backend bff` + PE shards
 
-The existing scraper **must be analysed and extended** rather than discarded without justification.
+The existing scraper **must be analysed and extended** rather than discarded without justification. **Do not re-implement merged PR #5.**
 
 ### Current capabilities to build on
 
 * Company search / overview navigation (browser)
 * Interview tab + position keyword filter (browser)
 * Page-number pagination with per-page bank saves (browser)
-* BFF employer lookup + paginated interviews (browserless)
+* BFF employer lookup + paginated interviews (browserless) — **shipped via merged PR #5**
 * Overlay / cookie dismissal
 * Patchright session capture and Selenium cookie hydrate
 * Automated Google / Indeed login with optional TOTP and Capsolver hooks
 * Exact-string dedup into JSON bank
+* Parallel Chrome workers + shard merge — **PR #7 `scripts/parallel_batch.py` (absorb; not necessarily merged yet)**
 
 ### Current gaps to close
 
@@ -1047,6 +1079,8 @@ The existing scraper **must be analysed and extended** rather than discarded wit
 * No layout-change detectors or fixture replay harness on mainline
 * No structured logging / dead-letter queue
 * Position match is heuristic; generic “Associate” false positives remain a risk for PE
+* Parallel runner lacks `--backend bff` (browser-only) — add BFF/worker parity
+* PR #7 full scrape may still be running; bank tip may lag — verify before claiming coverage wins
 
 ---
 
@@ -1874,6 +1908,16 @@ Implement entities equivalent to:
 * `question_firms`
 * `question_roles`
 
+## Learning content layer
+
+* `concepts`
+* `concept_prerequisites`
+* `concept_firm_weights`
+* `diagrams`
+* `diagram_versions`
+* `learning_resources`
+* `resource_links` (concept/question/firm associations)
+
 ## Answer layer
 
 * `answers`
@@ -2267,23 +2311,28 @@ Answer:
 
 # 24. Frontend application
 
-Build the following product surfaces in Next.js (not Flask):
+Build the following product surfaces in Next.js (not Flask). **Order UX around Mode A (company) and Mode B (concepts)** — not a flat CRUD catalogue.
 
-* Marketing page
+## 24.1 Core learning surfaces (priority)
+
+* Marketing page (company-prep + concept-learn CTAs)
 * Authentication
-* Onboarding
-* Home dashboard
-* Question explorer
-* Question study page
-* Practice session
-* Interview simulator
-* Firm preparation
-* PE preparation
-* Study planner
-* Notes
-* Bookmarks
-* Collections
-* Analytics
+* Onboarding — choose **Company prep** and/or **Concept learning**; set role, target firms, interview date
+* Home dashboard — weak-topic focus + next session for active mode
+* **Company prep room** (`/companies/[firm]`) — firm overview, reported topics, readiness, start adaptive session
+* **Concept lab** (`/concepts/[slug]`) — concept page with diagrams, resource links, linked questions, start drill
+* Adaptive study session (company- or concept-scoped)
+* Question study page (signature layered reveal + diagrams + resource rail)
+* Practice / weak-topic drill
+* Interview simulator (firm-configurable)
+* Study planner (interview-date urgency + weak topics)
+* Resource browser (curated hyperlinks with provenance)
+
+## 24.2 Supporting surfaces
+
+* Question explorer (power users / admin-adjacent browse)
+* Notes, bookmarks, collections
+* Analytics (weakness trends, firm readiness, concept mastery)
 * User settings
 * Admin console
 
@@ -2293,16 +2342,18 @@ Keep Flask `web/` available as an operator bank browser until feature parity for
 
 # 25. Signature question experience
 
-The question-study experience should be the product’s defining interaction.
+The question-study experience should be the product’s defining interaction — interactive learning, not a static FAQ.
 
 Before answer reveal, prioritise:
 
 * Large question typography
 * Topic and difficulty
+* **Company context** when in Mode A (firm chip, occurrence count, stage)
 * Thinking timer
 * Confidence selection
 * Optional hint
 * Reveal action
+* Weak-topic indicator when this question is in the user’s weak set
 
 Reduce unnecessary navigation chrome during focused study.
 
@@ -2311,13 +2362,15 @@ Reveal answers in stages:
 1. Direct answer
 2. Interview-ready explanation
 3. Step-by-step walkthrough
-4. Formulae or calculations
-5. Assumptions
-6. Common mistakes
-7. Follow-up questions
-8. Related concepts
-9. Sources
-10. Provenance and validation
+4. **Interactive diagram** (when the topic has one — see §25.1)
+5. Formulae or calculations
+6. Assumptions
+7. Common mistakes
+8. Follow-up questions
+9. Related concepts (deep links into Concept lab)
+10. **Resource hyperlinks** (internal + external, labelled)
+11. Sources / provenance and validation
+12. “Practise more on this weak topic” / “See how [Firm] asks this”
 
 Do not implement the answer as a generic accordion.
 
@@ -2332,6 +2385,40 @@ Add keyboard controls for:
 * Add note
 * Rate confidence
 * Mark mastery
+* Open related concept
+* Open resource link (focusable)
+
+## 25.1 Embedded interactive diagrams (JS diagrams)
+
+Diagrams are a **first-class teaching medium**, not decoration.
+
+Requirements:
+
+* Embed **interactive JavaScript diagrams** inline in concept pages and in answer reveals (client components where needed).
+* Prefer declarative diagram sources (e.g. Mermaid or equivalent) compiled/rendered in JS for maintainability, plus purpose-built interactive finance diagrams where Mermaid is too weak (three-statement flow, DCF waterfall, LBO sources & uses, capital structure stack, accretion/dilution bridge).
+* Support pan/zoom or step-highlight where helpful; never require a separate tab to understand the diagram.
+* Honour `prefers-reduced-motion`; provide a textual/table fallback for accessibility.
+* Store diagram definitions in content/contracts (versioned), not only in opaque binary assets.
+* Link diagram nodes/sections to related concept pages and resource URLs where natural.
+* Do **not** rely on static PNG screenshots as the primary diagram experience.
+
+Minimum diagram coverage for MVP concepts:
+
+* Three financial statements linkages
+* Enterprise value → equity value bridge
+* DCF / WACC build-up
+* Sources & uses (LBO / M&A)
+* Simple paper-LBO returns sketch (IRR / MOIC intuition)
+
+## 25.2 Resource hyperlinks
+
+Every concept page and every validated answer should expose a **Resources** rail or section:
+
+* Internal links: related concepts, prerequisite topics, firm prep rooms that over-index this topic
+* External links: high-quality public references (guides, explainers) with title, publisher, and optional “why linked”
+* Never bare URLs without labels
+* Track broken-link checks in QA where feasible
+* Distinguish editorial/resource links from Glassdoor source provenance
 
 ---
 
@@ -2339,64 +2426,61 @@ Add keyboard controls for:
 
 The dashboard should not be a uniform grid of generic cards.
 
-Use an asymmetric editorial composition.
+Use an asymmetric editorial composition oriented to **what to learn next**.
 
 Display:
 
+* Active mode toggle or clear entry: **Company prep** vs **Concept lab**
+* Target firm(s) readiness (Mode A)
+* Concept mastery map with **weaker topics highlighted** (Mode B / cross-cutting)
+* **Auto-suggested next session** biased to weaker topics (explain why)
 * Today’s review queue
 * Days until interview
 * Overall mastery
-* Firm readiness
-* Role readiness
-* Private-equity readiness
-* Weak topics
+* Firm readiness / PE readiness
 * Study streak
 * Recent sessions
-* Recommended session
 * Progress trends
+* Shortcut into company room or concept page
 
 Use oversized metrics, editorial rules, mixed-width panels, and meaningful hierarchy.
 
 ---
 
-# 27. Question explorer
+# 27. Company prep room & concept explorer
+
+## 27.1 Company prep room
+
+For each major firm:
+
+* Hero firm identity (editorial, not generic card stack)
+* Role filters (Analyst / Associate / …)
+* Topic heat from reported occurrences
+* User weakness overlay vs firm topic profile
+* Start **adaptive firm session** (defaults to weaker firm-relevant topics)
+* Reported question explorer scoped to firm
+* Links into concepts the firm cares about
+* Resource links specific to that firm’s interview style (when curated)
+
+## 27.2 Concept lab / explorer
 
 Support:
 
-* Keyword search
-* Semantic search
+* Keyword + semantic search over concepts and questions
 * Typo tolerance
-* Firm filtering
-* Fund filtering
-* Role filtering
-* Office filtering
-* Topic filtering
-* Subtopic filtering
-* Difficulty
-* Interview stage
+* Firm filtering (when bridging to Mode A)
+* Fund / role / office / topic / subtopic / difficulty / stage
 * Reported versus editorial
-* Answer availability
-* Answer validation
-* Recruiting cycle
+* Answer availability / validation
+* **Has interactive diagram** filter
+* **Has resource links** filter
+* Weak-for-me filter
 * IB versus PE
 * Source confidence
 
-Allow sorting by:
+Allow sorting by relevance, frequency, recency, difficulty, quality, firm relevance, **personal weakness**.
 
-* Relevance
-* Frequency
-* Recency
-* Difficulty
-* Quality
-* Firm relevance
-
-Support:
-
-* Saved searches
-* Saved filters
-* Filter counts
-* Keyboard navigation
-* Command-palette entry
+Support saved searches/filters, filter counts, keyboard navigation, command-palette entry (“Open Goldman prep”, “Open DCF concept”).
 
 ---
 
@@ -2404,17 +2488,13 @@ Support:
 
 Implement:
 
+* **Adaptive weak-topic session** (default from dashboard)
+* **Company adaptive session** (Mode A — firm profile ∩ weak topics)
+* **Concept drill** (Mode B — single concept or prerequisite chain)
 * Random technical drill
-* Accounting drill
-* Valuation drill
-* DCF drill
-* M&A drill
-* LBO drill
-* PE case drill
-* Behavioural drill
+* Accounting / Valuation / DCF / M&A / LBO / PE case / Behavioural drills
 * Firm-specific drill
 * Role-specific drill
-* Weak-topic drill
 * Timed drill
 * Difficulty progression
 * Spaced-repetition review
@@ -2423,11 +2503,13 @@ Freeze the selected question membership when a session starts.
 
 A session must remain reproducible even when the underlying dataset changes later.
 
+Surface mid-session links to the active concept diagram and resource list without breaking focus (peek / side rail).
+
 ---
 
 # 29. Interview simulations
 
-Implement configurable interview simulations.
+Implement configurable interview simulations — prefer **firm-templated** sims when a company is selected.
 
 ## Investment banking simulation
 
@@ -2467,8 +2549,9 @@ Support:
 * Notes
 * Follow-up sequencing
 * Answer comparison
-* Final readiness report
-* Topic-specific recommendations
+* Final readiness report biased to **weaker stages/topics**
+* Topic-specific recommendations with links into Concept lab + resources
+* Optional diagram prompts for technical stages (e.g. “sketch sources & uses”)
 
 ---
 
@@ -2480,9 +2563,9 @@ Implement:
 * Adaptive review
 * Confidence tracking
 * Mastery tracking
-* Weak-topic prioritisation
-* Topic prerequisites
-* Firm frequency
+* **Automatic weak-topic prioritisation** (default ranking input for sessions)
+* Topic prerequisites (concept graph)
+* Firm frequency × personal weakness scoring for Mode A
 * Role relevance
 * Interview-date urgency
 * Difficulty progression
@@ -2498,6 +2581,8 @@ Version the spaced-repetition algorithm.
 
 Do not overwrite historical scheduling assumptions when the algorithm changes.
 
+Weak-topic selection must be **explainable** in the UI (“Recommended because: low mastery + high Goldman frequency + due for review”).
+
 ---
 
 # 31. Study plans
@@ -2505,19 +2590,20 @@ Do not overwrite historical scheduling assumptions when the algorithm changes.
 Generate study plans using:
 
 * Target interview date
-* Target firms
+* Target firms (Mode A weighting)
 * Target role
-* Current mastery
+* Current mastery / **weaker topics**
 * Daily availability
-* Topic priorities
+* Topic priorities / prerequisite order
 * Practice history
 
 Provide:
 
-* Daily assignments
+* Daily assignments mixing company drills and concept labs
 * Weekly goals
 * Review sessions
 * Mock interviews
+* Diagram/concept checkpoints for weak technical areas
 * Progress recalculation
 * Catch-up logic
 
@@ -2534,7 +2620,9 @@ Implement hybrid search combining:
 * Frequency
 * Quality
 * Recency
-* User relevance
+* User relevance / weakness
+* Concept and firm entities
+* Resource titles
 
 Ranking factors should include:
 
@@ -2549,11 +2637,14 @@ source quality
 answer quality
 user weakness
 interview proximity
+has diagram / has resources (soft boost when user in concept mode)
 ```
 
 Prevent duplicated low-quality reports from dominating ranking.
 
 Create a curated search-evaluation set and report ranking quality.
+
+Command palette must jump to **companies**, **concepts**, **questions**, and **resources**.
 
 ---
 
@@ -2563,7 +2654,7 @@ Recommend content based on:
 
 * Target firms
 * Target role
-* Weak topics
+* **Weaker topics (primary signal)**
 * Review due date
 * Confidence
 * Mastery
@@ -2571,6 +2662,7 @@ Recommend content based on:
 * Prerequisite concepts
 * Firm-reported frequency
 * Answer quality
+* Missing diagrams/resources for incomplete concept coverage (editorial backlog — admin)
 
 Provide explanation metadata:
 
@@ -2578,11 +2670,14 @@ Provide explanation metadata:
 Recommended because:
 - Frequently reported for your target firm
 - Due for spaced review
-- Low current mastery
+- Low current mastery (weak topic)
 - Prerequisite for LBO interviews
+- Concept diagram available — good next learn
 ```
 
 Do not recommend low-confidence unvalidated material by default.
+
+Deep-link every recommendation into the correct **company room**, **concept lab**, or **study session**.
 
 ---
 
@@ -2623,11 +2718,14 @@ Implement typed APIs or server functions for:
 * Profiles
 * Questions
 * Answers
+* Concepts
+* Diagrams
+* Learning resources
 * Search
 * Firms
 * Roles
 * Topics
-* Practice sessions
+* Practice sessions (company | concept | adaptive_weak | …)
 * Attempts
 * Mastery
 * Notes
@@ -2991,6 +3089,8 @@ docs/shadcn-implementation.md
 docs/vercel-architecture.md
 docs/authentication.md
 docs/study-engine.md
+docs/learning-modes.md
+docs/concepts-and-diagrams.md
 docs/search.md
 docs/scrapers.md
 docs/glassdoor.md
@@ -3004,6 +3104,7 @@ docs/research/repository-audit.md
 docs/research/glassdoor-frontend-analysis.md
 docs/research/glassdoor-scraper-audit.md
 docs/agent-run/skills-used.md
+docs/agent-run/sibling-agents.md
 docs/agent-run/execution-plan.md
 docs/agent-run/dependency-graph.md
 docs/agent-run/ownership-map.md
@@ -3020,6 +3121,7 @@ Document exact commands for:
 * Database provisioning
 * Migrations
 * Seeding / `question_bank.json` import
+* Concept + diagram fixture load
 * Scraper dry run
 * `python main.py login`
 * `python main.py batch --backend bff|browser`
@@ -3102,7 +3204,11 @@ Use the following gates.
 ## Product gate
 
 * Authentication works
-* Search works
+* Company prep room + concept lab work
+* Weak-topic auto-focus session works and shows explanation
+* Diagrams render with fallback
+* Resource hyperlinks work
+* Search / command palette works
 * Question study works
 * Practice works
 * Progress persists
@@ -3169,10 +3275,13 @@ The project is complete only when:
 
 * The design system is distinctive (Editorial Finance Terminal).
 * shadcn primitives are customised.
-* Dashboard avoids generic card-grid design.
-* Question study is a signature experience.
-* Motion is purposeful.
-* Reduced motion works.
+* Dashboard avoids generic card-grid design and centres **next learn** / weak topics.
+* **Company prep** and **Concept lab** modes both work.
+* Question study is a signature experience with layered reveal.
+* Interactive JS diagrams render with a11y fallbacks.
+* Resource hyperlinks are labelled and reachable from study + concepts.
+* Weak-topic auto-focus drives default sessions and is explainable.
+* Motion is purposeful; reduced motion works.
 * Keyboard navigation works.
 * Responsive layouts work.
 * Flask UI is deprecated or clearly scoped as operator-only.
@@ -3180,14 +3289,14 @@ The project is complete only when:
 ## Product
 
 * Authentication works.
-* Onboarding works.
-* Search works.
+* Onboarding (company and/or concept path) works.
+* Search / command palette reaches firms, concepts, questions, resources.
 * Filtering works.
 * Question pages work.
-* Practice sessions work.
+* Adaptive / company / concept practice sessions work.
 * Interview simulations work.
 * Study plans work.
-* Spaced repetition works.
+* Spaced repetition + weak-topic prioritisation work.
 * Analytics work.
 * Admin tools work.
 

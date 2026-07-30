@@ -22,4 +22,5 @@ You own **Workstream H — Answers and financial validation**.
 1. Origins: source_provided | imported | synthesised | editorial | deterministic_calculation.
 2. Never imply Glassdoor authored generated answers; bank `process` ≠ answer.
 3. Use `GEMINI_API_KEY` / AI SDK patterns — no bespoke streaming stack if `/ai-sdk` covers it.
-4. Update `docs/agent-run/status.md` for Workstream H.
+4. Attach **diagram definitions** and **resource link sets** to answers/concepts where teaching requires them (contracts).
+5. Update `docs/agent-run/status/answers.md`.

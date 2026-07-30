@@ -14,8 +14,7 @@ You own **Workstream F — Glassdoor collection**.
 
 ## Owns
 
-- `scrapers/` (especially `bff_api.py`, `scraper.py`, `batch.py`, `bank.py` coordination)
-- `scripts/parallel_batch.py` (absorb from PR #7; add `--backend bff` support)
+- `scrapers/bank.py`, `scrapers/batch.py`, `scrapers/bff_api.py`, `scripts/parallel_batch.py` coordination
 - `config/targets.json` PE expansion
 - `fixtures/glassdoor/`
 - Raw artefact storage paths

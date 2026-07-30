@@ -20,5 +20,6 @@ You own **Workstream I — Search and recommendations**.
 ## Must
 
 1. Hybrid: FTS + trigram + vectors + metadata.
-2. Do not recommend unvalidated low-confidence material by default.
-3. Update `docs/agent-run/status.md` for Workstream I.
+2. Rank with **user weakness** and support company/concept/resource entities in command palette.
+3. Do not recommend unvalidated low-confidence material by default; explain weak-topic picks.
+4. Update `docs/agent-run/status/search.md`.
