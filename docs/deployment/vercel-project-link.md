@@ -18,26 +18,40 @@ Wave 1 ships root `vercel.json` + docs only. **Live `vercel link` / deploy is bl
 
 ## Link (monorepo)
 
-Repo root may have npm workspaces + Turbo (`package.json` workspaces: `apps/*`, `packages/*`). Prefer **Root Directory = `apps/web`** in Vercel project settings.
+Repo uses **npm workspaces** + Turbo (`package.json` `workspaces`: `apps/*`, `packages/*`).
+
+### Vercel project settings (required)
+
+| Setting | Value |
+|---------|-------|
+| Root Directory | **`apps/web`** (not repo root) |
+| Framework Preset | Next.js |
+| Include source files outside Root Directory | **Enabled** |
+| Install Command | **empty** — use `apps/web/vercel.json` |
+| Build Command | **empty** — use `apps/web/vercel.json` |
+
+If Root Directory is the **repo root**, Vercel reads root `package.json` (no `next`) and fails:
+
+```text
+No Next.js version detected. Make sure your package.json has "next" ...
+```
+
+Root `vercel.json` is intentionally minimal. All Next.js settings live in `apps/web/vercel.json`:
+
+```text
+Install Command: cd ../.. && npm ci
+Build Command:   cd ../.. && npm run build --workspace=@ibpe/web
+```
+
+Do **not** paste the build command into Install Command.
+
+**Do not commit `pnpm-lock.yaml`** — npm only (`package-lock.json`).
 
 ```bash
 export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"
 cd apps/web
 vercel link --yes --scope <team> --project concord-web
-# Creates apps/web/.vercel/project.json (gitignored; CI uses VERCEL_* secrets)
 ```
-
-Workspace packages (`@ibpe/ui`, etc.) resolve via `apps/web/vercel.json` when Root Directory is `apps/web`:
-
-```text
-Build Command: cd ../.. && npm run build --workspace=@ibpe/web
-```
-
-Leave **Install Command** empty in the Vercel dashboard so Vercel runs `npm ci` from the monorepo root (do not paste the build command into Install).
-
-If the Vercel project Root Directory is the **repo root** (not recommended), root `vercel.json` sets `outputDirectory` to `apps/web/.next` and the same workspace build.
-
-**Do not commit `pnpm-lock.yaml`** — this repo uses npm workspaces (`package-lock.json` only). A stray pnpm lockfile makes Vercel pick pnpm and breaks workspace resolution.
 
 Do **not** leave an accidental root-only `.vercel/project.json` that points at the Python tree.
 

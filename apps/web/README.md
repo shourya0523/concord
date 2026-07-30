@@ -53,3 +53,9 @@ npm run import:bank -w @ibpe/web -- --limit 50
 See `scripts/README.md`. Schema owned by `ibpe-database`.
 
 Depends on: `@ibpe/contracts`, `@ibpe/config`, `@ibpe/ui`, `@ibpe/database`, `@neondatabase/auth`.
+
+## Vercel deploy
+
+**Root Directory must be `apps/web`** (Project Settings → General). Do not deploy from the monorepo root — Vercel will not find `next` in root `package.json`.
+
+Install/build commands are in `apps/web/vercel.json`. Leave Install/Build overrides **empty** in the dashboard.
