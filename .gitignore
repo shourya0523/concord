@@ -47,3 +47,6 @@ data/parallel_batch/
 *.swp
 .idea/
 .vscode/
+
+# Node monorepo (Wave 1 scaffold)
+node_modules/

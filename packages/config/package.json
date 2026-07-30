@@ -1,5 +1,5 @@
 {
-  "name": "@ibpe/contracts",
+  "name": "@ibpe/config",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,12 +7,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./enums": "./src/enums.ts",
-    "./bank": "./src/bank.ts",
-    "./corpus": "./src/corpus.ts",
-    "./product": "./src/product.ts",
-    "./jobs": "./src/jobs.ts",
-    "./taxonomy": "./src/taxonomy.ts"
+    "./env": "./src/env.ts",
+    "./flags": "./src/flags.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
@@ -21,6 +17,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "typescript": "^5.6.0",
     "zod": "^3.23.8"
   }
