@@ -158,6 +158,15 @@ def capture_login_session(
         context = browser.new_context(**_context_kwargs())
         page = context.new_page()
         page.goto(GLASSDOOR_LOGIN_URL, wait_until="domcontentloaded", timeout=120_000)
+        # Give Cloudflare / Indeed SSO a moment to paint the real login UI
+        for _ in range(30):
+            try:
+                html = (page.content() or "").lower()
+            except Exception:
+                html = ""
+            if "continue with google" in html or "continue with apple" in html:
+                break
+            time.sleep(1)
 
         deadline = time.time() + timeout_seconds
         saved = False
