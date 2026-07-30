@@ -34,6 +34,7 @@ GLASSDOOR_LOGIN_METHOD=google   # recommended for gmail — skips Indeed Cloudfl
 # GLASSDOOR_TOTP_SECRET=...     # optional Google Authenticator secret
 # CAPSOLVER_API_KEY=...         # optional Indeed Turnstile solver
 # HTTPS_PROXY=...               # optional residential proxy
+# GEMINI_API_KEY=...            # Gemini for later LLM features
 ```
 
 Prefer [Cloud Agents Secrets](https://cursor.com/dashboard/cloud-agents) with the same variable names in cloud runs. Do not commit real credentials.
