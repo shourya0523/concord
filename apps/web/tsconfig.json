@@ -3,7 +3,9 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"],
-      "@ibpe/ui/*": ["../../packages/ui/src/*"]
+      "@ibpe/ui/*": ["../../packages/ui/src/*"],
+      "@ibpe/contracts": ["../../packages/contracts/src/index.ts"],
+      "@ibpe/contracts/*": ["../../packages/contracts/src/*"]
     },
     "plugins": [
       {
