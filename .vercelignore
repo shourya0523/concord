@@ -20,4 +20,5 @@ web
 *.db
 .env
 .env.local
+pnpm-lock.yaml
 .git
