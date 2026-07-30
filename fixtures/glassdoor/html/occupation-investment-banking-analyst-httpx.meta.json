@@ -1,0 +1,23 @@
+{
+  "__NEXT_DATA__": false,
+  "apollo_evidence": false,
+  "blocked": true,
+  "captured_at_utc": "2026-07-27T05:43:24.703983+00:00",
+  "final_url": "https://www.glassdoor.com/Interview/investment-banking-analyst-interview-questions-SRCH_KO0,26.htm",
+  "fixture_origin": "live_sanitized",
+  "graphql_evidence": false,
+  "method": "httpx",
+  "sanitization": [
+    "Cloudflare beacon script body redaction",
+    "Cloudflare challenge script body redaction",
+    "Cloudflare challenge token redaction",
+    "Cloudflare ray/beacon token redaction",
+    "IP address redaction",
+    "email redaction",
+    "phone redaction"
+  ],
+  "sha256_sanitized_html": "36a995eda1649d7cb00744910c430033501b52f2e963756e4a761adf93cfe077",
+  "source_url": "https://www.glassdoor.com/Interview/investment-banking-analyst-interview-questions-SRCH_KO0,26.htm",
+  "status": 403,
+  "surface": "occupation_search"
+}

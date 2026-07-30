@@ -1,0 +1,529 @@
+# Private equity role taxonomy for Glassdoor discovery and relevance classification.
+# Labels map to ibpe_corpus.schemas.models.PERelevance values.
+
+version: 1
+
+relevance_labels:
+  core_pe_investing: core_pe_investing
+  adjacent_pe_investing: adjacent_pe_investing
+  portfolio_operations: portfolio_operations
+  allocator_or_fund_selection: allocator_or_fund_selection
+  pe_advisory: pe_advisory
+  fund_operations: fund_operations
+  not_pe: not_pe
+
+core_investing_roles:
+  - id: pe_analyst
+    label: Private Equity Analyst
+    aliases:
+      - Private Equity Analyst
+      - PE Analyst
+      - Investment Analyst Private Equity
+      - Buyout Analyst
+    seniority: analyst
+    relevance: core_pe_investing
+
+  - id: pe_associate
+    label: Private Equity Associate
+    aliases:
+      - Private Equity Associate
+      - PE Associate
+      - Investment Associate Private Equity
+      - Buyout Associate
+    seniority: associate
+    relevance: core_pe_investing
+
+  - id: pe_senior_associate
+    label: Private Equity Senior Associate
+    aliases:
+      - Private Equity Senior Associate
+      - PE Senior Associate
+      - Senior Associate Private Equity
+    seniority: senior_associate
+    relevance: core_pe_investing
+
+  - id: investment_analyst
+    label: Investment Analyst
+    aliases:
+      - Investment Analyst
+      - PE Investment Analyst
+      - Direct Investment Analyst
+    seniority: analyst
+    relevance: core_pe_investing
+
+  - id: investment_associate
+    label: Investment Associate
+    aliases:
+      - Investment Associate
+      - PE Investment Associate
+      - Direct Investments Associate
+    seniority: associate
+    relevance: core_pe_investing
+
+  - id: investment_professional
+    label: Investment Professional
+    aliases:
+      - Investment Professional
+      - Private Equity Investment Professional
+      - PE Investment Professional
+    seniority: professional
+    relevance: core_pe_investing
+
+  - id: pe_principal
+    label: Principal
+    aliases:
+      - Private Equity Principal
+      - PE Principal
+      - Principal Private Equity
+      - Investment Principal
+    seniority: principal
+    relevance: core_pe_investing
+
+  - id: pe_vp
+    label: Vice President PE
+    aliases:
+      - Private Equity Vice President
+      - PE Vice President
+      - Vice President Private Equity
+      - VP Private Equity
+    seniority: vp
+    relevance: core_pe_investing
+
+  - id: pre_mba_associate
+    label: Pre-MBA Associate
+    aliases:
+      - Pre-MBA Associate
+      - Pre MBA Associate Private Equity
+      - Pre-MBA PE Associate
+    seniority: associate
+    relevance: core_pe_investing
+
+  - id: post_mba_associate
+    label: Post-MBA Associate
+    aliases:
+      - Post-MBA Associate
+      - Post MBA Associate Private Equity
+      - Post-MBA PE Associate
+    seniority: associate
+    relevance: core_pe_investing
+
+  - id: pe_intern
+    label: Private Equity Intern
+    aliases:
+      - Private Equity Intern
+      - PE Intern
+      - Investment Intern Private Equity
+    seniority: intern
+    relevance: core_pe_investing
+
+  - id: summer_analyst
+    label: Summer Analyst PE
+    aliases:
+      - Private Equity Summer Analyst
+      - PE Summer Analyst
+      - Summer Analyst Private Equity
+    seniority: summer_analyst
+    relevance: core_pe_investing
+
+  - id: off_cycle
+    label: Off-Cycle Analyst/Associate
+    aliases:
+      - Off-Cycle Private Equity
+      - Off Cycle PE Analyst
+      - Off-Cycle PE Associate
+      - Off Cycle Private Equity Associate
+    seniority: off_cycle
+    relevance: core_pe_investing
+
+  - id: pe_director
+    label: Director / Managing Director PE
+    aliases:
+      - Private Equity Director
+      - PE Director
+      - Managing Director Private Equity
+      - PE Managing Director
+    seniority: md
+    relevance: core_pe_investing
+
+strategy_roles:
+  - id: buyout
+    label: Buyout
+    aliases: [Buyout, Leveraged Buyout, LBO]
+    search_modifiers: [Buyout, LBO]
+    relevance: core_pe_investing
+
+  - id: growth_equity
+    label: Growth Equity
+    aliases: [Growth Equity, Growth Investing, Expansion Capital]
+    search_modifiers: [Growth Equity, Growth Capital]
+    relevance: core_pe_investing
+
+  - id: middle_market
+    label: Middle-Market
+    aliases: [Middle Market, Mid-Market, MM PE]
+    search_modifiers: [Middle Market Private Equity, Mid-Market PE]
+    relevance: core_pe_investing
+
+  - id: lmm
+    label: Lower Middle Market
+    aliases: [Lower Middle Market, LMM, Small Buyout]
+    search_modifiers: [Lower Middle Market PE, LMM Private Equity]
+    relevance: core_pe_investing
+
+  - id: mega_fund
+    label: Mega-Fund
+    aliases: [Mega Fund, Large Cap PE, Mega Buyout]
+    search_modifiers: [Mega Fund Private Equity, Large Cap Buyout]
+    relevance: core_pe_investing
+
+  - id: secondaries_gp
+    label: Secondaries GP
+    aliases: [Secondaries, Secondary Private Equity, GP-led Secondaries]
+    search_modifiers: [Secondaries Associate, Private Equity Secondaries]
+    relevance: core_pe_investing
+
+  - id: secondaries_lp_led
+    label: LP-led Secondaries
+    aliases: [LP-led Secondaries, LP Led Secondary]
+    search_modifiers: [LP-led Secondaries, Secondary LP]
+    relevance: adjacent_pe_investing
+
+  - id: co_investments
+    label: Co-Investments
+    aliases: [Co-Investment, Coinvest, Direct Co-Invest]
+    search_modifiers: [Co-Investment Associate, Private Equity Co-Invest]
+    relevance: core_pe_investing
+
+  - id: fund_of_funds
+    label: Fund of Funds
+    aliases: [Fund of Funds, FoF, Multi-Manager]
+    search_modifiers: [Fund of Funds Associate, PE Fund of Funds]
+    relevance: allocator_or_fund_selection
+
+  - id: private_credit
+    label: Private Credit
+    aliases: [Private Credit, Direct Lending, Private Debt]
+    search_modifiers: [Private Credit Associate, Direct Lending Analyst]
+    relevance: adjacent_pe_investing
+
+  - id: distressed
+    label: Distressed
+    aliases: [Distressed, Distressed Debt, Special Situations Distressed]
+    search_modifiers: [Distressed Private Equity, Distressed Investing]
+    relevance: adjacent_pe_investing
+
+  - id: special_situations
+    label: Special Situations
+    aliases: [Special Situations, Spec Sit, Opportunistic Credit]
+    search_modifiers: [Special Situations Associate, Spec Sit PE]
+    relevance: adjacent_pe_investing
+
+  - id: infrastructure
+    label: Infrastructure
+    aliases: [Infrastructure, Infra PE, Infrastructure Equity]
+    search_modifiers: [Infrastructure Private Equity, Infra Associate]
+    relevance: core_pe_investing
+
+  - id: real_estate_pe
+    label: Real Estate PE
+    aliases: [Real Estate Private Equity, RE PE, Real Estate Equity]
+    search_modifiers: [Real Estate Private Equity, REPE Associate]
+    relevance: adjacent_pe_investing
+
+  - id: energy_pe
+    label: Energy PE
+    aliases: [Energy Private Equity, Energy PE, Oil and Gas PE]
+    search_modifiers: [Energy Private Equity, Energy PE Associate]
+    relevance: core_pe_investing
+
+  - id: healthcare_pe
+    label: Healthcare PE
+    aliases: [Healthcare Private Equity, Healthcare PE, Life Sciences PE]
+    search_modifiers: [Healthcare Private Equity, Healthcare PE Associate]
+    relevance: core_pe_investing
+
+  - id: tech_pe
+    label: Tech PE
+    aliases: [Technology Private Equity, Tech PE, Software PE]
+    search_modifiers: [Technology Private Equity, Tech PE Associate]
+    relevance: core_pe_investing
+
+  - id: consumer_pe
+    label: Consumer PE
+    aliases: [Consumer Private Equity, Consumer PE, Retail PE]
+    search_modifiers: [Consumer Private Equity, Consumer PE Associate]
+    relevance: core_pe_investing
+
+  - id: financial_sponsors
+    label: Financial Sponsors Coverage
+    aliases: [Financial Sponsors, Sponsor Coverage, FIG Sponsors]
+    search_modifiers: [Financial Sponsors Associate, Sponsor Coverage]
+    relevance: pe_advisory
+
+  - id: portfolio_ops
+    label: Portfolio Operations
+    aliases: [Portfolio Operations, Portfolio Ops, Operating Partner]
+    search_modifiers: [Portfolio Operations, Portfolio Ops Associate]
+    relevance: portfolio_operations
+
+  - id: value_creation
+    label: Value Creation
+    aliases: [Value Creation, Value Creation Associate, Operating Value Creation]
+    search_modifiers: [Value Creation Associate, PE Value Creation]
+    relevance: portfolio_operations
+
+exclusion_classes:
+  - id: fund_accounting
+    label: Fund Accounting
+    aliases:
+      - Fund Accountant
+      - Fund Accounting
+      - Private Equity Fund Accountant
+      - PE Fund Accountant
+      - Fund Controller
+    relevance: fund_operations
+
+  - id: investor_relations
+    label: Investor Relations
+    aliases:
+      - Investor Relations
+      - PE Investor Relations
+      - Private Equity IR
+      - IR Associate Private Equity
+    relevance: fund_operations
+
+  - id: placement_agent
+    label: Placement / Capital Raising
+    aliases:
+      - Placement Agent
+      - Capital Raising
+      - Fundraising Associate PE
+      - Private Placement Agent
+    relevance: fund_operations
+
+  - id: recruitment
+    label: Recruitment / Executive Search
+    aliases:
+      - PE Recruiter
+      - Private Equity Recruiter
+      - Executive Search Private Equity
+      - PE Recruitment Consultant
+    relevance: not_pe
+
+  - id: consulting_serving_pe
+    label: Consulting Serving PE
+    aliases:
+      - PE Due Diligence Consultant
+      - Strategy Consultant Private Equity
+      - Management Consultant PE Clients
+    relevance: pe_advisory
+
+  - id: transaction_services
+    label: Transaction Services / QoE
+    aliases:
+      - Transaction Services
+      - TS Associate
+      - Quality of Earnings
+      - QoE Associate
+      - Financial Due Diligence
+    relevance: pe_advisory
+
+  - id: legal
+    label: Legal / Counsel
+    aliases:
+      - Private Equity Lawyer
+      - PE Counsel
+      - Fund Formation Associate
+      - Investment Funds Lawyer
+    relevance: not_pe
+
+  - id: compliance
+    label: Compliance / Risk
+    aliases:
+      - PE Compliance
+      - Private Equity Compliance Officer
+      - Fund Compliance Analyst
+    relevance: fund_operations
+
+  - id: software_vendors
+    label: Software Vendors to PE
+    aliases:
+      - PE Software Sales
+      - Private Equity SaaS
+      - Deal Cloud
+      - PE Tech Vendor
+    relevance: not_pe
+
+  - id: pension_allocation
+    label: Pension / Allocator
+    aliases:
+      - Pension Fund Allocator
+      - LP Allocator
+      - Endowment Private Equity
+      - Plan Sponsor PE
+    relevance: allocator_or_fund_selection
+
+  - id: wealth_management
+    label: Wealth Management
+    aliases:
+      - Wealth Manager
+      - Private Wealth
+      - Family Office Advisor
+      - High Net Worth Advisor
+    relevance: not_pe
+
+concept_queries:
+  - id: lbo
+    phrase: LBO interview questions
+    concepts: [LBO, leveraged buyout]
+  - id: paper_lbo
+    phrase: Paper LBO interview
+    concepts: [Paper LBO, simplified LBO]
+  - id: moic
+    phrase: MOIC private equity interview
+    concepts: [MOIC, multiple on invested capital]
+  - id: irr
+    phrase: IRR private equity interview
+    concepts: [IRR, internal rate of return]
+  - id: sources_uses
+    phrase: sources and uses LBO
+    concepts: [sources and uses]
+  - id: debt_capacity
+    phrase: debt capacity LBO interview
+    concepts: [debt capacity, leverage]
+  - id: returns_bridge
+    phrase: returns bridge private equity
+    concepts: [returns bridge, value creation bridge]
+  - id: entry_exit_multiple
+    phrase: entry exit multiple LBO
+    concepts: [entry multiple, exit multiple]
+  - id: working_capital
+    phrase: working capital private equity interview
+    concepts: [working capital, NWC]
+  - id: add_on_acquisition
+    phrase: add-on acquisition private equity
+    concepts: [add-on, bolt-on]
+  - id: management_presentation
+    phrase: management presentation PE interview
+    concepts: [management presentation, CIM]
+  - id: investment_memo
+    phrase: investment memo private equity
+    concepts: [investment memo, IC memo]
+  - id: ebitda_adjustments
+    phrase: EBITDA adjustments PE interview
+    concepts: [EBITDA adjustments, add-backs]
+  - id: capital_structure
+    phrase: capital structure LBO interview
+    concepts: [capital structure, senior debt, mezz]
+  - id: dpi_tvpi
+    phrase: DPI TVPI private equity
+    concepts: [DPI, TVPI, RVPI]
+
+# Keyword hints used by the rule-based classifier (lowercase matching).
+classifier_keywords:
+  core_pe_investing:
+    positive:
+      - private equity analyst
+      - private equity associate
+      - pe analyst
+      - pe associate
+      - senior associate private equity
+      - pe senior associate
+      - investment associate
+      - investment analyst
+      - investment professional
+      - buyout associate
+      - buyout analyst
+      - pre-mba associate
+      - post-mba associate
+      - pe principal
+      - private equity principal
+      - pe vice president
+      - vice president private equity
+      - vp private equity
+      - private equity intern
+      - pe intern
+      - summer analyst private equity
+      - pe summer analyst
+      - off-cycle private equity
+      - off cycle pe
+      - direct investments
+      - leveraged buyout
+  adjacent_pe_investing:
+    positive:
+      - growth equity
+      - private credit
+      - direct lending
+      - private debt
+      - distressed
+      - special situations
+      - secondaries
+      - co-investment
+      - co investment
+      - real estate private equity
+      - repe
+      - infrastructure equity
+      - infrastructure associate
+
+  portfolio_operations:
+    positive:
+      - portfolio operations
+      - portfolio ops
+      - value creation
+      - operating partner
+      - portfolio company operations
+      - pe operating
+      - talent value creation
+
+  allocator_or_fund_selection:
+    positive:
+      - fund of funds
+      - fund-of-funds
+      - fof associate
+      - lp allocator
+      - pension allocator
+      - endowment private equity
+      - manager selection
+      - fund selection
+
+  pe_advisory:
+    positive:
+      - financial sponsors
+      - sponsor coverage
+      - transaction services
+      - quality of earnings
+      - qoe
+      - financial due diligence
+      - pe due diligence consultant
+      - strategy consultant private equity
+
+  fund_operations:
+    positive:
+      - fund accountant
+      - fund accounting
+      - fund controller
+      - investor relations
+      - pe investor relations
+      - placement agent
+      - capital raising
+      - fundraising associate
+      - fund compliance
+      - pe compliance
+      - fund administrator
+      - fund admin
+
+  not_pe:
+    positive:
+      - pe recruiter
+      - private equity recruiter
+      - recruitment consultant
+      - executive search
+      - wealth manager
+      - private wealth
+      - pe software
+      - saas sales
+      - private equity lawyer
+      - pe counsel
+      - fund formation lawyer
+      - investment funds lawyer
+      - legal counsel

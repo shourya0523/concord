@@ -1,0 +1,73 @@
+{
+  "buildId": "synthetic-build-id",
+  "page": "/Interview/[employerSlug]",
+  "props": {
+    "pageProps": {
+      "apolloState": {
+        "Employer:2800": {
+          "__typename": "Employer",
+          "id": 2800,
+          "name": "Goldman Sachs"
+        },
+        "Interview:INT_2000000001": {
+          "__typename": "InterviewReview",
+          "difficulty": "Average",
+          "experience": "Positive",
+          "id": "INT_2000000001",
+          "jobTitle": "Investment Banking Analyst",
+          "outcome": "Accepted Offer",
+          "questions": [
+            {
+              "__ref": "InterviewQuestion:QTN_2000000001"
+            }
+          ]
+        },
+        "InterviewQuestion:QTN_2000000001": {
+          "__typename": "InterviewQuestion",
+          "answerCount": 3,
+          "commentCount": 2,
+          "detailUrl": "/Interview/Goldman-Sachs-Investment-Banking-Analyst-Interview-Question-QTN_2000000001.htm",
+          "id": "QTN_2000000001",
+          "questionText": "Pitch me a stock you follow."
+        },
+        "ROOT_QUERY": {
+          "__typename": "Query",
+          "employer({\"id\":2800})": {
+            "__ref": "Employer:2800"
+          },
+          "employerInterviews({\"employerId\":2800,\"page\":1})": {
+            "__typename": "EmployerInterviewConnection",
+            "nodes": [
+              {
+                "__ref": "Interview:INT_2000000001"
+              }
+            ],
+            "pageInfo": {
+              "__typename": "PageInfo",
+              "currentPage": 1,
+              "nextPage": 2,
+              "totalPages": 12
+            },
+            "totalCount": 6750
+          }
+        }
+      },
+      "canonicalUrl": "/Interview/Goldman-Sachs-Interview-Questions-E2800.htm",
+      "employer": {
+        "id": 2800,
+        "name": "Goldman Sachs",
+        "shortName": "Goldman Sachs"
+      },
+      "filters": {
+        "jobTitle": null,
+        "location": null
+      },
+      "page": 1,
+      "totalPages": 12
+    }
+  },
+  "runtimeConfig": {
+    "appName": "glassdoor-interviews",
+    "fixture_origin": "synthetic"
+  }
+}

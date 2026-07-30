@@ -1,0 +1,283 @@
+# Target matrix for PE interview corpus collection.
+# Employer glassdoor_id values are null when unknown; fill as discovered.
+
+version: 1
+
+geographies:
+  - id: us_northeast
+    label: US Northeast
+    offices: [New York, Boston, Stamford, Greenwich]
+  - id: us_midwest
+    label: US Midwest
+    offices: [Chicago, Minneapolis, Detroit]
+  - id: us_west
+    label: US West
+    offices: [San Francisco, Los Angeles, Seattle, Menlo Park]
+  - id: us_south
+    label: US South
+    offices: [Dallas, Houston, Atlanta, Charlotte, Miami]
+  - id: uk
+    label: United Kingdom
+    offices: [London, Manchester]
+  - id: europe_ex_uk
+    label: Europe ex-UK
+    offices: [Paris, Frankfurt, Munich, Amsterdam, Stockholm, Milan, Madrid]
+  - id: asia_pacific
+    label: Asia Pacific
+    offices: [Hong Kong, Singapore, Tokyo, Sydney, Mumbai]
+  - id: canada
+    label: Canada
+    offices: [Toronto, Montreal, Calgary]
+  - id: middle_east
+    label: Middle East
+    offices: [Dubai, Abu Dhabi]
+
+seniority_bands:
+  - id: intern
+    labels: [Intern, Summer Analyst, Summer Associate]
+  - id: analyst
+    labels: [Analyst, Off-Cycle Analyst]
+  - id: associate
+    labels: [Associate, Pre-MBA Associate, Post-MBA Associate, Off-Cycle Associate]
+  - id: senior_associate
+    labels: [Senior Associate]
+  - id: vp
+    labels: [Vice President, VP]
+  - id: principal
+    labels: [Principal, Director]
+  - id: md_partner
+    labels: [Managing Director, Partner, Managing Partner]
+
+strategies:
+  - buyout
+  - growth_equity
+  - middle_market
+  - lmm
+  - mega_fund
+  - secondaries
+  - co_investments
+  - fund_of_funds
+  - private_credit
+  - distressed
+  - special_situations
+  - infrastructure
+  - real_estate_pe
+  - energy_pe
+  - healthcare_pe
+  - tech_pe
+  - consumer_pe
+  - portfolio_ops
+  - value_creation
+
+employers:
+  # Mega / large-cap buyout
+  - name: Blackstone
+    strategies: [buyout, mega_fund, real_estate_pe, private_credit, infrastructure]
+    glassdoor_id: null
+  - name: KKR
+    strategies: [buyout, mega_fund, private_credit, infrastructure]
+    glassdoor_id: null
+  - name: Carlyle
+    strategies: [buyout, mega_fund, private_credit]
+    glassdoor_id: null
+  - name: Apollo Global Management
+    strategies: [buyout, mega_fund, private_credit, distressed]
+    glassdoor_id: null
+  - name: TPG
+    strategies: [buyout, mega_fund, growth_equity]
+    glassdoor_id: null
+  - name: Warburg Pincus
+    strategies: [buyout, growth_equity]
+    glassdoor_id: null
+  - name: Advent International
+    strategies: [buyout, mega_fund]
+    glassdoor_id: null
+  - name: Bain Capital
+    strategies: [buyout, mega_fund, private_credit]
+    glassdoor_id: null
+  - name: Silver Lake
+    strategies: [tech_pe, buyout, mega_fund]
+    glassdoor_id: null
+  - name: Thoma Bravo
+    strategies: [tech_pe, buyout]
+    glassdoor_id: null
+  - name: Vista Equity Partners
+    strategies: [tech_pe, buyout]
+    glassdoor_id: null
+  - name: Hellman & Friedman
+    strategies: [buyout, mega_fund]
+    glassdoor_id: null
+  - name: CVC Capital Partners
+    strategies: [buyout, mega_fund]
+    glassdoor_id: null
+  - name: EQT
+    strategies: [buyout, mega_fund, infrastructure]
+    glassdoor_id: null
+  - name: Permira
+    strategies: [buyout, mega_fund, tech_pe]
+    glassdoor_id: null
+
+  # Middle-market / LMM buyout
+  - name: Ares Management
+    strategies: [private_credit, buyout, middle_market]
+    glassdoor_id: null
+  - name: Leonard Green & Partners
+    strategies: [buyout, middle_market, consumer_pe]
+    glassdoor_id: null
+  - name: Clayton Dubilier & Rice
+    strategies: [buyout, middle_market]
+    glassdoor_id: null
+  - name: GTCR
+    strategies: [buyout, middle_market, healthcare_pe]
+    glassdoor_id: null
+  - name: Madison Dearborn Partners
+    strategies: [buyout, middle_market]
+    glassdoor_id: null
+  - name: H.I.G. Capital
+    strategies: [buyout, middle_market, lmm, private_credit]
+    glassdoor_id: null
+  - name: Audax Group
+    strategies: [buyout, middle_market, lmm]
+    glassdoor_id: null
+  - name: Golden Gate Capital
+    strategies: [buyout, middle_market]
+    glassdoor_id: null
+  - name: Welsh Carson Anderson & Stowe
+    strategies: [healthcare_pe, tech_pe, buyout, middle_market]
+    glassdoor_id: null
+  - name: Genstar Capital
+    strategies: [buyout, middle_market]
+    glassdoor_id: null
+  - name: Summit Partners
+    strategies: [growth_equity, middle_market]
+    glassdoor_id: null
+  - name: Riverside Company
+    strategies: [buyout, lmm]
+    glassdoor_id: null
+  - name: Clearlake Capital
+    strategies: [buyout, special_situations]
+    glassdoor_id: null
+  - name: Francisco Partners
+    strategies: [tech_pe, buyout]
+    glassdoor_id: null
+  - name: Insight Partners
+    strategies: [growth_equity, tech_pe]
+    glassdoor_id: null
+
+  # Growth equity
+  - name: General Atlantic
+    strategies: [growth_equity]
+    glassdoor_id: null
+  - name: TA Associates
+    strategies: [growth_equity, middle_market]
+    glassdoor_id: null
+  - name: JMI Equity
+    strategies: [growth_equity, tech_pe]
+    glassdoor_id: null
+  - name: Bessemer Venture Partners
+    strategies: [growth_equity, tech_pe]
+    glassdoor_id: null
+  - name: TCV
+    strategies: [growth_equity, tech_pe]
+    glassdoor_id: null
+  - name: Norwest Venture Partners
+    strategies: [growth_equity]
+    glassdoor_id: null
+
+  # Secondaries / FoF
+  - name: HarbourVest Partners
+    strategies: [secondaries, fund_of_funds, co_investments]
+    glassdoor_id: null
+  - name: Lexington Partners
+    strategies: [secondaries]
+    glassdoor_id: null
+  - name: Pantheon
+    strategies: [secondaries, fund_of_funds]
+    glassdoor_id: null
+  - name: Ardian
+    strategies: [secondaries, buyout, infrastructure]
+    glassdoor_id: null
+  - name: Coller Capital
+    strategies: [secondaries]
+    glassdoor_id: null
+  - name: Partners Group
+    strategies: [secondaries, private_credit, infrastructure]
+    glassdoor_id: null
+  - name: Hamilton Lane
+    strategies: [secondaries, fund_of_funds, co_investments]
+    glassdoor_id: null
+
+  # Private credit / distressed / special situations
+  - name: Owl Rock / Blue Owl
+    strategies: [private_credit]
+    glassdoor_id: null
+  - name: Golub Capital
+    strategies: [private_credit, middle_market]
+    glassdoor_id: null
+  - name: HPS Investment Partners
+    strategies: [private_credit]
+    glassdoor_id: null
+  - name: Oaktree Capital Management
+    strategies: [distressed, private_credit, special_situations]
+    glassdoor_id: null
+  - name: Fortress Investment Group
+    strategies: [private_credit, distressed, special_situations]
+    glassdoor_id: null
+  - name: Cerberus Capital Management
+    strategies: [distressed, special_situations, private_credit]
+    glassdoor_id: null
+  - name: Centerbridge Partners
+    strategies: [distressed, special_situations, buyout]
+    glassdoor_id: null
+
+  # Infrastructure / RE PE
+  - name: Macquarie Asset Management
+    strategies: [infrastructure]
+    glassdoor_id: null
+  - name: Global Infrastructure Partners
+    strategies: [infrastructure]
+    glassdoor_id: null
+  - name: Brookfield Asset Management
+    strategies: [infrastructure, real_estate_pe, private_credit]
+    glassdoor_id: null
+  - name: Stonepeak
+    strategies: [infrastructure]
+    glassdoor_id: null
+  - name: I Squared Capital
+    strategies: [infrastructure]
+    glassdoor_id: null
+  - name: Blackstone Real Estate
+    strategies: [real_estate_pe]
+    glassdoor_id: null
+  - name: Starwood Capital
+    strategies: [real_estate_pe]
+    glassdoor_id: null
+  - name: Lone Star Funds
+    strategies: [real_estate_pe, distressed]
+    glassdoor_id: null
+
+  # Sector / other PE
+  - name: New Mountain Capital
+    strategies: [buyout, middle_market, healthcare_pe]
+    glassdoor_id: null
+  - name: Energy Capital Partners
+    strategies: [energy_pe, infrastructure]
+    glassdoor_id: null
+  - name: Riverstone Holdings
+    strategies: [energy_pe]
+    glassdoor_id: null
+  - name: EnCap Investments
+    strategies: [energy_pe]
+    glassdoor_id: null
+  - name: L Catterton
+    strategies: [consumer_pe, buyout]
+    glassdoor_id: null
+  - name: Roark Capital
+    strategies: [consumer_pe, buyout]
+    glassdoor_id: null
+
+coverage_thresholds:
+  max_single_search_phrase_share: 0.40
+  min_strategy_diversity: 5
+  min_employer_count: 50
+  min_core_plus_adjacent_share: 0.50

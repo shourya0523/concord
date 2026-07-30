@@ -1,0 +1,187 @@
+{
+  "generated_at": "2026-07-27T08:02:22.138773+00:00",
+  "total_raw_artefacts": 12,
+  "total_occupation_searches": 6,
+  "total_employer_pages": 0,
+  "total_interview_reviews": 3304,
+  "total_question_details": 0,
+  "total_responses_comments": 3,
+  "exact_questions": 9737,
+  "pe_questions": 48,
+  "canonical_questions": 3310,
+  "source_provided_answers": 377,
+  "matched_answers": 310,
+  "generated_answers": 150,
+  "validated_answers": 461,
+  "rejected_answers": 0,
+  "duplicate_rate": 0.228,
+  "validation_rate": 0.5508,
+  "metrics": {
+    "pages_discovered": 6,
+    "pages_fetched": 12,
+    "pages_blocked": 6,
+    "responses_reached": 9,
+    "exact_questions": 9737,
+    "core_pe_records": 132,
+    "pe_false_positives": 6710,
+    "source_answers": 1139,
+    "matched_answers": 620,
+    "generated_answers": 300,
+    "validated_answers": 1222,
+    "rejected_answers": 0,
+    "canonical_questions": 6620,
+    "duplicate_rate": 0.228,
+    "zero_result_anomalies": 3,
+    "bank_rows": 2842,
+    "categories": 27,
+    "interview_format": 517,
+    "pagination_links": 2,
+    "pe_search_phrases": 172,
+    "track_IB": 2824,
+    "track_PE": 18
+  },
+  "alerts": [
+    "fixture company-goldman-sachs-interviews-httpx.html access_state=captcha",
+    "fixture occupation-investment-banking-analyst-httpx.html access_state=captcha",
+    "fixture occupation-private-equity-associate-httpx.html access_state=captcha",
+    "question QTN_2000000001 reports answer_count=3 comment_count=2 but zero responses extracted",
+    "question QTN_1000000001 reports answer_count=4 comment_count=1 but zero responses extracted",
+    "question QTN_1000000002 reports answer_count=2 comment_count=0 but zero responses extracted"
+  ],
+  "jobs": [
+    {
+      "job_name": "discover_sources",
+      "idempotency_key": "discover:fixtures:v1",
+      "state": "completed",
+      "started_at": "2026-07-27T07:59:48.248883Z",
+      "completed_at": "2026-07-27T07:59:48.250874Z",
+      "retry_count": 0,
+      "error_classification": null,
+      "input_count": 0,
+      "output_count": 3,
+      "parser_or_model_version": null,
+      "resume_checkpoint": {},
+      "metrics": {
+        "pages_discovered": 3
+      },
+      "message": "static_seed,glassdoor_fixtures,github_cm_export"
+    },
+    {
+      "job_name": "extract_records",
+      "idempotency_key": "extract:glassdoor-fixtures:v1",
+      "state": "completed",
+      "started_at": "2026-07-27T07:59:48.284796Z",
+      "completed_at": "2026-07-27T07:59:48.286199Z",
+      "retry_count": 0,
+      "error_classification": null,
+      "input_count": 6,
+      "output_count": 4,
+      "parser_or_model_version": "glassdoor-parser-v1",
+      "resume_checkpoint": {},
+      "metrics": {
+        "pages_fetched": 6,
+        "pages_blocked": 3,
+        "exact_questions": 4,
+        "responses_reached": 3
+      },
+      "message": null
+    },
+    {
+      "job_name": "discover_sources",
+      "idempotency_key": "import:seed+github+bank:v1",
+      "state": "completed",
+      "started_at": "2026-07-27T07:59:51.857027Z",
+      "completed_at": "2026-07-27T07:59:51.857891Z",
+      "retry_count": 0,
+      "error_classification": null,
+      "input_count": 3,
+      "output_count": 4165,
+      "parser_or_model_version": null,
+      "resume_checkpoint": {},
+      "metrics": {
+        "exact_questions": 3249
+      },
+      "message": null
+    },
+    {
+      "job_name": "classify_pe_relevance",
+      "idempotency_key": "classify:pe:v1",
+      "state": "completed",
+      "started_at": "2026-07-27T07:59:52.198743Z",
+      "completed_at": "2026-07-27T07:59:52.200352Z",
+      "retry_count": 0,
+      "error_classification": null,
+      "input_count": 4169,
+      "output_count": 66,
+      "parser_or_model_version": null,
+      "resume_checkpoint": {
+        "phrase_sample": [
+          "Private Equity Analyst",
+          "PE Analyst",
+          "Investment Analyst Private Equity",
+          "Buyout Analyst",
+          "Private Equity Associate",
+          "PE Associate",
+          "Investment Associate Private Equity",
+          "Buyout Associate",
+          "Private Equity Senior Associate",
+          "PE Senior Associate"
+        ]
+      },
+      "metrics": {
+        "core_pe_records": 66,
+        "pe_false_positives": 3355,
+        "pe_search_phrases": 86
+      },
+      "message": null
+    },
+    {
+      "job_name": "canonicalise_questions",
+      "idempotency_key": "canonicalise:v1",
+      "state": "completed",
+      "started_at": "2026-07-27T08:02:07.694375Z",
+      "completed_at": "2026-07-27T08:02:07.695364Z",
+      "retry_count": 0,
+      "error_classification": null,
+      "input_count": 4169,
+      "output_count": 3310,
+      "parser_or_model_version": "glassdoor-parser-v1",
+      "resume_checkpoint": {},
+      "metrics": {
+        "canonical_questions": 3310,
+        "duplicate_rate": 0.114
+      },
+      "message": null
+    },
+    {
+      "job_name": "generate_missing_answers",
+      "idempotency_key": "answers:fill+validate:v1",
+      "state": "completed",
+      "started_at": "2026-07-27T08:02:21.922716Z",
+      "completed_at": "2026-07-27T08:02:21.924255Z",
+      "retry_count": 0,
+      "error_classification": null,
+      "input_count": 3310,
+      "output_count": 837,
+      "parser_or_model_version": "answer-gen-v1/answer-val-v1",
+      "resume_checkpoint": {},
+      "metrics": {
+        "source_answers": 377,
+        "matched_answers": 310,
+        "generated_answers": 150,
+        "validated_answers": 611,
+        "rejected_answers": 0
+      },
+      "message": null
+    }
+  ],
+  "relationship_count": 0,
+  "known_limitations": [
+    "Live Glassdoor fetches return Cloudflare/CAPTCHA 403 in this environment.",
+    "Glassdoor application DOM/network shapes are validated via synthetic fixtures only.",
+    "PE employer crawl counts remain matrix-planned until live access is available.",
+    "Answer synthesis uses deterministic templates, not an external LLM."
+  ],
+  "export_files": 8,
+  "test_results": "see CI / pytest"
+}

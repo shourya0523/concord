@@ -1,0 +1,16 @@
+{
+  "__NEXT_DATA__": true,
+  "answer_comment_evidence": "answer/comment counts or detail sections included",
+  "apollo_evidence": true,
+  "contains_pii": false,
+  "created_at_utc": "2026-07-27T05:45:13.222522+00:00",
+  "fixture_id": "synthetic-occupation-search-ib-next-data",
+  "fixture_origin": "synthetic",
+  "graphql_evidence": true,
+  "pagination_evidence": "pagination links included where applicable",
+  "paired_html_fixture": "/workspace/fixtures/glassdoor/html/synthetic-occupation-search-ib.html",
+  "reason": "Live fetches were blocked by Glassdoor/Cloudflare; this fixture is synthetic parser-development data and not live scraped content.",
+  "sha256": "76096503a25d0e168ac6ab2cba64439bd0247b511b61a204098f844d979d5eb3",
+  "source_live_attempts": "/workspace/data/raw/glassdoor_research_log.jsonl",
+  "surface": "occupation-search-ib"
+}

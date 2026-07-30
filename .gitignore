@@ -1,9 +1,19 @@
 # Python
-__pycache__
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
 
 # Environment
-venv
-.venv
+venv/
+.venv/
 .env
 
 # Auth session cache (do not commit)
@@ -14,7 +24,14 @@ data/glassdoor_state.json
 chromedriver.exe
 downloaded_files
 
-# Output
+# Local DB / raw fetch archives
+*.db
+data/db/*.db
+data/raw/glassdoor/*.html
+!data/raw/.gitkeep
+!data/db/.gitkeep
+
+# Legacy scraper output (keep committed exports/ and data/question_bank.json)
 *.txt
 !requirements.txt
 *.csv
@@ -22,4 +39,11 @@ downloaded_files
 *.pdf
 *_questions.json
 !data/question_bank.json
+!exports/**
 data/parallel_batch/
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/

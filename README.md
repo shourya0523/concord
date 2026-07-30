@@ -1,66 +1,137 @@
-# Interview Question Web Scraper
+# IB/PE Interview Corpus Pipeline
 
-> Imported from [GlassCleaner2](https://github.com/sbalsara05/GlassCleaner2). Cursor Cloud setup: see [`AGENTS.md`](AGENTS.md) and [`.cursor/`](.cursor/).
+Automated collection, extraction, answering, normalisation, and validation of
+investment-banking and private-equity interview questions.
 
-Scrape Glassdoor interview questions into a curated JSON bank for IB, PE, and banking interviews.
+This repo also retains the imported **GlassCleaner2** Selenium scraper (`main.py`)
+for live Glassdoor batch collection when credentials and browser access are
+available. See [Legacy scraper](#legacy-glasscleaner-scraper) below.
 
-## Setup
+## Status
 
-1. Set up a virtual environment
+- **Corpus pipeline** (`ibpe`): fixture-first because live Glassdoor often returns
+  Cloudflare/CAPTCHA HTTP 403 in restricted environments.
+- Glassdoor parsers, pagination, question-detail and response extraction work against
+  synthetic fixtures and blocked-page classifiers.
+- PE taxonomy + classifier + 64-employer target matrix.
+- GitHub seed import (Capital Markets QB 385 Q&A) + bundled offline seed.
+- Layered answers: source → corpus match → deterministic synthesis → validation.
+- Restartable job runner with idempotency keys and exports/reports.
+- Live scraper: BFF API / Patchright session / parallel batch collection into
+  `data/question_bank.json`.
 
-```shell
+## Install (corpus pipeline)
+
+```bash
+python3 -m pip install -e ".[dev]"
+```
+
+## Migrate / init DB
+
+```bash
+ibpe migrate
+# or: python -c "from ibpe_corpus.storage import CorpusStore; CorpusStore('data/db/corpus.db')"
+```
+
+SQL mirror: `migrations/001_init.sql`.
+
+## Fixture-only end-to-end run (no live Glassdoor)
+
+```bash
+ibpe run-pipeline --mode fixtures --force
+pytest -q
+```
+
+## Common commands (`ibpe`)
+
+| Task | Command |
+|------|---------|
+| Replay archived HTML | `ibpe replay-fixture fixtures/glassdoor/html/synthetic-question-detail-qtn.html` |
+| Occupation URL fetch (expect block) | `ibpe fetch-glassdoor --role "Private Equity Associate"` |
+| PE search phrases | `ibpe pe-phrases --limit 30` |
+| Classify role | `ibpe classify-role "Private Equity Associate"` |
+| Import seed | `ibpe import-seed` |
+| Import GitHub high-priority | `ibpe import-github --priority high` |
+| Inspect dead letters | `ibpe inspect-dead-letters` |
+
+## Layout
+
+```
+src/ibpe_corpus/          # corpus pipeline
+  adapters/glassdoor|github|static
+  answers/  pe/  canonical/  orchestration/  export/  storage/  schemas/
+main.py scrapers/ web/    # legacy GlassCleaner scraper + UI
+config/   fixtures/   docs/   exports/   reports/   migrations/   tests/
+```
+
+## Docs
+
+See `docs/architecture.md`, `docs/operations.md`, `docs/troubleshooting.md`,
+and workstream docs under `docs/`. Cloud agent setup: [`AGENTS.md`](AGENTS.md).
+Autonomous build prompt: [`docs/prompts/autonomous-fullstack-build.md`](docs/prompts/autonomous-fullstack-build.md).
+
+## Honest limitations
+
+Bare httpx to Glassdoor is usually Cloudflare/CAPTCHA blocked from datacenter IPs.
+Workarounds integrated in this repo (no credentials committed):
+
+1. Import existing `data/question_bank.json` (legacy Selenium scrapes) — **default in pipeline**
+2. Reuse `data/glassdoor_session.json` after a successful `main.py` login (`--mode session`)
+3. SeleniumBase UC browser fetch (`--mode browser`) with optional `.env` credentials
+4. BFF API backend (`--backend bff`) with residential `HTTPS_PROXY`
+5. Patchright `storage_state` login (`python main.py login`)
+
+```bash
+ibpe fetch-status
+ibpe import-question-bank
+ibpe fetch-glassdoor --mode auto --role "Private Equity Associate"
+```
+
+Coverage targets that still need live employer crawls are documented in `reports/`.
+
+---
+
+## Legacy GlassCleaner scraper
+
+> Imported from [GlassCleaner2](https://github.com/sbalsara05/GlassCleaner2).
+> Uses Selenium + optional `.env` login; writes to `data/question_bank.json`.
+> Cursor Cloud setup: see [`AGENTS.md`](AGENTS.md).
+
+### Setup
+
+```bash
 python3 -m venv .venv
-```
-
-2. Activate it (required before every session)
-
-```shell
-# Windows
-.venv\Scripts\activate
-
-# Mac / Linux
 source .venv/bin/activate
-```
-
-3. Install requirements (do not paste trailing comments on this line)
-
-```shell
 pip install -r requirements.txt
-```
-
-4. Configure login credentials in a local `.env` (gitignored):
-
-```shell
-cp .env.example .env
-# edit GLASSDOOR_EMAIL and GLASSDOOR_PASSWORD
+cp .env.example .env   # set GLASSDOOR_EMAIL / GLASSDOOR_PASSWORD
 ```
 
 With the venv activated, `python` / `python3` use that environment. If you skip activation, call the venv explicitly:
 
-```shell
+```bash
 .venv/bin/python main.py query --track PE
 ```
 
-## Login / Cloudflare bypass
+### Login / Cloudflare bypass
 
 Cloudflare on **Indeed Google OAuth** (`secure.indeed.com`) blocks most datacenter IPs even when you solve the checkbox. Two documented alternatives:
 
-### Preferred on cloud: BFF API (no browser login)
+#### Preferred on cloud: BFF API (no browser login)
 
 Calls Glassdoor’s internal interview API with `curl_cffi` TLS impersonation — skips Indeed entirely. Needs a **residential** `HTTPS_PROXY`.
 
-```shell
+```bash
 # .env / Cloud Agents Secrets:
 # HTTPS_PROXY=http://user:pass@host:port
 
 python main.py batch --backend bff --track IB --limit 1 --force
 ```
 
-### Patchright session capture
+#### Patchright session capture
 
 Headed Patchright Chrome → login once → save `storage_state` → reuse. Still needs a clean (ideally residential) IP for Indeed/Google.
 
-```shell
+```bash
 pip install -r requirements.txt
 python main.py login          # solve captcha / 2FA in the Chrome window
 python main.py batch --limit 1
@@ -68,11 +139,11 @@ python main.py batch --limit 1
 
 State file: `data/glassdoor_state.json` (gitignored). Or run `login` at home and copy that file into the cloud workspace.
 
-### Automated login (`.env`)
+#### Automated login (`.env`)
 
 Glassdoor uses Indeed SSO **or** Google OAuth. Automated login reads `.env`:
 
-```shell
+```bash
 GLASSDOOR_EMAIL=...
 GLASSDOOR_PASSWORD=...
 GLASSDOOR_LOGIN_METHOD=auto   # auto|google|indeed
@@ -87,7 +158,7 @@ GLASSDOOR_LOGIN_METHOD=auto   # auto|google|indeed
 - If Google prompts 2FA, approve on your phone or set `GLASSDOOR_TOTP_SECRET`.
 - Prefer `--backend bff` + residential `HTTPS_PROXY` on cloud VMs to skip Indeed login entirely.
 
-```shell
+```bash
 # Auto login from .env (default when credentials are set)
 python main.py batch --track IB --limit 1
 
@@ -104,27 +175,19 @@ Manual fallback (no `.env`, or `--manual-login`):
 
 For batch runs you only log in once; the browser is reused for every company/role. Cookie / storage_state reuse skips login on later runs until the session expires.
 
-## Single-company scrape
-
-```shell
-python main.py -c "Evercore" -p "Investment Banking Analyst" -e "json"
-```
-
-Export options: `txt`, `docx`, `csv`, `pdf`, `json`.
-
-## Batch scrape into the question bank
+### Batch scrape into the question bank
 
 Targets live in [`config/targets.json`](config/targets.json) (starter IB / PE / banking firm list). Results merge into [`data/question_bank.json`](data/question_bank.json) with deduplication.
 
-```shell
+```bash
 # One job (first matching company+position), IB track only
 python main.py batch --track IB --limit 1
 
 # All PE targets
-python main.py batch --track PE
+python main.py batch --track PE --limit 5
 
 # Full starter set (long-running)
-python main.py batch
+python main.py batch --track IB
 ```
 
 Useful flags:
@@ -136,73 +199,21 @@ Useful flags:
 - `--bank PATH` — custom bank file
 - `--manual-login` / `--no-manual-login` — force manual pause or automated `.env` login (default: auto when credentials exist)
 - `--force` — redo jobs already marked complete (also backfills blurred `process` text onto existing questions)
+- `--backend bff|selenium` — prefer BFF on cloud
 
-### Interruptions / resume
+Progress is safe to interrupt: questions are saved after every page; re-run the same batch command to skip completed jobs.
 
-Progress is safe to interrupt:
+### Single company
 
-- Questions are **saved after every page**
-- A job is marked **completed** only when pagination finishes (Next disabled)
-- Re-run the same batch command to **skip completed jobs** and retry partial/failed ones
-- Deduping means re-scraping a partial job won’t duplicate questions
-
-```shell
-# Keep going after a crash / Wi‑Fi drop (log in again when prompted)
-python main.py batch --track IB
+```bash
+python main.py -c "Evercore" -p "Investment Banking Analyst" -e json
 ```
 
-## Query the bank
+### Query / UI
 
-```shell
+```bash
 python main.py query --track PE
-python main.py query --company "Goldman" --position Analyst
-python main.py query --track IB -o ib_questions.json
+python main.py ui   # http://127.0.0.1:5050
 ```
 
-## Browse in the UI
-
-```shell
-python main.py ui
-```
-
-Then open http://127.0.0.1:5050 — Glassdoor-green browser for filters and question search.
-
-## Question bank format
-
-[`data/question_bank.json`](data/question_bank.json):
-
-```json
-{
-  "version": 1,
-  "updated_at": "ISO-8601",
-  "questions": [
-    {
-      "id": "sha1(company|position|question)",
-      "company": "Goldman Sachs",
-      "track": "IB",
-      "position": "Investment Banking Analyst",
-      "date_posted": "...",
-      "user": "...",
-      "experience": "...",
-      "question": "...",
-      "scraped_at": "ISO-8601"
-    }
-  ]
-}
-```
-
-Edit [`config/targets.json`](config/targets.json) to add firms or roles. Each target is:
-
-```json
-{
-  "company": "Evercore",
-  "track": "IB",
-  "positions": ["Investment Banking Analyst", "Investment Banking Associate"]
-}
-```
-
-## Updating requirements
-
-```shell
-pip freeze > requirements.txt
-```
+Cookie cache: `data/glassdoor_session.json` (gitignored). Do not commit credentials.
