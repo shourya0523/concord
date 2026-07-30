@@ -110,7 +110,7 @@ if [[ "$RUN_LOCAL" == "1" ]]; then
 fi
 
 echo "=== CLI ==="
-if python3 main.py query --track IB 2>/dev/null | head -c 80 | grep -q '"count"'; then
+if python3 -c 'import json,subprocess,sys; r=subprocess.run(["python3","main.py","query","--track","IB"],capture_output=True,text=True); d=json.loads(r.stdout); sys.exit(0 if d.get("count",0)>0 else 1)'; then
   echo "PASS  python3 main.py query --track IB"
   pass=$((pass + 1))
 else
