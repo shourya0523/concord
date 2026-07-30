@@ -1,42 +1,42 @@
 # Deployment report (Workstream J)
 
-**Wave:** 1 (CI / scaffold)  
-**Branch:** `local/ws-infra-a9ff`  
+**Wave:** 2+ (product live on Vercel)  
+**Branch:** `main`  
 **Updated:** 2026-07-30
 
 ## Plan (preview → production)
 
 1. Scaffold `vercel.json`, ignore rules, and link docs (`docs/deployment/`).
-2. Keep Python pytest CI; add Node package placeholder checks for monorepo stubs.
+2. Keep Python pytest CI; add Node package checks + `npm ci` / web build guard.
 3. Wire worker schedule stubs (dispatch-only) — no unattended Glassdoor crawl in Actions.
-4. When `apps/web` has a Next.js app + `VERCEL_TOKEN` / org / project IDs: create **preview** deploy.
-5. QA validates preview; **promote** to production (`vercel promote` or production branch).
+4. ~~When `apps/web` has a Next.js app…~~ **Done** — preview + production live.
+5. QA validates preview (Wave 3 ongoing).
 6. Wave 3: monitoring integrations, backups, prod smoke.
 
 ## Topology
 
-| Component | Target | Wave 1 status |
-|-----------|--------|---------------|
-| Next.js product | Vercel (`apps/web`) | Scaffold + docs only |
+| Component | Target | Status |
+|-----------|--------|--------|
+| Next.js product | Vercel (`apps/web`) | Live |
 | Scrapers / enrich | `apps/worker` / Cloud Agents | Dockerfile + schedule stubs |
 | Object storage | Vercel Blob (private) | Docs + env names |
-| DB | Neon (marketplace) | Documented; provision later |
-| CI | GitHub Actions | Extended `ci.yml` |
+| DB | Neon (marketplace) | Documented; auth/DB stubbed when unset |
+| CI | GitHub Actions | `npm ci` + `@ibpe/web` build |
 
 ## URLs
 
 | Environment | URL | Notes |
 |-------------|-----|-------|
-| Preview | _pending_ | Blocked — no live Vercel login / Next app in this run |
-| Production | _pending_ | After preview validation (Wave 3) |
+| Production | https://concord-umber.vercel.app | Alias: https://concord-shourya0523s-projects.vercel.app |
+| Preview | Git branch previews via Vercel Git integration | Root Directory = `apps/web` |
 
-## Blockers (Wave 1)
+## Incident / fix (2026-07-30)
 
-| Blocker | Impact | Resolution |
-|---------|--------|------------|
-| No Vercel CLI auth in this cloud agent (`vercel` not logged in; deploy not required for Wave 1) | Cannot `vercel link` / preview URL | Operator runs link locally or adds `VERCEL_TOKEN` + Git integration |
-| `apps/web` is README stub (Next.js lands Wave 2 / architecture) | Cannot build product on Vercel yet | Root `vercel.json` ready; set Root Directory = `apps/web` when app exists |
-| Scrape secrets must stay off Vercel public env | N/A (by design) | Documented in `AGENTS.md` + deployment docs |
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| `No Next.js version detected` / Root Directory missing | `.vercelignore` bare `web` matched `apps/web` | Use `/web` only |
+| pnpm vs npm workspace miss | Stale `pnpm-lock.yaml` | Removed; npm only |
+| Install ran build command | Dashboard override | Clear overrides; `apps/web/vercel.json` owns install/build |
 
 ## Secrets posture
 
@@ -48,11 +48,12 @@
 ## CI
 
 - `test` — existing pytest + fixture pipeline
-- `node-packages` — `scripts/ci_node_packages.sh` (manifest parse + `@ibpe/contracts` tsc)
+- `node-packages` — `npm ci` + `npm run build --workspace=@ibpe/web` + stub checks
 - `worker-schedule` — manual stub only
 
 ## References
 
 - `docs/deployment/README.md`
+- `docs/deployment/vercel-project-link.md`
 - `docs/agent-run/env-inventory.md`
 - `AGENTS.md` (scrape DX + secret boundaries)
