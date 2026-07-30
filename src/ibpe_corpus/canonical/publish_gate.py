@@ -27,10 +27,22 @@ def is_interview_process_placeholder(text: str | None) -> bool:
         return True
     if _INTERVIEW_PROCESS_RE.match(raw):
         remainder = _INTERVIEW_PROCESS_RE.sub("", raw).strip(" :-—–")
+        # Role/title stubs after the label (no question mark) are placeholders.
         if len(remainder) < 80 and "?" not in remainder:
             return True
     lowered = raw.lower()
-    if lowered in {"interview process", "[interview process]", "n/a", "na", "tbd"}:
+    if lowered in {
+        "interview process",
+        "[interview process]",
+        "n/a",
+        "na",
+        "tbd",
+        "see interview process",
+        "interview process overview",
+    }:
+        return True
+    # Bare bracket labels used as question bodies.
+    if re.fullmatch(r"\[\s*interview\s+process\s*\]", lowered):
         return True
     return False
 

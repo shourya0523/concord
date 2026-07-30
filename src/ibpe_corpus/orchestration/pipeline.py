@@ -421,34 +421,47 @@ def run_fixture_pipeline(
     classify_payload = classify_pe()
     _record("classify_pe_relevance", "classify:pe:v1", classify_payload)
 
-    # --- canonicalise teaching truth; keep bank as topic signals ---
+    # --- canonicalise teaching truth separately so fuzzy dedupe stays on ---
     canon_result = None
 
     def do_canonicalise() -> dict[str, Any]:
         nonlocal canon_result
-        to_canon = [
+        from ibpe_corpus.canonical.canonicalise import CanonicalisationResult
+
+        teaching_rows = [
             r
-            for r in all_extracted
+            for r in teaching_extracted
             if not is_interview_process_placeholder(r.exact_source_text)
         ]
-        # Exact-hash only when total volume makes fuzzy O(n²) impractical.
-        fuzzy = 92.0 if len(to_canon) <= 400 else 100.5
-        canon_result = canonicalise(to_canon, fuzzy_threshold=fuzzy)
+        signal_rows = [
+            r
+            for r in signal_extracted
+            if not is_interview_process_placeholder(r.exact_source_text)
+        ]
+        # Teaching corpus is small — always run fuzzy + concept-gated merge.
+        teaching_canon = canonicalise(teaching_rows, fuzzy_threshold=92.0)
+        # Bank-scale signals: exact-hash clusters only (fuzzy O(n²) too costly).
+        signal_canon = (
+            canonicalise(signal_rows, fuzzy_threshold=100.5)
+            if signal_rows
+            else CanonicalisationResult()
+        )
 
-        teaching_qs = [
-            q for q in canon_result.questions if q.review_state != "topic_signal"
-        ]
-        teaching_vars = [
-            v
-            for v in canon_result.variants
-            if any(q.id == v.canonical_question_id for q in teaching_qs)
-        ]
-        join_fuzzy = 88.0 if len(signal_extracted) <= 400 else 100.5
+        canon_result = CanonicalisationResult(
+            questions=list(teaching_canon.questions) + list(signal_canon.questions),
+            variants=list(teaching_canon.variants) + list(signal_canon.variants),
+            occurrences=list(teaching_canon.occurrences) + list(signal_canon.occurrences),
+            merge_audits=list(teaching_canon.merge_audits) + list(signal_canon.merge_audits),
+        )
+
+        teaching_qs = list(teaching_canon.questions)
+        teaching_vars = list(teaching_canon.variants)
+        # Join cost is O(signals × teaching); teaching stays small so fuzzy is fine.
         joined_occs, join_audits = join_firm_signals(
             teaching_qs,
             teaching_vars,
-            signal_extracted,
-            fuzzy_threshold=join_fuzzy,
+            signal_rows,
+            fuzzy_threshold=88.0,
         )
         canon_result.occurrences.extend(joined_occs)
         canon_result.merge_audits.extend(join_audits)
@@ -542,9 +555,14 @@ def run_fixture_pipeline(
                 },
             )
         publishable, withheld = filter_publishable_questions(canon_result.questions)
+        teaching_merge_n = sum(
+            1
+            for a in teaching_canon.merge_audits
+            if a.get("reason") in {"exact_hash", "fuzzy_match"}
+        )
         dup_rate = 0.0
-        if canon_result.variants:
-            dup_rate = 1.0 - (len(canon_result.questions) / max(1, len(canon_result.variants)))
+        if teaching_vars:
+            dup_rate = 1.0 - (len(teaching_qs) / max(1, len(teaching_vars)))
         return {
             "input_count": len(all_extracted),
             "output_count": len(canon_result.questions),
@@ -553,6 +571,8 @@ def run_fixture_pipeline(
                 "publishable_teaching_questions": len(publishable),
                 "withheld_signal_or_placeholder": len(withheld),
                 "firm_signal_joins": len(joined_occs),
+                "teaching_merge_audits": teaching_merge_n,
+                "teaching_fuzzy_enabled": True,
                 "duplicate_rate": round(dup_rate, 4),
             },
         }

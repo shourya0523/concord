@@ -2,11 +2,11 @@
 
 ## Teaching vs firm signals
 
-- Canonical rows (all): 3914
-- Publishable teaching questions: 431
+- Canonical rows (all): 3899
+- Publishable teaching questions: 416
 - Firm-signal topic clusters (withheld from teaching publish): 3483
-- Firm-signal occurrences joined to teaching Qs: 168
-- Answers with provenance source_ids: 379/431
+- Firm-signal occurrences joined to teaching Qs: 738
+- Answers with provenance source_ids: 364/416
 - Glassdoor responses extracted: 3
 - Exact questions metric: 1221
 - Pages blocked: 6
@@ -19,7 +19,9 @@
 - GitHub / static seed = teaching source of truth (`product_role=teaching_qa`).
 - `question_bank.json` = firm signals only (`product_role=firm_signal`).
 - Never publish `[Interview process]` placeholders as questions or answers.
-- Dedup uses normalised SHA-256 + fuzzy token_set_ratio; merges reversible via `merge_audit`.
+- Dedup: teaching corpus uses normalised SHA-256 + fuzzy `token_set_ratio`
+  (concept-gated); firm-signal clusters use exact-hash at bank scale.
+  All merges write reversible `merge_audit` payloads.
 - Production publish blocked until `reports/license-review.md` clears high-priority sources.
 
 ## Alerts

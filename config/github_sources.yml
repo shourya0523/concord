@@ -88,6 +88,8 @@ sources:
       - site/src/games/*.tsx
     format: markdown_curriculum_plus_react_practice_games
     import_priority: low
+    product_role: pattern_only
+    license_status: not_imported
     notes: Quant trading curriculum, not IB/PE; only useful for optional trading/market-making appendix.
 
   - repo: offergenieai/Finance-Interview-Questions

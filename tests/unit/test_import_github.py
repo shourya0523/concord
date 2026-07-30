@@ -202,6 +202,30 @@ def test_github_adapter_parse_local_mini(tmp_path: Path):
     assert parsed.metrics["exact_questions"] == 3
 
 
+def test_import_markdown_table_titles(tmp_path: Path):
+    md = tmp_path / "titles.md"
+    md.write_text(
+        "\n".join(
+            [
+                "| Question | Company | Category | Difficulty |",
+                "|----------|---------|----------|------------|",
+                "| Walk me through a DCF | Goldman Sachs | Valuation | Medium |",
+                "| What is enterprise value? | JPMorgan | Accounting | Easy |",
+                "| [Interview process] Analyst | KKR | Process | Easy |",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    from ibpe_corpus.adapters.github.importers import import_markdown_table_titles
+
+    result = import_markdown_table_titles(md, repo="fixture/table")
+    assert result.metrics["exact_questions"] == 2
+    texts = [r.exact_source_text for r in result.extracted]
+    assert all("[Interview process]" not in t for t in texts)
+    assert result.extracted[0].extracted_metadata.get("product_role") == "teaching_qa"
+    assert result.extracted[0].extracted_metadata.get("contract_provenance") == "github_source"
+
+
 @pytest.mark.network
 def test_live_download_capital_markets(tmp_path: Path):
     """Optional live raw.githubusercontent.com fetch; skip if network blocked."""
