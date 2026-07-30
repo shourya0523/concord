@@ -1,7 +1,7 @@
 # Programme status
 
-**Phase:** Wave 2 in progress  
-**Base:** `main` @ `aa95600` (Wave 1 + ADR 0006 Neon Auth / manual scrape)  
+**Phase:** Wave 2 integrated — awaiting land on main  
+**Integrate branch:** `local/wave2-integrate-a9ff`  
 **Updated:** 2026-07-30
 
 ## Waves
@@ -9,26 +9,20 @@
 | Wave | State |
 |------|-------|
 | Phase 0 | Complete |
-| Wave 1 | Complete on main (#15) + policy (#16) |
-| Wave 2 | Spawning — frontend / backend / search |
-| Wave 3 | Not started |
+| Wave 1 | Complete on main (#15 + #16) |
+| Wave 2 | Integrated — frontend + Neon Auth backend + search |
+| Wave 3 | Next after #wave2 lands |
 
 ## Stream rollup
 
 | Stream | Branch | State |
 |--------|--------|-------|
-| A–J (Wave 1) | — | On main |
-| C Frontend | `local/ws-frontend-a9ff` | Spawning |
-| D Backend | `local/ws-backend-a9ff` | Spawning |
-| I Search | `local/ws-search-a9ff` | Spawning |
-| K QA | — | Wave 3 |
+| C Frontend | `local/ws-frontend-a9ff` | Merged into integrate |
+| D Backend | `local/ws-backend-a9ff` | Merged into integrate |
+| I Search | `local/ws-search-a9ff` | Merged into integrate |
 
-## Policy locks
+## Verify
 
-- Product auth: **Neon Auth** (not Clerk)
-- Scrape: **manual captcha / Patchright** (BFF legacy only)
-- Teaching truth: GitHub Q/A; Glassdoor = firm signals
-
-## Next
-
-Integrate Wave 2 → foundation product gate → Wave 3 QA/deploy.
+- `@ibpe/web` typecheck green
+- `@ibpe/search` tests green
+- Neon Auth stubs when env missing; set `NEON_AUTH_*` for live auth
