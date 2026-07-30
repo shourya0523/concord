@@ -3097,7 +3097,8 @@ The project is complete only when:
 
 ## Architecture
 
-* Relevant Vercel and shadcn skills were read and applied.
+* Relevant slash skills (`/nextjs`, `/shadcn`, `/vercel-cli`, `/vercel-storage`, `/auth`, `/ai-sdk`, `/deployments-cicd`, …) were read and applied.
+* `.cursor/agents/ibpe-*.md` existed and Wave 1+ were launched as parallel Tasks (or limitation documented).
 * Repository architecture is documented from the GlassCleaner2 baseline.
 * Shared contracts exist and absorb the bank schema.
 * Parallel workstream ownership is documented.
