@@ -47,10 +47,12 @@ Do **not** paste the build command into Install Command.
 
 **Do not commit `pnpm-lock.yaml`** — npm only (`package-lock.json`).
 
+**`.vercelignore`:** ignore the Flask UI with `/web` (leading slash). A bare `web` pattern also matches `apps/web` and strips the Next app from uploads → `Root Directory "apps/web" does not exist` / `No Next.js version detected`.
+
 ```bash
 export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"
-cd apps/web
-vercel link --yes --scope <team> --project concord-web
+cd /workspace   # monorepo root (not apps/web)
+vercel link --yes --scope <team> --project concord
 ```
 
 Do **not** leave an accidental root-only `.vercel/project.json` that points at the Python tree.
