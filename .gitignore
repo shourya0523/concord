@@ -22,3 +22,4 @@ downloaded_files
 *.pdf
 *_questions.json
 !data/question_bank.json
+data/parallel_batch/

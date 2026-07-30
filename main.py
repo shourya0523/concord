@@ -87,7 +87,7 @@ def _build_parser() -> argparse.ArgumentParser:
     batch_parser.add_argument(
         "--track",
         type=str,
-        choices=["IB", "PE", "Banking"],
+        choices=["IB", "PE", "Banking", "VC"],
         help="Only scrape targets for this track",
     )
     batch_parser.add_argument(
@@ -152,7 +152,7 @@ def _build_parser() -> argparse.ArgumentParser:
     query_parser.add_argument(
         "--track",
         type=str,
-        choices=["IB", "PE", "Banking"],
+        choices=["IB", "PE", "Banking", "VC"],
         help="Filter by track",
     )
     query_parser.add_argument(

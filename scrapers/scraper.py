@@ -28,6 +28,11 @@ from scrapers.exporter import (
     export_to_pdf,
     export_to_json,
 )
+from scrapers.target_helpers import (
+    FINANCE_BOOST_TERMS,
+    FINANCE_PENALTY_TERMS,
+    position_filter_candidates,
+)
 
 
 class GlassdoorScraper:
@@ -182,7 +187,18 @@ class GlassdoorScraper:
         if len(slug_tokens) > len(company_tokens) + 4:
             score -= 10
 
-        # Tie-break: more reviews usually means the real firm page
+        # Finance disambiguation: prefer capital/management firms over education/etc.
+        blob = f"{slug} {text_lower}"
+        for term in FINANCE_BOOST_TERMS:
+            if term in blob:
+                score += 35
+                break
+        for term in FINANCE_PENALTY_TERMS:
+            if term in blob:
+                score -= 80
+                break
+
+        # Tie-break: more reviews — only among similarly named matches
         review_hint = 0
         m = re.search(r"([\d.]+)\s*k?\s*reviews", text_lower)
         if m:
@@ -266,14 +282,22 @@ class GlassdoorScraper:
             raise
 
     def _search_questions_for_position(self, position: str) -> None:
-        """Filter interview questions by job title via URL query param."""
+        """Filter interview questions by job title via URL query param.
+
+        Empty ``position`` clears the title filter (all interviews for employer).
+        """
         try:
             parsed = urlparse(self.driver.current_url)
-            query = parse_qs(parsed.query)
-            query["filter.jobTitleFTS"] = [position]
+            # Always reset to the clean Interview URL path (drop prior filters).
+            path = parsed.path or ""
+            query: dict = {}
+            if position.strip():
+                query["filter.jobTitleFTS"] = [position.strip()]
+                print(f"Filtering by position: {position.strip()}")
+            else:
+                print("Filtering by position: <none — all titles>")
             new_query = urlencode(query, doseq=True)
-            filtered = urlunparse(parsed._replace(query=new_query))
-            print(f"Filtering by position: {position}")
+            filtered = urlunparse(parsed._replace(query=new_query, path=path))
             open_url(self.driver, filtered)
             time.sleep(2)
             self._dismiss_overlays()
@@ -468,23 +492,53 @@ class GlassdoorScraper:
         position: str,
         max_pages: int = 50,
         on_page=None,
+        track: str = "",
     ) -> tuple[list, bool]:
-        """Filter by position and paginate through interview questions.
+        """Filter by position (with fallbacks) and paginate interview questions.
 
         Returns (questions, completed). completed=True when pagination finishes
-        normally (Next disabled / no more pages), False if aborted by error.
+        normally (Next disabled / not interactable / no more pages).
         """
-        self._search_questions_for_position(position)
+        filters = position_filter_candidates(position, track=track)
         questions: list = []
-        page = 1
         completed = False
+        active_filter = filters[0] if filters else position
+
+        for filt in filters:
+            active_filter = filt
+            self._search_questions_for_position(filt)
+            first_page = self._parse_interview_questions()
+            if first_page or filt == filters[-1]:
+                if first_page:
+                    print(
+                        f"Using filter {filt!r} → {len(first_page)} questions on page 1"
+                    )
+                break
+            print(f"Filter {filt!r} returned 0 questions; trying fallback…")
+
+        # Re-parse / paginate from the chosen filter (already loaded).
+        page = 1
+        # Seed page 1 results from the last parse above when available.
+        try:
+            page_questions = first_page  # type: ignore[name-defined]
+        except NameError:
+            page_questions = self._parse_interview_questions()
+
         while page <= max_pages:
             try:
-                page_questions = self._parse_interview_questions()
+                if page > 1:
+                    page_questions = self._parse_interview_questions()
                 questions.extend(page_questions)
-                print(f"Page: {page} ({len(page_questions)} questions)")
+                print(
+                    f"Page: {page} ({len(page_questions)} questions) "
+                    f"[filter={active_filter!r}]"
+                )
                 if on_page is not None:
                     on_page(page_questions, page)
+                if page == 1 and not page_questions:
+                    completed = True
+                    print("No questions on page 1 — treating as complete.")
+                    break
                 page += 1
                 self._switch_to_new_page()
             except Exception as e:
@@ -494,6 +548,8 @@ class GlassdoorScraper:
                 if on_interview_page and (
                     "next button is disabled" in message
                     or "next button not found" in message
+                    or "element not interactable" in message
+                    or "not interactable" in message
                 ):
                     completed = True
                     print(f"Reached last page after {page - 1} page(s).")
@@ -514,27 +570,33 @@ class GlassdoorScraper:
         manual_login: bool = True,
         close_driver: bool = True,
         on_page=None,
+        track: str = "",
+        search_as: Optional[str] = None,
     ) -> tuple[list, bool]:
         """Scrape questions for a company/position; optionally export to a file.
 
         Returns (questions, completed).
+        ``search_as`` overrides the Glassdoor search keyword (aliases).
         """
+        keyword = (search_as or company or "").strip()
         search_url = (
             "https://www.glassdoor.com/Search/results.htm"
-            f"?keyword={quote_plus(company)}"
+            f"?keyword={quote_plus(keyword)}"
         )
         headers = ["date_posted", "user", "experience", "question"]
         owns = driver is None
         scraper = GlassdoorScraper(
             search_url,
-            company=company,
+            company=keyword,
             driver=driver,
             manual_login=manual_login and owns,
             owns_driver=owns and close_driver,
         )
 
         try:
-            questions, completed = scraper.scrape_pages(position, on_page=on_page)
+            questions, completed = scraper.scrape_pages(
+                position, on_page=on_page, track=track
+            )
         finally:
             if owns and close_driver:
                 scraper._close_driver()

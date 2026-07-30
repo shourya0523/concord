@@ -20,6 +20,8 @@
     },
     {
       "company": "JPMorgan",
+      "search_as": "J.P. Morgan",
+      "aliases": ["J.P. Morgan", "JP Morgan", "JPMorgan Chase"],
       "track": "IB",
       "positions": [
         "Investment Banking Analyst",
@@ -38,6 +40,7 @@
     },
     {
       "company": "Citi",
+      "search_as": "Citi",
       "track": "IB",
       "positions": [
         "Investment Banking Analyst",
@@ -92,6 +95,7 @@
     },
     {
       "company": "Moelis",
+      "search_as": "Moelis & Company",
       "track": "IB",
       "positions": [
         "Investment Banking Analyst",
@@ -110,6 +114,7 @@
     },
     {
       "company": "Centerview",
+      "search_as": "Centerview Partners",
       "track": "IB",
       "positions": [
         "Investment Banking Analyst",
@@ -119,6 +124,7 @@
     },
     {
       "company": "Guggenheim",
+      "search_as": "Guggenheim Partners",
       "track": "IB",
       "positions": [
         "Investment Banking Analyst",
@@ -146,6 +152,7 @@
     },
     {
       "company": "The Blackstone Group",
+      "search_as": "Blackstone",
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
@@ -162,6 +169,7 @@
     },
     {
       "company": "The Carlyle Group",
+      "search_as": "Carlyle",
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
@@ -170,6 +178,8 @@
     },
     {
       "company": "Apollo",
+      "search_as": "Apollo Global Management",
+      "aliases": ["Apollo Global Management"],
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
@@ -209,6 +219,115 @@
       ]
     },
     {
+      "company": "Silver Lake",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Thoma Bravo",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Hellman & Friedman",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Sequoia Capital",
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
+      "company": "Andreessen Horowitz",
+      "search_as": "Andreessen Horowitz",
+      "aliases": ["a16z"],
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
+      "company": "Benchmark",
+      "search_as": "Benchmark Capital",
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
+      "company": "Accel",
+      "search_as": "Accel",
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
+      "company": "Greylock",
+      "search_as": "Greylock Partners",
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
+      "company": "Kleiner Perkins",
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
+      "company": "Lightspeed Venture Partners",
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
+      "company": "General Catalyst",
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
+      "company": "Index Ventures",
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
+      "company": "Bessemer Venture Partners",
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
       "company": "Wells Fargo",
       "track": "Banking",
       "positions": [
@@ -228,6 +347,7 @@
     },
     {
       "company": "RBC",
+      "search_as": "RBC Capital Markets",
       "track": "Banking",
       "positions": [
         "Investment Banking Analyst",
