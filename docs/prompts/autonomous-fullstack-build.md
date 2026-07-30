@@ -380,8 +380,9 @@ The application should combine:
 * Premium financial editorial design
 * Linear-like interaction precision
 * Professional research-terminal density
-* A focused, calm study experience
+* A focused, calm **interactive study** experience (company rooms + concept labs)
 * Purposeful motion and state transitions
+* Teaching aids: weak-topic focus, resource links, embedded diagrams
 
 Use Contrary Research as the closest high-level visual reference without copying its brand, layouts, assets, illustrations, or content.
 
