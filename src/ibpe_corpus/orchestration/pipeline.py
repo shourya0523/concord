@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ibpe_corpus import GENERATOR_VERSION, PARSER_VERSION, VALIDATOR_VERSION
-from ibpe_corpus.adapters.github.importers import import_firebase_qb_export
+from ibpe_corpus.adapters.github.adapter import GitHubSourceAdapter
 from ibpe_corpus.adapters.glassdoor.parse import parse_html
 from ibpe_corpus.adapters.glassdoor.question_bank import import_question_bank
 from ibpe_corpus.adapters.static.seed_corpus import load_seed_corpus
@@ -15,6 +15,13 @@ from ibpe_corpus.answers.ingest_source import ingest_extracted_record
 from ibpe_corpus.answers.pipeline import fill_answers
 from ibpe_corpus.canonical.canonicalise import canonicalise
 from ibpe_corpus.canonical.families import build_relationship_graph
+from ibpe_corpus.canonical.firm_signals import join_firm_signals
+from ibpe_corpus.canonical.publish_gate import (
+    filter_extracted_for_publish,
+    filter_publishable_answers,
+    filter_publishable_questions,
+    is_interview_process_placeholder,
+)
 from ibpe_corpus.export.exporters import export_all
 from ibpe_corpus.metrics.collector import MetricsCollector
 from ibpe_corpus.orchestration.jobs import JobRunner
@@ -49,15 +56,8 @@ FIXTURES_HTML = ROOT / "fixtures" / "glassdoor" / "html"
 DEFAULT_DB = ROOT / "data" / "db" / "corpus.db"
 EXPORTS_DIR = ROOT / "exports"
 REPORTS_DIR = ROOT / "reports"
-CM_EXPORT = (
-    ROOT
-    / "data"
-    / "staging"
-    / "github"
-    / "ddeng5_Capital-Markets-Question-Bank-App"
-    / "www"
-    / "investment-banking-qb-export.json"
-)
+GITHUB_SOURCES = ROOT / "config" / "github_sources.yml"
+GITHUB_STAGING = ROOT / "data" / "staging" / "github"
 
 
 def _persist_artefacts(store: CorpusStore, artefacts: list) -> int:
@@ -212,8 +212,11 @@ def run_fixture_pipeline(
     job_results: list[dict[str, Any]] = []
 
     all_extracted: list[ExtractedRecord] = []
+    teaching_extracted: list[ExtractedRecord] = []
+    signal_extracted: list[ExtractedRecord] = []
     all_responses: list[QuestionResponse] = []
     rejected: list[dict[str, Any]] = []
+    placeholder_rejects: list[dict[str, Any]] = []
 
     def _record(job_name: str, key: str, payload: dict[str, Any], **kwargs: Any) -> None:
         # Work already executed for in-memory assembly; runner enforces idempotent job rows.
@@ -227,13 +230,13 @@ def run_fixture_pipeline(
         "input_count": 0,
         "output_count": 3,
         "metrics": {"pages_discovered": 3},
-        "message": "static_seed,glassdoor_fixtures,github_cm_export",
+        "message": "static_seed,glassdoor_fixtures,github_adapter,question_bank_signals",
     }
-    _record("discover_sources", "discover:fixtures:v1", discover_payload)
+    _record("discover_sources", "discover:fixtures:v2", discover_payload)
 
     # --- extract glassdoor fixtures (always assemble in memory; DB inserts are idempotent) ---
     def extract_glassdoor() -> dict[str, Any]:
-        nonlocal all_extracted, all_responses
+        nonlocal all_extracted, all_responses, placeholder_rejects, signal_extracted
         html_files = sorted(FIXTURES_HTML.glob("*.html"))
         pages_fetched = 0
         pages_blocked = 0
@@ -247,13 +250,28 @@ def run_fixture_pipeline(
                 pages_blocked += 1
                 metrics.alert(f"fixture {path.name} access_state={result.access_state.value}")
             else:
-                _persist_extracted(store, result.extracted)
-                all_extracted.extend(result.extracted)
+                kept, rej = filter_extracted_for_publish(result.extracted)
+                placeholder_rejects.extend(rej)
+                # Fixtures are Glassdoor-shaped — firm signals only, not teaching truth.
+                for rec in kept:
+                    meta = dict(rec.extracted_metadata or {})
+                    meta.setdefault("product_role", "firm_signal")
+                    meta.setdefault("contract_provenance", "glassdoor_occurrence")
+                    meta.setdefault("source_family", "glassdoor_fixture")
+                    meta["teaching_source"] = False
+                    if rec.record_type == ExtractionClass.EXACT_QUESTION:
+                        rec.record_type = ExtractionClass.TOPIC_SIGNAL
+                        rec.extraction_method = (rec.extraction_method or "") + "+firm_signal"
+                    rec.extracted_metadata = meta
+                _persist_extracted(store, kept)
+                signal_extracted.extend(kept)
+                all_extracted.extend(kept)
                 all_responses.extend(result.responses)
                 exact += sum(
                     1
-                    for r in result.extracted
-                    if r.record_type == ExtractionClass.EXACT_QUESTION
+                    for r in kept
+                    if r.record_type
+                    in {ExtractionClass.EXACT_QUESTION, ExtractionClass.TOPIC_SIGNAL}
                 )
             for d in result.diagnostics:
                 if "comment" in d.lower() or "response" in d.lower():
@@ -278,48 +296,83 @@ def run_fixture_pipeline(
         parser_or_model_version=PARSER_VERSION,
     )
 
-    # --- import static seed + github ---
+    # --- import static seed + github teaching corpora + bank firm signals ---
     def import_corpora() -> dict[str, Any]:
-        nonlocal all_extracted
+        nonlocal all_extracted, teaching_extracted, signal_extracted, placeholder_rejects
         count = 0
         sources = 0
+        github_q = 0
+        github_a = 0
+
         seed = load_seed_corpus()
         _persist_artefacts(store, seed.artefacts)
-        _persist_extracted(store, seed.extracted)
-        all_extracted.extend(seed.extracted)
-        count += len(seed.extracted)
+        seed_kept, seed_rej = filter_extracted_for_publish(seed.extracted)
+        placeholder_rejects.extend(seed_rej)
+        _persist_extracted(store, seed_kept)
+        teaching_extracted.extend(seed_kept)
+        all_extracted.extend(seed_kept)
+        count += len(seed_kept)
         sources += 1
-        if CM_EXPORT.is_file():
-            gh = import_firebase_qb_export(
-                CM_EXPORT,
-                commit_sha="05dca57601532f95f7be72b83b76ce80a5c7dcca",
-                repo="ddeng5/Capital-Markets-Question-Bank-App",
-            )
+        metrics.add_from(seed.metrics)
+
+        adapter = GitHubSourceAdapter(
+            config_path=GITHUB_SOURCES,
+            staging_root=GITHUB_STAGING,
+        )
+        for priority in ("high", "medium", "low"):
+            gh = adapter.run(config={"import_priority": priority}, fetch=False)
+            if not gh.extracted and priority == "high":
+                gh = adapter.run(config={"import_priority": priority}, fetch=True)
+            if not gh.extracted and not gh.artefacts:
+                continue
             _persist_artefacts(store, gh.artefacts)
-            _persist_extracted(store, gh.extracted)
-            all_extracted.extend(gh.extracted)
-            count += len(gh.extracted)
+            kept, rej = filter_extracted_for_publish(gh.extracted)
+            placeholder_rejects.extend(rej)
+            _persist_extracted(store, kept)
+            teaching_extracted.extend(kept)
+            all_extracted.extend(kept)
+            count += len(kept)
             sources += 1
+            github_q += int(gh.metrics.get("exact_questions") or 0)
+            github_a += int(gh.metrics.get("source_answers") or 0)
             metrics.add_from(gh.metrics)
-        bank_result = None
+            for d in gh.diagnostics:
+                if "no importer" in d or "missing staged" in d:
+                    metrics.alert(d)
+
+        bank_signals = 0
         if include_question_bank:
             bank_result = import_question_bank()
             if bank_result.extracted:
                 _persist_artefacts(store, bank_result.artefacts)
-                _persist_extracted(store, bank_result.extracted)
-                all_extracted.extend(bank_result.extracted)
-                count += len(bank_result.extracted)
+                kept, rej = filter_extracted_for_publish(bank_result.extracted)
+                placeholder_rejects.extend(rej)
+                _persist_extracted(store, kept)
+                signal_extracted.extend(kept)
+                all_extracted.extend(kept)
+                count += len(kept)
                 sources += 1
+                bank_signals = int(bank_result.metrics.get("topic_signals") or 0)
                 metrics.add_from(bank_result.metrics)
+                if bank_result.metrics.get("placeholders_rejected"):
+                    metrics.incr(
+                        "placeholders_rejected",
+                        int(bank_result.metrics["placeholders_rejected"]),
+                    )
+
         return {
             "input_count": sources,
             "output_count": count,
             "metrics": {
                 "exact_questions": sum(
                     1
-                    for r in all_extracted
+                    for r in teaching_extracted
                     if r.record_type == ExtractionClass.EXACT_QUESTION
-                )
+                ),
+                "github_questions": github_q,
+                "github_answers": github_a,
+                "firm_signals": bank_signals,
+                "placeholders_rejected": len(placeholder_rejects),
             },
         }
 
@@ -327,7 +380,7 @@ def run_fixture_pipeline(
     bank_suffix = "bank" if include_question_bank else "nobank"
     _record(
         "discover_sources",
-        f"import:seed+github+{bank_suffix}:v1",
+        f"import:seed+github+{bank_suffix}:v2",
         import_payload,
     )
 
@@ -368,16 +421,51 @@ def run_fixture_pipeline(
     classify_payload = classify_pe()
     _record("classify_pe_relevance", "classify:pe:v1", classify_payload)
 
-    # --- canonicalise ---
+    # --- canonicalise teaching truth separately so fuzzy dedupe stays on ---
     canon_result = None
 
     def do_canonicalise() -> dict[str, Any]:
         nonlocal canon_result
-        canon_result = canonicalise(
-            all_extracted,
-            # Exact-hash merge only at bank scale; fuzzy O(n²) is too slow for 2k+ rows.
-            fuzzy_threshold=100.5 if len(all_extracted) > 400 else 92.0,
+        from ibpe_corpus.canonical.canonicalise import CanonicalisationResult
+
+        teaching_rows = [
+            r
+            for r in teaching_extracted
+            if not is_interview_process_placeholder(r.exact_source_text)
+        ]
+        signal_rows = [
+            r
+            for r in signal_extracted
+            if not is_interview_process_placeholder(r.exact_source_text)
+        ]
+        # Teaching corpus is small — always run fuzzy + concept-gated merge.
+        teaching_canon = canonicalise(teaching_rows, fuzzy_threshold=92.0)
+        # Bank-scale signals: exact-hash clusters only (fuzzy O(n²) too costly).
+        signal_canon = (
+            canonicalise(signal_rows, fuzzy_threshold=100.5)
+            if signal_rows
+            else CanonicalisationResult()
         )
+
+        canon_result = CanonicalisationResult(
+            questions=list(teaching_canon.questions) + list(signal_canon.questions),
+            variants=list(teaching_canon.variants) + list(signal_canon.variants),
+            occurrences=list(teaching_canon.occurrences) + list(signal_canon.occurrences),
+            merge_audits=list(teaching_canon.merge_audits) + list(signal_canon.merge_audits),
+        )
+
+        teaching_qs = list(teaching_canon.questions)
+        teaching_vars = list(teaching_canon.variants)
+        # Join cost is O(signals × teaching); teaching stays small so fuzzy is fine.
+        joined_occs, join_audits = join_firm_signals(
+            teaching_qs,
+            teaching_vars,
+            signal_rows,
+            fuzzy_threshold=88.0,
+        )
+        canon_result.occurrences.extend(joined_occs)
+        canon_result.merge_audits.extend(join_audits)
+
         existing_cq = {
             row["normalised_hash"]: row["id"]
             for row in store.fetch_all(cq_table)
@@ -466,14 +554,25 @@ def run_fixture_pipeline(
                     "payload_json": store.dumps(audit.get("payload") or audit),
                 },
             )
+        publishable, withheld = filter_publishable_questions(canon_result.questions)
+        teaching_merge_n = sum(
+            1
+            for a in teaching_canon.merge_audits
+            if a.get("reason") in {"exact_hash", "fuzzy_match"}
+        )
         dup_rate = 0.0
-        if canon_result.variants:
-            dup_rate = 1.0 - (len(canon_result.questions) / max(1, len(canon_result.variants)))
+        if teaching_vars:
+            dup_rate = 1.0 - (len(teaching_qs) / max(1, len(teaching_vars)))
         return {
             "input_count": len(all_extracted),
             "output_count": len(canon_result.questions),
             "metrics": {
                 "canonical_questions": len(canon_result.questions),
+                "publishable_teaching_questions": len(publishable),
+                "withheld_signal_or_placeholder": len(withheld),
+                "firm_signal_joins": len(joined_occs),
+                "teaching_merge_audits": teaching_merge_n,
+                "teaching_fuzzy_enabled": True,
                 "duplicate_rate": round(dup_rate, 4),
             },
         }
@@ -481,25 +580,27 @@ def run_fixture_pipeline(
     canon_payload = do_canonicalise()
     _record(
         "canonicalise_questions",
-        "canonicalise:v1",
+        "canonicalise:v2",
         canon_payload,
         parser_or_model_version=PARSER_VERSION,
     )
     assert canon_result is not None
 
+    teaching_for_graph = [q for q in canon_result.questions if q.review_state != "topic_signal"]
     relationships = (
-        build_relationship_graph(canon_result.questions)
-        if len(canon_result.questions) <= 500
+        build_relationship_graph(teaching_for_graph)
+        if len(teaching_for_graph) <= 500
         else []
     )
 
-    # --- answers ---
+    # --- answers (teaching questions only) ---
     filled_answers: list[Answer] = []
 
     def do_answers() -> dict[str, Any]:
         nonlocal filled_answers
+        publishable_qs, _withheld_qs = filter_publishable_questions(canon_result.questions)
         corpus_answers = _answers_from_extracted(
-            canon_result.questions, canon_result.variants, all_extracted
+            publishable_qs, canon_result.variants, teaching_extracted
         )
         mapped_responses: list[QuestionResponse] = []
         qtn_to_cq: dict[str, str] = {}
@@ -518,6 +619,14 @@ def run_fixture_pipeline(
                         "",
                     )
         for resp in all_responses:
+            if is_interview_process_placeholder(resp.exact_source_text):
+                rejected.append(
+                    {
+                        "reason": "interview_process_placeholder_response",
+                        "text_preview": resp.exact_source_text[:160],
+                    }
+                )
+                continue
             cq_id = qtn_to_cq.get(resp.question_id, resp.question_id)
             mapped = resp.model_copy(update={"question_id": cq_id})
             mapped_responses.append(mapped)
@@ -541,13 +650,22 @@ def run_fixture_pipeline(
             )
 
         filled_answers = fill_answers(
-            canon_result.questions,
+            publishable_qs,
             existing_answers=corpus_answers,
             source_responses=mapped_responses,
             corpus_answers=corpus_answers,
-            # Cap synthesis so bank-scale runs stay tractable; source/corpus still attach.
-            max_generate=150 if len(canon_result.questions) > 500 else None,
+            max_generate=150 if len(publishable_qs) > 500 else None,
         )
+        filled_answers, withheld_ans = filter_publishable_answers(
+            filled_answers, [q.id for q in publishable_qs]
+        )
+        for wa in withheld_ans:
+            rejected.append(
+                {
+                    "reason": "answer_withheld_publish_gate",
+                    **wa.model_dump(mode="json"),
+                }
+            )
         existing_ans = {
             row["canonical_question_id"]: row["id"]
             for row in store.fetch_all(answers_table)
@@ -598,7 +716,7 @@ def run_fixture_pipeline(
                 },
             )
         return {
-            "input_count": len(canon_result.questions),
+            "input_count": len(publishable_qs),
             "output_count": len(filled_answers),
             "metrics": {
                 "source_answers": source_n,
@@ -612,7 +730,7 @@ def run_fixture_pipeline(
     answers_payload = do_answers()
     _record(
         "generate_missing_answers",
-        "answers:fill+validate:v1",
+        "answers:fill+validate:v2",
         answers_payload,
         parser_or_model_version=f"{GENERATOR_VERSION}/{VALIDATOR_VERSION}",
     )
@@ -620,6 +738,8 @@ def run_fixture_pipeline(
     # --- PE coverage report ---
     pe_records = []
     for cq in canon_result.questions:
+        if cq.review_state == "topic_signal":
+            continue
         pe_records.append(
             {
                 "role": cq.seniority or "",
@@ -635,7 +755,7 @@ def run_fixture_pipeline(
     coverage = compute_coverage(pe_records)
     write_coverage_report(pe_records, path=reports_dir / "pe-coverage-report.md")
 
-    # --- export ---
+    # --- export (publish gate applied inside export_all) ---
     def do_export() -> dict[str, Any]:
         summary = export_all(
             exports_dir=exports_dir,
@@ -645,7 +765,7 @@ def run_fixture_pipeline(
             occurrences=canon_result.occurrences,
             responses=all_responses,
             answers=filled_answers,
-            rejected=rejected,
+            rejected=rejected + placeholder_rejects,
             metrics=metrics.snapshot(),
             job_results=job_results,
             relationships=relationships,
@@ -659,7 +779,7 @@ def run_fixture_pipeline(
         }
 
     export_payload = do_export()
-    _record("export_dataset", "export:v1", export_payload)
+    _record("export_dataset", "export:v2", export_payload)
 
     # Idempotency demo: second extract job key skips without re-writing
     jr2 = runner.run(

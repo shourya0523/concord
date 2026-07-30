@@ -112,7 +112,10 @@ def load_seed_corpus(
             if isinstance(payload, dict)
             else FIXTURE_ORIGIN,
             "provenance": "synthetic_seed",
+            "contract_provenance": "static_seed",
+            "product_role": "teaching_qa",
             "not_glassdoor": True,
+            "teaching_source": True,
             "source_family": SOURCE_FAMILY,
         },
     )
@@ -135,7 +138,10 @@ def load_seed_corpus(
             "difficulty": item.get("difficulty"),
             "fixture_origin": FIXTURE_ORIGIN,
             "provenance": "synthetic_seed",
+            "contract_provenance": "static_seed",
+            "product_role": "teaching_qa",
             "not_glassdoor": True,
+            "teaching_source": True,
             "source_family": SOURCE_FAMILY,
             "importer": "static_seed",
         }

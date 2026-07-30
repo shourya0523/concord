@@ -6,6 +6,7 @@ from ibpe_corpus.adapters.github.importers import (
     import_firebase_qb_export,
     import_html_playbook,
     import_markdown_questions,
+    import_markdown_table_titles,
 )
 
 __all__ = [
@@ -14,5 +15,6 @@ __all__ = [
     "import_firebase_qb_export",
     "import_html_playbook",
     "import_markdown_questions",
+    "import_markdown_table_titles",
     "load_github_sources",
 ]

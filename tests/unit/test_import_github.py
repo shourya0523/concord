@@ -90,10 +90,13 @@ def test_import_firebase_qb_export_mini(tmp_path: Path):
     for q in questions:
         assert q.exact_source_text
         assert q.extracted_metadata["provenance"] == "source_provided"
+        assert q.extracted_metadata["contract_provenance"] == "github_source"
+        assert q.extracted_metadata["product_role"] == "teaching_qa"
         assert "glassdoor" not in (q.extracted_metadata.get("source_family") or "")
     for a in answers:
         assert a.extracted_metadata["answer_provenance"] == "source_provided"
         assert a.extracted_metadata.get("question_record_id")
+        assert a.extracted_metadata["contract_provenance"] == "github_source"
 
 
 def test_import_staged_capital_markets_if_present():
@@ -197,6 +200,30 @@ def test_github_adapter_parse_local_mini(tmp_path: Path):
     art.metadata["format"] = "firebase_export_json"
     parsed = adapter.parse_artefact(art)
     assert parsed.metrics["exact_questions"] == 3
+
+
+def test_import_markdown_table_titles(tmp_path: Path):
+    md = tmp_path / "titles.md"
+    md.write_text(
+        "\n".join(
+            [
+                "| Question | Company | Category | Difficulty |",
+                "|----------|---------|----------|------------|",
+                "| Walk me through a DCF | Goldman Sachs | Valuation | Medium |",
+                "| What is enterprise value? | JPMorgan | Accounting | Easy |",
+                "| [Interview process] Analyst | KKR | Process | Easy |",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    from ibpe_corpus.adapters.github.importers import import_markdown_table_titles
+
+    result = import_markdown_table_titles(md, repo="fixture/table")
+    assert result.metrics["exact_questions"] == 2
+    texts = [r.exact_source_text for r in result.extracted]
+    assert all("[Interview process]" not in t for t in texts)
+    assert result.extracted[0].extracted_metadata.get("product_role") == "teaching_qa"
+    assert result.extracted[0].extracted_metadata.get("contract_provenance") == "github_source"
 
 
 @pytest.mark.network
