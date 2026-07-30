@@ -304,16 +304,20 @@ Primary audiences:
 
 The product is organised around **two equal entry paths** (not a generic question dump):
 
-### Mode A — Company interview prep
+### Mode A — Company interview prep (multi-target + topic heat + pseudo-RAG)
 
-User picks a **target firm** (and optionally role / interview date). The experience becomes that company’s prep room:
+User selects **one or more target companies** (and optionally role / interview date). The experience becomes a prep studio for that set:
 
-* Questions and occurrences reported at that firm
+* **Visible topic heat** per firm and across the selected set — which technical/behavioural themes show up most in reported interviews (Glassdoor occurrence signals), rendered as an interactive heat map / intensity matrix (not a hidden ranking)
+* Selectable target-company chips; compare heat across Goldman vs Evercore vs Blackstone, etc.
+* **Pseudo-RAG prep sessions**: retrieve a grounded pack of teaching Q/A (GitHub corpus + validated answers) ranked by (firm topic heat ∩ user weak topics ∩ semantic similarity to the user’s focus prompt), then run an interactive study/sim loop with citations back to sources
 * Firm-specific frequency, difficulty, and stage patterns
-* “Why this firm / why banking / why PE” framing for that house
-* Adaptive queue that **automatically prioritises the user’s weaker topics** relative to that firm’s interview profile
-* Hyperlinks out to firm-relevant primers, deal examples, and concept deep-dives
-* Embedded interactive diagrams for the technical topics that firm over-indexes on
+* “Why this firm / why banking / why PE” framing
+* Adaptive queue that **automatically prioritises weaker topics** relative to the selected firms’ heat profiles
+* Hyperlinks to firm-relevant primers and concept deep-dives
+* Embedded interactive diagrams for topics those firms over-index on
+
+Pseudo-RAG here means **retrieval-augmented prep over our curated corpus** (embeddings + metadata filters + heat/weakness rerank) — not unconstrained web chat. Every served item must cite corpus/answer provenance. Gemini may help rank, explain “why this question,” or draft bridging hints, but must not invent uncited Glassdoor quotes.
 
 ### Mode B — Concept learning
 
@@ -333,6 +337,8 @@ Users can switch modes freely. Company mode deep-links into concept pages; conce
 
 The platform should help users:
 
+* **See visible topic heat** for selectable target companies (and compare across a set)
+* Run **pseudo-RAG interview prep** sessions grounded in corpus Q/A + firm heat + personal weakness
 * **Prep interactively** for interviews at large IB / PE / growth firms — not only browse a bank
 * **Learn concepts** with diagrams, worked examples, and resource links
 * **Auto-focus weaker topics** from confidence, mastery, misses, and time-since-review (default session bias toward weakness, explainable)
@@ -2349,9 +2355,12 @@ Build the following product surfaces in Next.js (not Flask). **Order UX around M
 
 * Marketing page (company-prep + concept-learn CTAs)
 * Authentication
-* Onboarding — choose **Company prep** and/or **Concept learning**; set role, target firms, interview date
-* Home dashboard — weak-topic focus + next session for active mode
-* **Company prep room** (`/companies/[firm]`) — firm overview, reported topics, readiness, start adaptive session
+* Onboarding — choose **Company prep** and/or **Concept learning**; multi-select **target companies**, role, interview date
+* Home dashboard — weak-topic focus + **topic-heat snapshot** for selected targets + next pseudo-RAG / adaptive session
+* **Target-company switcher** (multi-select) persisted on the user profile
+* **Company prep room** (`/companies/[firm]`) — hero, **visible topic heat**, weakness overlay, start adaptive / pseudo-RAG session
+* **Multi-firm heat compare** (`/prep/heat` or embedded on dashboard) — side-by-side topic intensity for the selected set
+* **Pseudo-RAG prep session** (`/prep/rag`) — grounded retrieval pack for selected companies + optional focus prompt
 * **Concept lab** (`/concepts/[slug]`) — concept page with diagrams, resource links, linked questions, start drill
 * Adaptive study session (company- or concept-scoped)
 * Question study page (signature layered reveal + diagrams + resource rail)
@@ -2462,10 +2471,12 @@ Use an asymmetric editorial composition oriented to **what to learn next**.
 
 Display:
 
-* Active mode toggle or clear entry: **Company prep** vs **Concept lab**
+* Active mode toggle: **Company prep** vs **Concept lab**
+* **Target company selector** (multi-select)
+* **Topic heat snapshot** for the selected set (click-through to full heat / compare)
 * Target firm(s) readiness (Mode A)
 * Concept mastery map with **weaker topics highlighted** (Mode B / cross-cutting)
-* **Auto-suggested next session** biased to weaker topics (explain why)
+* **Auto-suggested next session** — prefer pseudo-RAG or weak-topic drill (explain why)
 * Today’s review queue
 * Days until interview
 * Overall mastery
@@ -2473,28 +2484,81 @@ Display:
 * Study streak
 * Recent sessions
 * Progress trends
-* Shortcut into company room or concept page
+* Shortcut into company room, heat compare, or concept page
 
 Use oversized metrics, editorial rules, mixed-width panels, and meaningful hierarchy.
 
 ---
 
-# 27. Company prep room & concept explorer
+# 27. Company prep: topic heat, multi-target select, pseudo-RAG
 
-## 27.1 Company prep room
+## 27.1 Selectable target companies
+
+* User can multi-select a **target company set** (e.g. GS + MS + Evercore, or Blackstone + KKR).
+* Selection is first-class in onboarding, dashboard, command palette, and session start.
+* All Mode A retrieval and heat views default to this set (with per-firm drill-down).
+* Empty set → prompt to pick firms; do not silently use “all firms.”
+
+## 27.2 Visible topic heat (signature Mode A visual)
+
+Topic heat must be **on-canvas and obvious**, not buried in a table.
+
+For each firm (and for the selected set aggregate):
+
+* Interactive **topic × intensity** visualisation (editorial heat matrix / bars / calibrated chroma — not a generic rainbow chart junk drawer)
+* Intensity from Glassdoor occurrence / topic-signal rates (and optional Gemini soft-tags as a clearly labelled secondary layer)
+* Toggle: raw firm heat vs **heat ∩ my weakness** overlay (dual encoding: colour = firm heat, hatch/marker = user weakness)
+* Click a topic cell → concept lab + start pseudo-RAG / adaptive drill scoped to that topic × firm set
+* Show sample size / confidence (“based on N reported signals”) so sparse PE firms don’t look falsely precise
+* Compare mode: align topics across 2–N selected companies
+* Keyboard accessible; non-colour encoding for status; reduced-motion safe
+
+Design-system primitive: `TopicHeatmap` in `packages/ui` (owned by `ibpe-design-system`; composed by `ibpe-frontend`).
+
+## 27.3 Company prep room
 
 For each major firm:
 
 * Hero firm identity (editorial, not generic card stack)
 * Role filters (Analyst / Associate / …)
-* Topic heat from reported occurrences
+* **Dominant topic-heat panel** (above-the-fold)
 * User weakness overlay vs firm topic profile
-* Start **adaptive firm session** (defaults to weaker firm-relevant topics)
-* Reported question explorer scoped to firm
+* CTA: **Start pseudo-RAG prep** (selected set or this firm alone)
+* CTA: Start adaptive firm session (defaults to weaker firm-relevant topics)
+* Reported question explorer scoped to firm (signal browser — not the answer bible)
 * Links into concepts the firm cares about
 * Resource links specific to that firm’s interview style (when curated)
 
-## 27.2 Concept lab / explorer
+## 27.4 Pseudo-RAG interview prep
+
+Implement a grounded prep loop for the selected target companies:
+
+```text
+User focus (optional) + target companies + role
+        ↓
+Retrieve candidates from published teaching corpus (GitHub Q/A, validated answers)
+        ↓
+Filter / boost by firm topic heat, role, weakness, prerequisites
+        ↓
+Rerank (semantic similarity + heat + weakness + answer quality)
+        ↓
+Frozen session pack (reproducible) with citations
+        ↓
+Interactive study / timed sim turns
+        ↓
+Update mastery; refresh heat∩weakness recommendations
+```
+
+Requirements:
+
+* **Corpus-only retrieval** (pgvector / embeddings on published Q/A + concepts). No silent live web scrape into the answer channel.
+* Each card shows **why retrieved**: firm heat hit, weak topic, semantic match snippet, source (repo/answer id).
+* Optional user prompt: “Superday tomorrow — accounting + paper LBO” biases retrieval.
+* Gemini (`/ai-sdk`) may: rewrite the session brief, explain retrieval reasons, generate follow-ups — always with citations to pack items; refuse uncited firm-specific claims.
+* Pack size configurable; freeze membership at session start (same as other practice modes).
+* Eval set: `reports/search-evaluation.md` includes pseudo-RAG company-pack quality.
+
+## 27.5 Concept lab / explorer
 
 Support:
 
@@ -2510,9 +2574,9 @@ Support:
 * IB versus PE
 * Source confidence
 
-Allow sorting by relevance, frequency, recency, difficulty, quality, firm relevance, **personal weakness**.
+Allow sorting by relevance, frequency, recency, difficulty, quality, firm relevance, **personal weakness**, **topic heat for my targets**.
 
-Support saved searches/filters, filter counts, keyboard navigation, command-palette entry (“Open Goldman prep”, “Open DCF concept”).
+Support saved searches/filters, filter counts, keyboard navigation, command-palette entry (“Open Goldman prep”, “Compare heat: GS vs BX”, “Start RAG prep for my targets”, “Open DCF concept”).
 
 ---
 
@@ -2520,8 +2584,9 @@ Support saved searches/filters, filter counts, keyboard navigation, command-pale
 
 Implement:
 
+* **Pseudo-RAG company prep** (Mode A flagship — §27.4)
 * **Adaptive weak-topic session** (default from dashboard)
-* **Company adaptive session** (Mode A — firm profile ∩ weak topics)
+* **Company adaptive session** (firm profile ∩ weak topics)
 * **Concept drill** (Mode B — single concept or prerequisite chain)
 * Random technical drill
 * Accounting / Valuation / DCF / M&A / LBO / PE case / Behavioural drills
@@ -2535,7 +2600,7 @@ Freeze the selected question membership when a session starts.
 
 A session must remain reproducible even when the underlying dataset changes later.
 
-Surface mid-session links to the active concept diagram and resource list without breaking focus (peek / side rail).
+Surface mid-session links to the active concept diagram, resource list, and **topic-heat context** without breaking focus (peek / side rail).
 
 ---
 
@@ -2684,32 +2749,34 @@ Command palette must jump to **companies**, **concepts**, **questions**, and **r
 
 Recommend content based on:
 
-* Target firms
+* **Selected target companies** (multi-select set)
+* **Visible topic heat** for that set
 * Target role
-* **Weaker topics (primary signal)**
+* **Weaker topics (primary personal signal)**
 * Review due date
-* Confidence
-* Mastery
+* Confidence / mastery
 * Interview date
 * Prerequisite concepts
 * Firm-reported frequency
 * Answer quality
+* Pseudo-RAG pack affinity (semantic + heat)
 * Missing diagrams/resources for incomplete concept coverage (editorial backlog — admin)
 
 Provide explanation metadata:
 
 ```text
 Recommended because:
-- Frequently reported for your target firm
+- Hot topic for your targets (GS + Evercore heat)
 - Due for spaced review
 - Low current mastery (weak topic)
+- Pseudo-RAG match to your focus prompt
 - Prerequisite for LBO interviews
 - Concept diagram available — good next learn
 ```
 
 Do not recommend low-confidence unvalidated material by default.
 
-Deep-link every recommendation into the correct **company room**, **concept lab**, or **study session**.
+Deep-link every recommendation into the correct **company room**, **heat cell**, **concept lab**, **pseudo-RAG session**, or study session.
 
 ---
 
