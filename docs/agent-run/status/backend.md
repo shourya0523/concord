@@ -1,6 +1,6 @@
 # Status: backend
 
-State: in_progress
+State: ready_for_integrate
 Wave: 2
 Updated: 2026-07-30
 Branch: `local/ws-backend-a9ff`
@@ -21,11 +21,12 @@ Branch: `local/ws-backend-a9ff`
   - `GET /api/notes`, `GET /api/mastery`, `GET /api/admin/status`, `GET /api/health`
 - Graceful degrade: no `DATABASE_URL` → `data/question_bank.json` fallback for questions; in-memory practice
 - Importer CLI: `apps/web/scripts/import-question-bank.ts` wraps `@ibpe/database` `seedQuestionBank` (idempotent firm signals)
+- Verified: `tsc --noEmit`, `next build --webpack`, smoke (`/api/health`, questions bank_fallback, practice stub, auth 503)
 
-## Blocked / next
+## Follow-ups (not blocking Wave 2 scaffold)
 
-- Live Neon Auth + `DATABASE_URL` secrets not present in this agent env — stubs verified by typecheck / dry-run import
-- Frontend owns `/auth/*` UI pages and NeonAuthUIProvider wiring
+- Provision Neon Auth + `DATABASE_URL` in Vercel / Cloud Agents secrets for live path
+- Frontend owns `/auth/*` UI + NeonAuthUIProvider
 - Hybrid search replacement owned by `ibpe-search`
 - No migrations invented (database stream owns SQL)
 
