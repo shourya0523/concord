@@ -27,14 +27,14 @@ vercel link --yes --scope <team> --project concord-web
 # Creates apps/web/.vercel/project.json (gitignored; CI uses VERCEL_* secrets)
 ```
 
-If workspace packages (`@ibpe/ui`, etc.) must resolve at build time, set install/build to run from the monorepo root while Root Directory stays `apps/web`:
+Workspace packages (`@ibpe/ui`, etc.) resolve via `apps/web/vercel.json` when Root Directory is `apps/web`:
 
 ```text
 Install Command: cd ../.. && npm install
-Build Command:   cd ../.. && npm run build --workspace=@ibpe/web
+Build Command:   cd ../.. && turbo run build --filter=@ibpe/web
 ```
 
-(Adjust when architecture finalizes Turbo scripts.)
+If the Vercel project Root Directory is the **repo root** (not recommended), root `vercel.json` sets `outputDirectory` to `apps/web/.next` and the same Turbo filter.
 
 Do **not** leave an accidental root-only `.vercel/project.json` that points at the Python tree.
 
