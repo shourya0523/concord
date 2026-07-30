@@ -1,7 +1,7 @@
 # Programme status
 
-**Phase:** Wave 2 integrated — awaiting land on main  
-**Integrate branch:** `local/wave2-integrate-a9ff`  
+**Phase:** Wave 2 on main — ready for Wave 3  
+**Base:** `main` @ Wave 2 integrate  
 **Updated:** 2026-07-30
 
 ## Waves
@@ -9,20 +9,20 @@
 | Wave | State |
 |------|-------|
 | Phase 0 | Complete |
-| Wave 1 | Complete on main (#15 + #16) |
-| Wave 2 | Integrated — frontend + Neon Auth backend + search |
-| Wave 3 | Next after #wave2 lands |
+| Wave 1 | Complete (#15 + #16) |
+| Wave 2 | Complete on main (frontend + Neon Auth APIs + search) |
+| Wave 3 | Ready — QA + infra promote |
 
-## Stream rollup
+## Product surfaces live on main
 
-| Stream | Branch | State |
-|--------|--------|-------|
-| C Frontend | `local/ws-frontend-a9ff` | Merged into integrate |
-| D Backend | `local/ws-backend-a9ff` | Merged into integrate |
-| I Search | `local/ws-search-a9ff` | Merged into integrate |
+- UI: `/onboarding`, `/dashboard`, `/prep/heat`, `/prep/rag`, `/companies/[firm]`, `/concepts/[slug]`, `/study`, `/sign-in`
+- API: `/api/auth/*`, `/api/questions`, `/api/search`, `/api/practice/*`, `/api/firms/*/heat`
+- Package: `@ibpe/search` (heat + pseudo-RAG)
 
-## Verify
+## Your env for live auth
 
-- `@ibpe/web` typecheck green
-- `@ibpe/search` tests green
-- Neon Auth stubs when env missing; set `NEON_AUTH_*` for live auth
+Vercel / `.env.local`: `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, `NEXT_PUBLIC_APP_URL`
+
+## Next
+
+Wave 3: `ibpe-qa` verification + `ibpe-infra` preview→prod.
