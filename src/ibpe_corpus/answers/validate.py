@@ -7,9 +7,17 @@ Updates ``validation_status`` and provenance:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 
 from ibpe_corpus import VALIDATOR_VERSION
+from ibpe_corpus.answers.calculators import (
+    CalculatorError,
+    ev_bridge as calc_ev_bridge,
+    irr_approx as calc_irr_approx,
+    lbo_exit_equity as calc_lbo_exit,
+    moic as calc_moic,
+    wacc as calc_wacc,
+)
+from ibpe_corpus.answers.provenance import enforce_answer_provenance
 from ibpe_corpus.schemas.models import (
     Answer,
     AnswerProvenance,
@@ -113,7 +121,13 @@ def numerical_validator(answer: Answer) -> ValidatorResult:
 
     try:
         if topic == "wacc":
-            got = _calc_wacc(inputs)
+            got = calc_wacc(
+                equity_weight=float(inputs["equity_weight"]),
+                cost_of_equity=float(inputs["cost_of_equity"]),
+                debt_weight=float(inputs["debt_weight"]),
+                cost_of_debt=float(inputs["cost_of_debt"]),
+                tax_rate=float(inputs["tax_rate"]),
+            )
             exp = float(expected.get("wacc", got))
             if not _close(got, exp):
                 notes.append(f"WACC mismatch: got {got}, expected {exp}")
@@ -123,8 +137,15 @@ def numerical_validator(answer: Answer) -> ValidatorResult:
             notes.append(f"WACC check passed ({got})")
 
         elif topic == "moic_irr":
-            moic = _calc_moic(inputs)
-            irr = _calc_irr_approx(inputs)
+            moic = calc_moic(
+                entry_equity=float(inputs["entry_equity"]),
+                exit_equity=float(inputs["exit_equity"]),
+            )
+            irr = calc_irr_approx(
+                entry_equity=float(inputs["entry_equity"]),
+                exit_equity=float(inputs["exit_equity"]),
+                years=float(inputs["years"]),
+            )
             exp_moic = float(expected.get("moic", moic))
             exp_irr = float(expected.get("irr_approx", irr))
             if not _close(moic, exp_moic):
@@ -140,7 +161,15 @@ def numerical_validator(answer: Answer) -> ValidatorResult:
             notes.append(f"MOIC/IRR checks passed (MOIC={moic}, IRR≈{irr})")
 
         elif topic == "ev_bridge":
-            net_debt, ev = _calc_ev_bridge(inputs)
+            bridge = calc_ev_bridge(
+                equity_value=float(inputs["equity_value"]),
+                gross_debt=float(inputs["gross_debt"]),
+                cash=float(inputs["cash"]),
+                preferred=float(inputs.get("preferred") or 0.0),
+                nci=float(inputs.get("nci") or 0.0),
+            )
+            net_debt = bridge["net_debt"]
+            ev = bridge["enterprise_value"]
             exp_nd = float(expected.get("net_debt", net_debt))
             exp_ev = float(expected.get("enterprise_value", ev))
             if not _close(net_debt, exp_nd) or not _close(ev, exp_ev):
@@ -162,7 +191,20 @@ def numerical_validator(answer: Answer) -> ValidatorResult:
             notes.append(f"EV bridge passed (EV={ev})")
 
         elif topic in {"lbo", "paper_lbo"}:
-            exit_equity, moic = _calc_lbo_exit(inputs)
+            if "exit_equity" in inputs and "sponsor_equity" in inputs:
+                lbo = calc_lbo_exit(
+                    sponsor_equity=float(inputs["sponsor_equity"]),
+                    exit_equity=float(inputs["exit_equity"]),
+                )
+            else:
+                lbo = calc_lbo_exit(
+                    ebitda_exit=float(inputs["ebitda_exit"]),
+                    exit_multiple=float(inputs["exit_multiple"]),
+                    net_debt_exit=float(inputs["net_debt_exit"]),
+                    sponsor_equity=float(inputs["sponsor_equity"]),
+                )
+            exit_equity = lbo["exit_equity"]
+            moic = lbo["moic"]
             exp_eq = float(expected.get("exit_equity", exit_equity))
             exp_moic = float(expected.get("moic", moic))
             if not _close(exit_equity, exp_eq) or not _close(moic, exp_moic):
@@ -174,7 +216,7 @@ def numerical_validator(answer: Answer) -> ValidatorResult:
                 )
             notes.append(f"LBO exit equity/MOIC passed ({exit_equity}, {moic})")
 
-    except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
+    except (KeyError, TypeError, ValueError, ZeroDivisionError, CalculatorError) as exc:
         return ValidatorResult(
             "numerical_validator",
             ValidationStatus.NEEDS_CORRECTION,
@@ -314,7 +356,7 @@ def validate_answer(answer: Answer) -> Answer:
         if label not in assumptions:
             assumptions.append(label)
 
-    return answer.model_copy(
+    updated = answer.model_copy(
         update={
             "validation_status": final_status,
             "provenance_type": provenance,
@@ -323,6 +365,7 @@ def validate_answer(answer: Answer) -> Answer:
             "confidence": _adjust_confidence(answer.confidence, final_status),
         }
     )
+    return enforce_answer_provenance(updated)
 
 
 def _adjust_confidence(base: float, status: ValidationStatus) -> float:
@@ -339,53 +382,6 @@ def _adjust_confidence(base: float, status: ValidationStatus) -> float:
 
 def _close(a: float, b: float, rel: float = _REL_TOL, abs_: float = _ABS_TOL) -> bool:
     return abs(a - b) <= max(abs_, rel * max(abs(a), abs(b), 1e-12))
-
-
-def _calc_wacc(inputs: dict[str, Any]) -> float:
-    e = float(inputs["equity_weight"])
-    re = float(inputs["cost_of_equity"])
-    d = float(inputs["debt_weight"])
-    rd = float(inputs["cost_of_debt"])
-    t = float(inputs["tax_rate"])
-    return e * re + d * rd * (1.0 - t)
-
-
-def _calc_moic(inputs: dict[str, Any]) -> float:
-    entry = float(inputs["entry_equity"])
-    exit_ = float(inputs["exit_equity"])
-    return exit_ / entry
-
-
-def _calc_irr_approx(inputs: dict[str, Any]) -> float:
-    moic = _calc_moic(inputs)
-    years = float(inputs["years"])
-    return moic ** (1.0 / years) - 1.0
-
-
-def _calc_ev_bridge(inputs: dict[str, Any]) -> tuple[float, float]:
-    equity = float(inputs["equity_value"])
-    gross_debt = float(inputs["gross_debt"])
-    cash = float(inputs["cash"])
-    preferred = float(inputs.get("preferred") or 0.0)
-    nci = float(inputs.get("nci") or 0.0)
-    net_debt = gross_debt - cash
-    ev = equity + net_debt + preferred + nci
-    return net_debt, ev
-
-
-def _calc_lbo_exit(inputs: dict[str, Any]) -> tuple[float, float]:
-    if "exit_equity" in inputs and "sponsor_equity" in inputs:
-        exit_equity = float(inputs["exit_equity"])
-        sponsor = float(inputs["sponsor_equity"])
-        return exit_equity, exit_equity / sponsor
-
-    ebitda_exit = float(inputs["ebitda_exit"])
-    exit_multiple = float(inputs["exit_multiple"])
-    net_debt_exit = float(inputs["net_debt_exit"])
-    sponsor = float(inputs["sponsor_equity"])
-    exit_ev = ebitda_exit * exit_multiple
-    exit_equity = exit_ev - net_debt_exit
-    return exit_equity, exit_equity / sponsor
 
 
 def _is_garbage(text: str) -> bool:
