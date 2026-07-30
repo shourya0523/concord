@@ -69,6 +69,7 @@ Complete **before** launching implementers:
 3. Write `docs/agent-run/ownership-map.md`, `dependency-graph.md`, `execution-plan.md`, `integration-plan.md`, `status.md`.
 4. Ensure `.cursor/agents/ibpe-*.md` exist for A–K + orchestrator.
 5. Scaffold empty owned dirs if needed so parallel agents do not collide on mkdir.
+6. Run **§0b sibling-agent check** → write `docs/agent-run/sibling-agents.md` (PR #5/#7 status).
 
 Do **not** build features in Phase 0.
 
@@ -140,7 +141,8 @@ This repo is **Concord / GlassCleaner2**: a working Glassdoor interview-question
 | Browser scrape | Selenium / SeleniumBase + Patchright `storage_state` (`scrapers/scraper.py`, `scrapers/auth.py`, `scrapers/session_state.py`, `scrapers/driver.py`) |
 | Browserless scrape | `curl_cffi` BFF backend (`scrapers/bff_api.py`) → `POST /bff/employer-profile-mono/employer-interviews` |
 | Batch orchestration | `scrapers/batch.py` — page-level saves, `completed_jobs`, `--force`, `--track`, `--limit`, `--backend browser\|bff` |
-| Question bank | `data/question_bank.json` (~2,842 questions; ~2,824 IB / ~18 PE; 21 companies; 52 completed jobs) |
+| Parallel batch (unmerged) | Sibling agent PR [#7](https://github.com/shourya0523/concord/pull/7): `scripts/parallel_batch.py` — N Chrome workers, bank shards, merge. **No `--backend bff` yet.** Claimed in-progress full force scrape of ~82 jobs via `glassdoor_state.json` |
+| Question bank | `data/question_bank.json` (~2,842 questions; ~2,824 IB / ~18 PE; 21 companies; 52 completed jobs) — re-check after PR #7 scrape finishes |
 | Dedup | SHA1 `company\|position\|question` in `scrapers/bank.py` |
 | Targets | `config/targets.json` — 30 firms (16 IB / 8 PE mega-funds / 6 Banking), role lists per firm |
 | Local UI | Flask app `web/` on `:5050` — filter/search browse only (not the product UI) |
@@ -178,15 +180,35 @@ Bank file also stores `version`, `updated_at`, `completed_jobs`.
 5. Legacy cookie jar: `data/glassdoor_session.json` (gitignored).
 6. Without residential proxy, BFF interview calls typically return Cloudflare 403 even if typeahead resolves.
 
+### Related sibling agent / PR progress (refresh before Wave 1)
+
+| Item | Status (as of 2026-07-30) |
+|------|---------------------------|
+| Cloud agent `bc-a80753a1-8140-425a-88e1-3a90e54c3a7e` | Not visible in every Cursor environment’s agent list; track via GitHub PRs + branch `*-3a7e` |
+| [PR #5](https://github.com/shourya0523/concord/pull/5) BFF API Cloudflare bypass | **MERGED** into base — `scrapers/bff_api.py`, `batch --backend bff` already on trunk. Do not re-implement. |
+| [PR #7](https://github.com/shourya0523/concord/pull/7) parallel batch scraper | **OPEN** on `local/parallel-full-scrape-3a7e`. Adds `scripts/parallel_batch.py` + gitignore for `data/parallel_batch/`. PR body: full force scrape of all IB/PE/Banking jobs with 3 browser workers + saved session **in progress**. Bank on that branch tip still showed ~2842 / 52 jobs at last check — re-fetch before treating scrape as done. |
+| Parallel runner gap | Does **not** pass `--backend bff`; browser-only workers. Workstream F should absorb the script and add BFF/worker parity + PE-focused shards. |
+
 ### Related but unmerged work
 
-Open PR branch `local/ibpe-interview-corpus-042f` explored a fixture-first `ibpe_corpus` pipeline (SQLite/SQL migrations, GitHub source adapters, PE taxonomy YAML, exports/reports). **Evaluate reuse** of schemas, fixtures, and docs from that branch; do **not** assume it is merged. Prefer absorbing proven pieces into the contract-first architecture rather than forking a second corpus stack.
+1. **`local/parallel-full-scrape-3a7e` / PR #7** — parallel Chrome batch + ongoing collection. Prefer merge or cherry-pick `scripts/parallel_batch.py` rather than rewriting concurrency.
+2. **`local/ibpe-interview-corpus-042f` / PR #2** — fixture-first `ibpe_corpus` pipeline (SQLite/SQL migrations, GitHub source adapters, PE taxonomy YAML, exports/reports). **Evaluate reuse** of schemas, fixtures, and docs; do **not** assume it is merged. Prefer absorbing proven pieces into the contract-first architecture rather than forking a second corpus stack.
+
+Before starting Glassdoor work, run:
+
+```bash
+gh pr view 5 --json state,mergedAt
+gh pr view 7 --json state,updatedAt,body,commits
+git fetch origin local/parallel-full-scrape-3a7e
+# Inspect bank delta if present on that branch
+```
 
 ## 0.2 Non-negotiable preservation rules
 
 * Do not delete or break `python main.py batch|query|login|ui` until a documented replacement exists.
 * Do not discard `data/question_bank.json`; migrate it into the new data layers as the primary seed.
 * Do not discard `config/targets.json`; extend it (PE matrix, role aliases) rather than replacing blindly.
+* Absorb or supersede `scripts/parallel_batch.py` from PR #7 rather than inventing a third batch runner.
 * Treat `web/` Flask UI as an interim operator tool until the Next.js product ships; keep it runnable during migration or document its retirement explicitly.
 * Keep Cloudflare / login workarounds documented in `AGENTS.md` and README in sync with code.
 * Never commit real credentials, `glassdoor_state.json`, or `glassdoor_session.json`.
@@ -201,6 +223,7 @@ Open PR branch `local/ibpe-interview-corpus-042f` explored a fixture-first `ibpe
 ├── requirements.txt
 ├── .env.example
 ├── .cursor/
+│   ├── agents/                     # ibpe-* parallel subagents
 │   ├── environment.json
 │   ├── install.sh
 │   └── start.sh
@@ -212,19 +235,34 @@ Open PR branch `local/ibpe-interview-corpus-042f` explored a fixture-first `ibpe
 │   ├── auth.py
 │   ├── bank.py
 │   ├── batch.py
-│   ├── bff_api.py
+│   ├── bff_api.py                  # MERGED via PR #5 — extend, don't rewrite
 │   ├── driver.py
 │   ├── exporter.py
 │   ├── scraper.py
 │   └── session_state.py
 ├── scraper_utils/
 ├── scripts/
-│   └── guided_login.py
+│   ├── guided_login.py
+│   └── parallel_batch.py           # from PR #7 when merged / cherry-picked
 └── web/                            # Flask browse UI
     ├── app.py
     ├── static/
     └── templates/
 ```
+
+(If `scripts/parallel_batch.py` is missing on your checkout, fetch PR #7 before reinventing concurrency.)
+
+---
+
+# 0b. Sibling-agent check (orchestrator must run)
+
+When this programme starts, record progress of scrape-related sibling agents into `docs/agent-run/sibling-agents.md`:
+
+1. PR #5 BFF — expect **merged**; confirm `scrapers/bff_api.py` present.
+2. PR #7 parallel scrape — open/merged? bank row counts? PE delta?
+3. Any new commits on `*-3a7e` branches.
+
+Do not duplicate finished BFF work. Do incorporate parallel-batch when available.
 
 ---
 
