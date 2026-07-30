@@ -1,37 +1,33 @@
 # Programme status
 
-**Phase:** 0 complete → launching Wave 1  
-**Orchestrator branch:** `local/orchestrator-phase0-a9ff`  
-**Base:** `main` @ post-merge corpus + scraper stack  
+**Phase:** Wave 1 integrated — foundation gate review → Wave 2  
+**Integrate branch:** `local/wave1-integrate-a9ff`  
 **Updated:** 2026-07-30
 
 ## Waves
 
 | Wave | State |
 |------|-------|
-| Phase 0 | Complete |
-| Wave 1 | Spawning |
-| Wave 2 | Blocked on Wave 1 foundation gate |
+| Phase 0 | Complete (on main) |
+| Wave 1 | Integrated on `local/wave1-integrate-a9ff` (pytest green) |
+| Wave 2 | Ready after integrate merges to main |
 | Wave 3 | Not started |
 
 ## Stream rollup
 
-| Stream | Status file | State |
-|--------|-------------|-------|
-| A Architecture | `status/architecture.md` | Pending Wave 1 |
-| B Design system | `status/design-system.md` | Pending Wave 1 |
-| E Database | `status/database.md` | Pending Wave 1 |
-| F Glassdoor | `status/glassdoor.md` | Pending Wave 1 |
-| G Data quality | `status/data-quality.md` | Pending Wave 1 |
-| H Answers | `status/answers.md` | Pending Wave 1 |
-| J Infra | `status/infra.md` | Pending Wave 1 |
-| C Frontend | `status/frontend.md` | Wave 2 |
-| D Backend | `status/backend.md` | Wave 2 |
-| I Search | `status/search.md` | Wave 2 |
-| K QA | `status/qa.md` | Wave 3 |
+| Stream | PR | State |
+|--------|----|-------|
+| A Architecture | #8 | Merged into integrate |
+| B Design system | #14 | Merged into integrate |
+| E Database | #13 | Merged into integrate (needs Neon) |
+| F Glassdoor | #9 | Merged into integrate (needs proxy) |
+| G Data quality | #12 | Merged into integrate |
+| H Answers | #10 | Merged into integrate |
+| J Infra | #11 | Merged into integrate (needs Vercel login) |
+| C/D/I | — | Wave 2 next |
+| K | — | Wave 3 |
 
-## Baseline confirmed
+## Next
 
-- Bank: **3492** questions / **105** jobs / tracks IB·Banking·PE·VC
-- On main: BFF, parallel_batch, `src/ibpe_corpus`, CI workflow, fullstack prompt
-- PRs #2 #5 #7 absorbed; do not re-implement
+1. Land integrate PR on main
+2. Spawn Wave 2: frontend, backend, search

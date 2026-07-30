@@ -1,0 +1,35 @@
+# Worker schedule wiring stub (Workstream J — Wave 1)
+#
+# Long Glassdoor crawls must NOT run on Vercel serverless request timeouts.
+# Enable `schedule:` only after worker host secrets (HTTPS_PROXY, session) exist.
+# Default: manual dispatch so CI stays safe without scrape credentials.
+
+name: Worker schedule (stub)
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Which stub job to acknowledge"
+        required: true
+        default: enqueue-scrape
+        type: choice
+        options:
+          - enqueue-scrape
+          - corpus-fixtures
+          - enrich
+  # schedule:
+  #   - cron: "0 6 * * *"
+
+jobs:
+  acknowledge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stub — do not scrape in Actions by default
+        run: |
+          echo "job=${{ inputs.job || 'enqueue-scrape' }}"
+          echo "Wire this workflow to a worker host / queue."
+          echo "See apps/worker/schedule.example.yml and docs/deployment/workers.md"
+          test -f apps/worker/jobs/enqueue_scrape.sh.example
+          test -f docs/deployment/workers.md

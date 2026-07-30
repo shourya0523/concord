@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from ibpe_corpus.adapters.github.fetch_repo import PARSER_VERSION, SOURCE_FAMILY, content_hash_file
+from ibpe_corpus.canonical.publish_gate import is_interview_process_placeholder
 from ibpe_corpus.schemas.models import (
     AccessState,
     ExtractionClass,
@@ -18,10 +19,14 @@ from ibpe_corpus.schemas.models import (
 )
 
 # Never claim live Glassdoor provenance from these importers.
+# contract_provenance aligns with packages/contracts ProvenanceEnum.
 GITHUB_PROVENANCE = {
     "provenance": "source_provided",
+    "contract_provenance": "github_source",
+    "product_role": "teaching_qa",
     "source_family": SOURCE_FAMILY,
     "not_glassdoor": True,
+    "teaching_source": True,
 }
 
 
@@ -91,8 +96,10 @@ def import_firebase_qb_export(
                 continue
             question = (record.get("question") or "").strip()
             answer = (record.get("answer") or "").strip()
-            if not question:
+            if not question or is_interview_process_placeholder(question):
                 continue
+            if answer and is_interview_process_placeholder(answer):
+                answer = ""
 
             # Strip common "Question N:" prefixes for cleaner exact text retention
             # but keep exact_source_text faithful to source.
@@ -177,6 +184,8 @@ def import_markdown_questions(
         if not qtext or _LINK_ONLY_RE.match(qtext):
             continue
         if "CLICK HERE" in qtext.upper():
+            continue
+        if is_interview_process_placeholder(qtext):
             continue
         num = match.group(1)
         extracted.append(
@@ -373,8 +382,10 @@ def import_html_playbook(
         coaching = resolved[8] if len(resolved) > 8 else ""
         redflag = resolved[9] if len(resolved) > 9 else ""
 
-        if not question:
+        if not question or is_interview_process_placeholder(question):
             continue
+        if answer and is_interview_process_placeholder(answer):
+            answer = ""
 
         pair_id = hashlib.sha256(f"{track}:{category}:{question}".encode()).hexdigest()[:16]
         q_rec = ExtractedRecord(
@@ -442,6 +453,83 @@ def import_html_playbook(
     )
 
 
+_MD_TABLE_ROW_RE = re.compile(
+    r"^\s*\|(?P<cols>.+)\|\s*$",
+    re.MULTILINE,
+)
+
+
+def import_markdown_table_titles(
+    path: Path | str,
+    *,
+    artefact: RawArtefact | None = None,
+    commit_sha: str | None = None,
+    repo: str | None = None,
+) -> SourceAdapterResult:
+    """Import offergenie-style markdown tables of question titles (no answers).
+
+    Expected columns include a question/title column; optional company, category,
+    difficulty. Separator rows (``|---|``) are skipped.
+    """
+    path = Path(path)
+    art = artefact or _artefact_from_path(path, commit_sha=commit_sha, repo=repo)
+    text = path.read_text(encoding="utf-8")
+    extracted: list[ExtractedRecord] = []
+    headers: list[str] | None = None
+
+    for match in _MD_TABLE_ROW_RE.finditer(text):
+        cols = [c.strip() for c in match.group("cols").split("|")]
+        if not cols or all(re.fullmatch(r":?-+:?", c or "") for c in cols):
+            continue
+        if headers is None:
+            headers = [c.lower() for c in cols]
+            continue
+        if len(cols) < len(headers):
+            cols = cols + [""] * (len(headers) - len(cols))
+        row = {headers[i]: cols[i] for i in range(len(headers))}
+        question = (
+            row.get("question")
+            or row.get("title")
+            or row.get("prompt")
+            or row.get("interview question")
+            or ""
+        ).strip()
+        if not question or question.lower() in headers:
+            # First data-looking header mis-detect — skip empty.
+            continue
+        if is_interview_process_placeholder(question):
+            continue
+        company = row.get("company") or row.get("firm") or row.get("employer")
+        category = row.get("category") or row.get("topic") or row.get("tag")
+        difficulty = row.get("difficulty") or row.get("level")
+        extracted.append(
+            ExtractedRecord(
+                source_artefact_id=art.id,
+                exact_source_text=question,
+                source_selector_or_span=f"md_table:{len(extracted)+1}",
+                record_type=ExtractionClass.EXACT_QUESTION,
+                extraction_method="markdown_table_titles",
+                extracted_metadata={
+                    "company": company or None,
+                    "category": category or None,
+                    "difficulty": difficulty or None,
+                    "importer": "markdown_table_titles",
+                    "has_source_answer": False,
+                    **GITHUB_PROVENANCE,
+                },
+                grounding_confidence=0.85,
+            )
+        )
+
+    return SourceAdapterResult(
+        artefacts=[art],
+        extracted=extracted,
+        access_state=AccessState.PUBLIC,
+        diagnostics=[f"imported {len(extracted)} markdown table titles from {path}"],
+        metrics={"exact_questions": len(extracted), "source_answers": 0},
+    )
+
+
 def import_by_format(
     path: Path | str,
     format_name: str,
@@ -457,6 +545,8 @@ def import_by_format(
         return import_firebase_qb_export(path, artefact=artefact, commit_sha=commit_sha, repo=repo)
     if fmt in {"markdown_numbered_question_lists", "markdown_questions"}:
         return import_markdown_questions(path, artefact=artefact, commit_sha=commit_sha, repo=repo)
+    if fmt in {"markdown_table_question_titles", "markdown_table_titles"}:
+        return import_markdown_table_titles(path, artefact=artefact, commit_sha=commit_sha, repo=repo)
     if fmt in {"single_file_html_js_structured_questions", "html_playbook"}:
         return import_html_playbook(path, artefact=artefact, commit_sha=commit_sha, repo=repo)
     return SourceAdapterResult(

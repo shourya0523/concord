@@ -7,6 +7,8 @@ sources:
       - www/templates/*.html
     format: firebase_export_json
     import_priority: high
+    product_role: teaching_qa
+    license_status: pending_review
     notes: 385 IB-focused question/answer pairs; strongest specified ready-import source; review license before production import.
 
   - repo: Marvin-Deng/Interview-Scraper
@@ -18,6 +20,7 @@ sources:
       - scraper_utils/*.py
     format: python_selenium_scraper_runtime_exports_csv_txt_docx_pdf
     import_priority: pattern_only
+    product_role: pattern_only
     notes: No bundled corpus; useful only for legacy Glassdoor Selenium/export patterns.
 
   - repo: franziskavonalbedyll/GlassdoorInterviewExpert
@@ -29,6 +32,7 @@ sources:
       - questions.txt
     format: python_scraper_runtime_txt_plus_llm_summary
     import_priority: pattern_only
+    product_role: pattern_only
     notes: No bundled interview corpus; useful data-test QuestionsContainer parsing pattern and LLM summarization workflow.
 
   - repo: williamxie11/glassdoor-interview-scraper
@@ -39,6 +43,7 @@ sources:
       - Review.py
     format: python2_selenium_beautifulsoup_runtime_json
     import_priority: pattern_only
+    product_role: pattern_only
     notes: No bundled corpus; historical Glassdoor review/question JSON exporter using span.interviewQuestion and _IP pagination.
 
   - repo: jarus-singh/Glassdoor-Interview-Scraper
@@ -48,6 +53,7 @@ sources:
       - README
     format: python_rss_to_csv
     import_priority: "no"
+    product_role: pattern_only
     notes: Scrapes Glassdoor RSS metadata only; does not capture interview question text or answers.
 
   - repo: raghuboosetty/glassdoor-interview-questions-scrapper
@@ -57,6 +63,7 @@ sources:
       - README.md
     format: aborted_python_selenium_script
     import_priority: "no"
+    product_role: pattern_only
     notes: Aborted project; no bundled corpus; cookie/undetected_chromedriver notes only.
 
   - repo: HireAbo/awesome-interview-questions-5000-jobs
@@ -68,6 +75,8 @@ sources:
       - Business and Management/Finance/Mergers and Acquisitions MA Analyst.md
     format: markdown_numbered_question_lists
     import_priority: low
+    product_role: teaching_qa
+    license_status: pending_review
     notes: Finance subset has about 250 visible questions and no answers; broad templated source for supplemental question-only seeds.
 
   - repo: mikinty/Trading-Interview-Questions
@@ -79,6 +88,8 @@ sources:
       - site/src/games/*.tsx
     format: markdown_curriculum_plus_react_practice_games
     import_priority: low
+    product_role: pattern_only
+    license_status: not_imported
     notes: Quant trading curriculum, not IB/PE; only useful for optional trading/market-making appendix.
 
   - repo: offergenieai/Finance-Interview-Questions
@@ -88,6 +99,8 @@ sources:
       - .github/workflows/update-daily.yml
     format: markdown_table_question_titles
     import_priority: medium
+    product_role: teaching_qa
+    license_status: pending_review
     notes: 20 JPMorgan/Goldman finance question titles with company/category/difficulty metadata; no answers.
 
   - repo: coryjburk/intv-playbook-ib_vc
@@ -97,6 +110,8 @@ sources:
       - README.md
     format: single_file_html_js_structured_questions
     import_priority: high
+    product_role: teaching_qa
+    license_status: pending_review
     notes: 100 IB questions with model answers, deep dives, coaching notes, red flags, categories, and difficulty; review license before production import.
 
   - repo: coryjburk/intv-playbook-pe_vc
@@ -106,4 +121,6 @@ sources:
       - README.md
     format: single_file_html_js_structured_questions
     import_priority: high
+    product_role: teaching_qa
+    license_status: pending_review
     notes: 100 PE/value-creation questions with model answers, deep dives, coaching notes, red flags, categories, and difficulty; review license before production import.

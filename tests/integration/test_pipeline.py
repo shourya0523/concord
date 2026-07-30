@@ -70,5 +70,29 @@ def test_exports_schema_keys(tmp_path: Path) -> None:
 
 def test_question_bank_import_smoke() -> None:
     result = import_question_bank()
-    assert result.metrics["exact_questions"] >= 2800
+    assert result.metrics["exact_questions"] == 0
+    assert result.metrics["topic_signals"] >= 2800
     assert result.metrics.get("track_PE", 0) >= 1
+
+
+def test_exports_include_license_and_firm_signals(tmp_path: Path) -> None:
+    db = tmp_path / "corpus.db"
+    exports = tmp_path / "exports"
+    reports = tmp_path / "reports"
+    run_fixture_pipeline(
+        db_path=db,
+        exports_dir=exports,
+        reports_dir=reports,
+        force=True,
+        include_question_bank=False,
+    )
+    assert (reports / "license-review.md").is_file()
+    assert (reports / "data-quality-report.md").is_file()
+    assert "BLOCKING" in (reports / "license-review.md").read_text(encoding="utf-8")
+    assert (exports / "firm_signals.jsonl").is_file()
+    summary = json.loads((reports / "run-summary.json").read_text(encoding="utf-8"))
+    assert summary["publish_policy"]["teaching_truth"].startswith("github_source")
+    # No interview-process placeholders in published teaching export
+    for line in (exports / "questions.jsonl").read_text(encoding="utf-8").splitlines():
+        row = json.loads(line)
+        assert "[Interview process]" not in (row.get("canonical_wording") or "")

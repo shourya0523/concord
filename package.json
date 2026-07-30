@@ -1,0 +1,38 @@
+{
+  "name": "concord-ibpe",
+  "version": "0.0.1",
+  "private": true,
+  "description": "IB/PE interview prep platform — monorepo (Python CLI preserved at repo root)",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "format": "turbo format",
+    "typecheck": "turbo typecheck",
+    "dev:web": "npm run dev -w @ibpe/web"
+  },
+  "devDependencies": {
+    "@workspace/eslint-config": "*",
+    "@workspace/typescript-config": "*",
+    "prettier": "^3.8.3",
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "tsx": "^4.23.1",
+    "turbo": "^2.9.18",
+    "typescript": "^5"
+  },
+  "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/ui",
+    "packages/eslint-config",
+    "packages/typescript-config",
+    "packages/contracts",
+    "packages/config",
+    "packages/database",
+    "packages/domain",
+    "packages/ai"
+  ]
+}

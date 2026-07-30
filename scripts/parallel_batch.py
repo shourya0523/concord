@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
-"""Run batch scrape across N workers (separate Chrome + bank shards), then merge.
+"""Run batch scrape across N workers (bank shards), then merge.
+
+Supports browser (Selenium/Patchright) and BFF (curl_cffi) backends.
 
 Usage:
-  python scripts/parallel_batch.py --workers 3 --no-manual-login
-  python scripts/parallel_batch.py --workers 3 --force --no-manual-login
+  # Preferred on cloud (needs residential HTTPS_PROXY):
+  python scripts/parallel_batch.py --backend bff --workers 3 --track PE --force
+
+  # Browser workers (needs glassdoor_state.json or interactive login):
+  python scripts/parallel_batch.py --backend browser --workers 3 --no-manual-login
+
+Glassdoor output is Mode A firm-signal / occurrence data only — not teaching answers.
 """
 
 from __future__ import annotations
@@ -29,6 +36,17 @@ from scrapers.bank import (  # noqa: E402
     save_bank,
 )
 from scrapers.batch import DEFAULT_TARGETS_PATH, expand_jobs, load_targets  # noqa: E402
+
+
+def _proxy_configured() -> bool:
+    return bool(
+        (
+            os.getenv("HTTPS_PROXY")
+            or os.getenv("HTTP_PROXY")
+            or os.getenv("GLASSDOOR_PROXY")
+            or ""
+        ).strip()
+    )
 
 
 def _split(jobs: list[dict], n: int) -> list[list[dict]]:
@@ -87,6 +105,30 @@ def _merge_banks(master_path: Path, shard_paths: list[Path]) -> tuple[int, int]:
     return total_added, total_updated
 
 
+def _bff_preflight(*, allow_without_proxy: bool) -> int | None:
+    """Return exit code if BFF should not launch; None to continue."""
+    if _proxy_configured():
+        print("BFF preflight: HTTPS_PROXY/HTTP_PROXY/GLASSDOOR_PROXY present.")
+        return None
+    msg = (
+        "BFF parallel workers need a residential HTTPS_PROXY "
+        "(Cloud Agents Secrets / .env). Datacenter IPs get Cloudflare 403.\n"
+        "  Set HTTPS_PROXY=http://user:pass@host:port then re-run:\n"
+        "  python scripts/parallel_batch.py --backend bff --workers 3 --track PE\n"
+        "Fallback: capture a session on a residential network, then:\n"
+        "  python scripts/parallel_batch.py --backend browser --no-manual-login"
+    )
+    if allow_without_proxy:
+        print(f"WARNING: {msg}")
+        print("Continuing without proxy (--allow-no-proxy); expect BLOCKED results.")
+        return None
+    print(f"STUB/blocked: {msg}")
+    print(
+        "Pass --allow-no-proxy to attempt anyway (smoke / local residential IP)."
+    )
+    return 2
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workers", type=int, default=3)
@@ -95,9 +137,31 @@ def main() -> int:
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--sleep", type=float, default=3.0)
     parser.add_argument(
+        "--backend",
+        choices=["browser", "bff"],
+        default="browser",
+        help=(
+            "browser = Selenium/Patchright workers; "
+            "bff = curl_cffi Glassdoor BFF API workers (no browser login; "
+            "needs residential HTTPS_PROXY on cloud)."
+        ),
+    )
+    parser.add_argument(
+        "--pages",
+        type=int,
+        default=5,
+        help="Max BFF interview pages per company (--backend bff only)",
+    )
+    parser.add_argument(
+        "--allow-no-proxy",
+        action="store_true",
+        help="With --backend bff, proceed even if HTTPS_PROXY is unset",
+    )
+    parser.add_argument(
         "--manual-login",
         action=argparse.BooleanOptionalAction,
         default=False,
+        help="Browser backend only: pause for manual Glassdoor login",
     )
     parser.add_argument("--targets", type=str, default=str(DEFAULT_TARGETS_PATH))
     parser.add_argument("--bank", type=str, default=str(DEFAULT_BANK_PATH))
@@ -107,6 +171,12 @@ def main() -> int:
         default=str(ROOT / "data" / "parallel_batch"),
     )
     args = parser.parse_args()
+
+    backend = (args.backend or "browser").lower().strip()
+    if backend == "bff":
+        blocked = _bff_preflight(allow_without_proxy=args.allow_no_proxy)
+        if blocked is not None:
+            return blocked
 
     jobs = expand_jobs(
         load_targets(args.targets), track=args.track, limit=args.limit
@@ -133,12 +203,13 @@ def main() -> int:
     workdir.mkdir(parents=True, exist_ok=True)
 
     shards = _split(jobs, args.workers)
-    print(f"Launching {len(shards)} workers…")
+    print(f"Launching {len(shards)} {backend} workers…")
 
     procs: list[subprocess.Popen] = []
     shard_banks: list[Path] = []
     env = os.environ.copy()
-    env.setdefault("DISPLAY", ":1")
+    if backend == "browser":
+        env.setdefault("DISPLAY", ":1")
 
     for i, shard in enumerate(shards):
         targets_path = workdir / f"targets_w{i}.json"
@@ -153,14 +224,21 @@ def main() -> int:
             sys.executable,
             str(ROOT / "main.py"),
             "batch",
+            "--backend",
+            backend,
             "--targets",
             str(targets_path),
             "--bank",
             str(bank_path),
             "--sleep",
             str(args.sleep),
-            "--no-manual-login" if not args.manual_login else "--manual-login",
         ]
+        if backend == "bff":
+            cmd.extend(["--pages", str(args.pages)])
+        else:
+            cmd.append(
+                "--no-manual-login" if not args.manual_login else "--manual-login"
+            )
         if args.force:
             cmd.append("--force")
         if args.track:
