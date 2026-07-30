@@ -43,6 +43,20 @@ With the venv activated, `python` / `python3` use that environment. If you skip 
 
 ## Login flow
 
+### Preferred: Patchright session capture (documented 2026 approach)
+
+If auto-login or Google OAuth still lands on a Cloudflare captcha, use the documented flow: headed Patchright Chrome → login once → save full `storage_state` → reuse.
+
+```shell
+pip install -r requirements.txt
+python main.py login          # solve captcha / 2FA in the Chrome window
+python main.py batch --limit 1
+```
+
+State file: `data/glassdoor_state.json` (gitignored). A **residential proxy** (`HTTPS_PROXY`) greatly improves captcha pass rates on cloud/datacenter IPs.
+
+### Automated login (`.env`)
+
 Glassdoor uses Indeed SSO **or** Google OAuth. Automated login reads `.env`:
 
 ```shell
@@ -75,7 +89,7 @@ Manual fallback (no `.env`, or `--manual-login`):
 3. Press Enter in the terminal
 4. Scraping continues in the same session
 
-For batch runs you only log in once; the browser is reused for every company/role. Cookie reuse skips login on later runs until the session expires.
+For batch runs you only log in once; the browser is reused for every company/role. Cookie / storage_state reuse skips login on later runs until the session expires.
 
 ## Single-company scrape
 

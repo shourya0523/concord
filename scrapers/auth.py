@@ -879,26 +879,54 @@ def ensure_login(
     """Ensure an authenticated Glassdoor session.
 
     Order:
-    1. Reuse saved cookies when present
-    2. Automated login when .env credentials exist (unless manual)
-    3. Manual browser login pause
+    1. Reuse Patchright storage_state (data/glassdoor_state.json) — preferred
+    2. Reuse legacy Selenium cookie jar (data/glassdoor_session.json)
+    3. Automated login when .env credentials exist (unless manual)
+    4. Manual browser login pause
+
+    Tip: run `python main.py login` once (headed Patchright) to capture a full
+    storage_state after captcha/2FA. That is the documented 2026 approach when
+    automated OAuth still lands on Cloudflare.
     """
+    from scrapers.session_state import (
+        apply_storage_state_to_driver,
+        dismiss_hardsell_overlay,
+        state_exists,
+        state_path,
+    )
+
     # Optional proxy hint for UC chrome (set before driver creation ideally)
     proxy = (os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY") or "").strip()
     if proxy:
         print(f"Proxy env detected ({urlparse(proxy).scheme}://{urlparse(proxy).hostname})")
 
+    # 1) Patchright storage_state (cookies + localStorage)
+    if state_exists():
+        print(f"Trying Patchright storage_state at {state_path()}…")
+        if apply_storage_state_to_driver(driver):
+            dismiss_hardsell_overlay(driver)
+            if is_logged_in(driver):
+                print("Authenticated via Patchright storage_state.")
+                return
+            print("storage_state applied but session still looks signed-out.")
+
+    # 2) Legacy Selenium cookies
     if load_session(driver, cookie_path):
+        dismiss_hardsell_overlay(driver)
         return
 
     email, password = get_credentials()
     if email and password and not manual_login:
         try:
             automated_login(driver, email, password, cookie_path=cookie_path)
+            dismiss_hardsell_overlay(driver)
             return
         except Exception as e:
             print(f"Automated login failed: {e}")
-            print("Falling back to manual login...")
+            print(
+                "Falling back to manual login… "
+                "(or run: python main.py login  — Patchright session capture)"
+            )
 
     wait_for_manual_login(driver)
     if is_logged_in(driver) or "glassdoor.com" in (
@@ -908,3 +936,4 @@ def ensure_login(
             save_session(driver, cookie_path)
         except Exception:
             pass
+        dismiss_hardsell_overlay(driver)

@@ -8,6 +8,7 @@ venv
 
 # Auth session cache (do not commit)
 data/glassdoor_session.json
+data/glassdoor_state.json
 
 # Driver
 chromedriver.exe
