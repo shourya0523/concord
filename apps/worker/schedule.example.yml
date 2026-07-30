@@ -1,0 +1,29 @@
+# Example schedules for scrape / transform / enrich workers.
+# Enable only after HTTPS_PROXY + session secrets are on the worker host.
+# Never point these at Vercel serverless request handlers for long crawls.
+
+schedules:
+  - name: bff-scrape-pe-daily
+    cron: "0 6 * * *"
+    command: >
+      python main.py batch --backend bff --track PE --limit 5
+    env_from: worker-secrets
+
+  - name: corpus-fixtures-nightly
+    cron: "30 7 * * *"
+    command: >
+      ibpe run-pipeline --mode fixtures --force
+    env_from: worker-secrets
+
+  - name: gemini-enrich-nightly
+    cron: "0 8 * * *"
+    command: >
+      echo "Wire to answers enrich CLI when available"
+    env_from: worker-secrets
+
+# Optional: Vercel Cron hits a short enqueue API; worker pulls the job.
+vercel_enqueue:
+  path: /api/cron/enqueue-scrape
+  schedule: "0 6 * * *"
+  auth_header: "Authorization: Bearer $CRON_SECRET"
+  note: "Handler must enqueue only — do not run batch scrape inline"

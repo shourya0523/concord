@@ -1,0 +1,28 @@
+# Monitoring wiring stub (Workstream J — Wave 1)
+# Copy ideas into real provider configs in Wave 3; do not commit secrets.
+
+product:
+  platform: vercel
+  runtime_logs: true
+  error_tracker:
+    provider: sentry  # or equivalent
+    env:
+      - SENTRY_DSN          # server-only
+      # never NEXT_PUBLIC_ for scrape-related data
+  healthcheck_path: /api/health  # backend Wave 2
+
+workers:
+  schedule_workflow: .github/workflows/worker-schedule.yml
+  success_signal: exit_code_zero
+  alerts:
+    - scrape_block_rate
+    - enrich_job_failure
+
+secrets_hygiene:
+  forbid_public_prefixes:
+    - HTTPS_PROXY
+    - GLASSDOOR_
+    - CAPSOLVER_
+    - GEMINI_API_KEY
+    - BLOB_READ_WRITE_TOKEN
+    - DATABASE_URL

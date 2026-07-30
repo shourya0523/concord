@@ -39,6 +39,13 @@ GLASSDOOR_LOGIN_METHOD=google   # recommended for gmail — skips Indeed Cloudfl
 
 Prefer [Cloud Agents Secrets](https://cursor.com/dashboard/cloud-agents) with the same variable names in cloud runs. Do not commit real credentials.
 
+### Product deploy vs scrape secrets
+
+- **Next.js product** deploys to **Vercel** (`apps/web`). See `docs/deployment/` and `reports/deployment-report.md`.
+- **Scrapers / batch enrich** run on **workers** / Cloud Agents (`apps/worker`, `python main.py`, `ibpe`) — never as long-running work inside Vercel serverless **request** timeouts.
+- Keep `HTTPS_PROXY`, Glassdoor credentials, Capsolver keys, and cookie / `storage_state` files (`data/glassdoor_state.json`, `data/glassdoor_session.json`) as **server/worker secrets only**. Do **not** put them in Vercel **public** env or any `NEXT_PUBLIC_*` variable.
+- Product env (Neon, Clerk, Blob, `CRON_SECRET`) is separate — inventory in `docs/agent-run/env-inventory.md`.
+
 **Cloudflare / captcha (documented approaches):** Automated Selenium/Google OAuth often still hits Cloudflare on Indeed (`secure.indeed.com`) from **datacenter IPs**. 2026 guides converge on:
 
 ### A) Preferred on cloud: BFF API + residential proxy (no browser login)
