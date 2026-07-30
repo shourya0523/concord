@@ -29,11 +29,11 @@
 - [x] `ibpe-search` — hybrid search + pseudo-RAG retrieval (#21)
 - [x] Integrate Wave 2 PR (#22)
 
-## Wave 3 — IN PROGRESS
+## Wave 3 — DONE (integrate on `local/orchestrator-wave3-d1de`)
 
-- [ ] `ibpe-qa` — `/verification` critical paths; product + release gates; reports
-- [ ] `ibpe-infra` — preview → prod smoke; monitoring/backups; worker health docs
-- [ ] Orchestrator integrate + update status
+- [x] `ibpe-qa` — product + release gates; reports + `scripts/qa_product_smoke.sh`
+- [x] `ibpe-infra` — prod smoke; monitoring/backups docs; worker health
+- [x] Orchestrator integrate + GET `/api/search` coerce + AppShell `<main>`
 
 ## Integration cadence
 
