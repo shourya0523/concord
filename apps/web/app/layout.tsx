@@ -22,8 +22,12 @@ const instrumentSerif = Instrument_Serif({
 })
 
 export const metadata = {
-  title: "IBPE — Design System",
-  description: "Editorial Finance Terminal component catalogue",
+  title: {
+    default: "IBPE — Editorial Finance Terminal",
+    template: "%s · IBPE",
+  },
+  description:
+    "Company prep with topic heat + pseudo-RAG, and concept labs — Editorial Finance Terminal",
 }
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

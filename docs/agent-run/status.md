@@ -1,7 +1,7 @@
 # Programme status
 
-**Phase:** Wave 2 in progress  
-**Base:** `main` @ `aa95600` (Wave 1 + ADR 0006 Neon Auth / manual scrape)  
+**Phase:** Wave 2 on main — ready for Wave 3  
+**Base:** `main` @ Wave 2 integrate  
 **Updated:** 2026-07-30
 
 ## Waves
@@ -9,26 +9,20 @@
 | Wave | State |
 |------|-------|
 | Phase 0 | Complete |
-| Wave 1 | Complete on main (#15) + policy (#16) |
-| Wave 2 | Spawning — frontend / backend / search |
-| Wave 3 | Not started |
+| Wave 1 | Complete (#15 + #16) |
+| Wave 2 | Complete on main (frontend + Neon Auth APIs + search) |
+| Wave 3 | Ready — QA + infra promote |
 
-## Stream rollup
+## Product surfaces live on main
 
-| Stream | Branch | State |
-|--------|--------|-------|
-| A–J (Wave 1) | — | On main |
-| C Frontend | `local/ws-frontend-a9ff` | Spawning |
-| D Backend | `local/ws-backend-a9ff` | Spawning |
-| I Search | `local/ws-search-a9ff` | Spawning |
-| K QA | — | Wave 3 |
+- UI: `/onboarding`, `/dashboard`, `/prep/heat`, `/prep/rag`, `/companies/[firm]`, `/concepts/[slug]`, `/study`, `/sign-in`
+- API: `/api/auth/*`, `/api/questions`, `/api/search`, `/api/practice/*`, `/api/firms/*/heat`
+- Package: `@ibpe/search` (heat + pseudo-RAG)
 
-## Policy locks
+## Your env for live auth
 
-- Product auth: **Neon Auth** (not Clerk)
-- Scrape: **manual captcha / Patchright** (BFF legacy only)
-- Teaching truth: GitHub Q/A; Glassdoor = firm signals
+Vercel / `.env.local`: `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, `NEXT_PUBLIC_APP_URL`
 
 ## Next
 
-Integrate Wave 2 → foundation product gate → Wave 3 QA/deploy.
+Wave 3: `ibpe-qa` verification + `ibpe-infra` preview→prod.

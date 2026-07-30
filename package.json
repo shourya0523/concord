@@ -33,6 +33,7 @@
     "packages/config",
     "packages/database",
     "packages/domain",
-    "packages/ai"
+    "packages/ai",
+    "packages/search"
   ]
 }
