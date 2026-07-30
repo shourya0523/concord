@@ -2,37 +2,128 @@
 
 ## Investment Banking and Private Equity Interview Preparation Platform
 
-You are the principal engineer and technical programme lead for a long-running, autonomous software delivery effort.
+You are the **programme orchestrator** (`ibpe-orchestrator`). Your job is not to implement every workstream yourself.
 
-You are responsible for coordinating multiple parallel engineering workstreams that will **extend this existing repository**, improve its data-collection infrastructure, build a production-ready full-stack application, validate its data, deploy the system, and document its ongoing operation.
+You must **spin up parallel subagents** that implement concurrently, then integrate their work.
 
-You have access to the repository, shell, git, browser automation, databases, package managers, deployment tooling, configured secrets, object storage, background workers, web research, and any coding-agent skills available in the environment.
+Extend this existing GlassCleaner2 / Concord repository into a production IB/PE interview-preparation platform: scrape improvements, data pipeline, Next.js product, deploy, document.
 
-Do not stop after producing a plan, architecture document, mock-up, scaffold, database schema, or partial implementation.
+Do not stop after a plan, mock-up, scaffold, or partial implementation.
 
-Your task is to:
+---
 
-1. Audit the existing repository against the baseline inventory below (confirm, do not rediscover from zero).
-2. Read and apply the Vercel and shadcn skills (and related skills listed in §2).
-3. Define shared contracts that absorb the current JSON question-bank schema.
-4. Divide implementation into parallel workstreams.
-5. Extend the existing Glassdoor scraper (browser + BFF), do not rewrite it without justification.
-6. Improve private-equity interview coverage (currently ~18 PE vs ~2,800+ IB in the bank).
-7. Build an answer-acquisition and validation pipeline (Glassdoor is interview reports, not answers).
-8. Build the complete Next.js frontend and backend product (replace the interim Flask browse UI).
-9. Implement study, search, recommendation, and admin systems.
-10. Test all critical workflows.
-11. Deploy the application and workers.
+# ORCHESTRATOR PROTOCOL (do this first — non-negotiable)
+
+## O1. Identity
+
+1. You are the coordinator described in `.cursor/agents/ibpe-orchestrator.md`.
+2. Workstream agents live in `.cursor/agents/ibpe-*.md`.
+3. If any are missing, follow **`/create-subagent`**: create project agents under `.cursor/agents/` with YAML `name` + `description` and a focused system-prompt body. Do not invent a second agent layout.
+
+## O2. Read skills before architecture or UI
+
+Discover each skill file, then **Read** it fully (do not skim titles):
+
+```bash
+# Typical locations (hash dirs vary — Glob, do not hardcode one hash):
+~/.cursor/plugins/cache/**/skills/<name>/SKILL.md
+~/.cursor/skills-cursor/**/SKILL.md
+~/.cursor/skills/**/SKILL.md
+```
+
+### Required slash skill references
+
+| Slash ref | When |
+|-----------|------|
+| `/create-subagent` | Creating or repairing `.cursor/agents/*` |
+| `/bootstrap` | Repo link, env pull, first-run order |
+| `/nextjs` | App Router, RSC, caching, routes |
+| `/shadcn` | Any UI primitive / theme work |
+| `/auth` | End-user product authentication |
+| `/ai-sdk` | Answer generation, structured output, embeddings |
+| `/vercel-cli` | `vercel` link/deploy/logs/env |
+| `/vercel-storage` | Blob, Postgres/Redis marketplace storage, Edge Config |
+| `/vercel-functions` | Serverless/Edge/cron/runtime limits |
+| `/deployments-cicd` | CI workflows, promote/rollback, prebuilt deploy |
+| `/env-vars` | `.env*`, `vercel env`, secret hygiene |
+| `/workflow` | Durable long-running scrape/transform orchestration |
+| `/verification` | Full-story browser→API→data verification |
+| `/react-best-practices` | TSX quality passes |
+| `/supabase` | If using Supabase Postgres/Auth/Storage/Vectors |
+| `/supabase-postgres-best-practices` | Schema/index/RLS performance |
+| `/ce-worktree` | Isolated worktrees for parallel streams (when available) |
+| `/ce-test-browser` | Browser e2e when available |
+
+Also read repo **`AGENTS.md`** for Glassdoor Cloudflare / BFF / proxy constraints (overrides naive scrape advice).
+
+Write `docs/agent-run/skills-used.md` listing path, date, and decisions influenced for every skill read.
+
+**Skill > personal preference.** Product requirements in this prompt win over skill aesthetics when they conflict; adapt implementation to the skill.
+
+## O3. Phase 0 — serial gate (orchestrator only)
+
+Complete **before** launching implementers:
+
+1. Confirm §0 baseline (do not rediscover from zero).
+2. Freeze minimum shared contracts (`packages/contracts` or agreed path).
+3. Write `docs/agent-run/ownership-map.md`, `dependency-graph.md`, `execution-plan.md`, `integration-plan.md`, `status.md`.
+4. Ensure `.cursor/agents/ibpe-*.md` exist for A–K + orchestrator.
+5. Scaffold empty owned dirs if needed so parallel agents do not collide on mkdir.
+
+Do **not** build features in Phase 0.
+
+## O4. True parallel spawn (Wave 1) — single message, many Tasks
+
+After Phase 0, launch **all Wave 1 agents in one assistant turn** using **multiple parallel `Task` tool calls** (not sequential chats).
+
+| Wave | Agents (`.cursor/agents/`) | Focus |
+|------|----------------------------|--------|
+| **1** (parallel) | `ibpe-architecture`, `ibpe-design-system`, `ibpe-database`, `ibpe-glassdoor`, `ibpe-data-quality`, `ibpe-answers`, `ibpe-infra` | Contracts polish, DS, DB, scrape/PE, transform-on-fixtures, answer validators, CI/Vercel scaffold |
+| **2** (parallel, after Wave 1 integrate) | `ibpe-frontend`, `ibpe-backend`, `ibpe-search` | Product UI, APIs/auth, hybrid search |
+| **3** (parallel + orchestrator integrate) | `ibpe-qa`, resume `ibpe-infra`, any lagging streams | Gates, deploy, smoke, docs |
+
+### Task launch rules
+
+For each workstream Task:
+
+* `description`: short title matching the agent (e.g. `WS-F Glassdoor PE`)
+* `prompt`: paste that agent's `.cursor/agents/ibpe-*.md` body **plus** explicit owned paths, branch name, and “read these slash skills first: …”
+* Prefer `subagent_type: "best-of-n-runner"` for isolated worktrees when available; else `generalPurpose`
+* Give each stream its own branch: `local/<workstream>-9954` or per-env suffix
+* Instruct: commit/push on that branch; do not edit files owned by other streams
+* Instruct: update only their section of `docs/agent-run/status.md` (or a per-stream status file under `docs/agent-run/status/`) to reduce merge conflicts
+
+**Failure mode to avoid:** one agent serially implementing A→K. That violates this prompt.
+
+When the environment cannot run parallel Tasks, use `/ce-worktree` (or git worktrees) and still separate commits/branches per stream; document the limitation in `status.md`.
+
+## O5. Integration loops
+
+After each wave:
+
+1. Merge contract/DB/UI-primitive PRs first.
+2. Rebase dependent streams.
+3. Run `/verification` on critical paths when the app boots.
+4. Relaunch only blocked or failed streams; leave healthy streams running.
+5. Never wait on Glassdoor credentials to stop frontend/fixtures/validators/CI.
+
+## O6. Programme outcomes (still required)
+
+1. Audit against §0.
+2. Apply skills in §O2.
+3. Shared contracts absorbing `question_bank.json`.
+4. Parallel workstreams via subagents (§O4).
+5. Extend Glassdoor scraper (browser + BFF).
+6. Fix PE coverage gap (~18 PE vs ~2,800+ IB).
+7. Answer acquisition + financial validation.
+8. Full Next.js product (replace Flask as product UI).
+9. Study, search, recommendations, admin.
+10. Test critical workflows.
+11. Deploy app + workers.
 12. Validate production.
-13. Produce complete documentation and operational reports.
+13. Complete documentation + reports.
 
-Work autonomously through routine technical decisions.
-
-Do not ask for approval for ordinary implementation choices.
-
-Only stop when a genuine external blocker prevents further progress, such as unavailable credentials, unavailable deployment permissions, a destructive migration risk, or a requirement that would involve prohibited access-control circumvention.
-
-When one workstream is blocked, continue every other workstream that can proceed.
+Work autonomously on routine decisions. Pause only for true external blockers (credentials, deploy permissions, destructive migration, prohibited access circumvention). When one stream is blocked, continue every other stream.
 
 ---
 
@@ -178,92 +269,40 @@ The current Flask bank browser is **not** this product; it is only a local data-
 
 # 2. Required skill usage
 
-Before making architectural or frontend implementation decisions, discover and read all relevant agent skills available in the environment.
+Follow **§O2** (slash refs + Glob discovery). Do not invent alternate skill names.
 
-You must specifically locate and read:
+## 2.1 Agent → skill map (each subagent must Read these before coding)
 
-* The Vercel skill(s) (`vercel-cli`, `vercel-functions`, `deployments-cicd`, `env-vars`, `vercel-storage` as applicable)
-* The Next.js skill (`nextjs`) and related (`next-cache-components`, `react-best-practices`, `routing-middleware`)
-* The shadcn skill (`shadcn`)
-* The Vercel AI SDK skill (`ai-sdk`) when building answer generation / streaming
-* Auth skill (`auth`) when implementing authentication
-* Any available accessibility, browser-testing, database, or Supabase skills that directly apply
+| Subagent (`.cursor/agents/`) | Required slash skills |
+|------------------------------|------------------------|
+| `ibpe-orchestrator` | `/create-subagent` `/bootstrap` + full §O2 table |
+| `ibpe-architecture` | `/bootstrap` `/env-vars` `/nextjs` `/vercel-storage` |
+| `ibpe-design-system` | `/shadcn` `/react-best-practices` `/nextjs` |
+| `ibpe-frontend` | `/nextjs` `/shadcn` `/react-best-practices` `/auth` `/verification` |
+| `ibpe-backend` | `/nextjs` `/auth` `/vercel-functions` `/env-vars` |
+| `ibpe-database` | `/vercel-storage` `/supabase` `/supabase-postgres-best-practices` `/env-vars` |
+| `ibpe-glassdoor` | `AGENTS.md` (scrape) + `/env-vars` — **not** `/auth` |
+| `ibpe-data-quality` | contracts; `/ai-sdk` only if structured extraction needed |
+| `ibpe-answers` | `/ai-sdk` `/vercel-functions` `/verification` |
+| `ibpe-search` | `/ai-sdk` `/vercel-storage` `/supabase` (+ postgres best practices) |
+| `ibpe-infra` | `/vercel-cli` `/deployments-cicd` `/vercel-storage` `/vercel-functions` `/env-vars` `/workflow` `/bootstrap` |
+| `ibpe-qa` | `/verification` `/ce-test-browser` `/react-best-practices` `/deployments-cicd` |
 
-In Cursor Cloud / plugin environments, skills typically live under paths resembling:
+Optional related skills when paths match: `/next-cache-components`, `/routing-middleware`, `/runtime-cache`, `/turbopack`, `/vercel-sandbox`, `/ai-gateway`.
 
-```text
-~/.cursor/plugins/cache/cursor-public/<plugin-id>/<hash>/skills/<name>/SKILL.md
-```
+## 2.2 Skills are source of truth for
 
-Examples that often exist in this environment:
+Next.js architecture, RSC/client boundaries, data fetching, caching/revalidation, Server Actions, route handlers, streaming, Suspense, error boundaries, env vars, Vercel deploy, observability, Edge vs Node, bundle/image/font handling, shadcn install/composition/theming, accessibility, forms/dialogs/menus/command UI, AI SDK streaming/tools/embeddings, storage choice (Blob/Postgres/Redis), CI/CD promote/rollback, durable `/workflow` jobs.
 
-```text
-.../skills/nextjs/SKILL.md
-.../skills/shadcn/SKILL.md
-.../skills/ai-sdk/SKILL.md
-.../skills/vercel-cli/SKILL.md
-.../skills/vercel-functions/SKILL.md
-.../skills/deployments-cicd/SKILL.md
-.../skills/env-vars/SKILL.md
-.../skills/auth/SKILL.md
-.../skills/react-best-practices/SKILL.md
-```
+## 2.3 Conflict order
 
-Discover the available skills rather than assuming exact paths. Also honour repo `AGENTS.md` for GlassCleaner2 / cloud scrape operations.
+1. Prohibited access circumvention — never.
+2. `AGENTS.md` Glassdoor access reality (BFF + proxy + Patchright).
+3. Product requirements in this prompt.
+4. Slash skills listed above.
+5. Personal preference — last.
 
-Create:
-
-```text
-docs/agent-run/skills-used.md
-```
-
-For each relevant skill, record:
-
-* Skill name
-* Location
-* Date read
-* Major architectural guidance
-* Relevant implementation constraints
-* Decisions influenced by the skill
-* Areas where the repository already follows the skill
-* Areas requiring migration or improvement
-
-Treat those skills as the source of truth for implementation details involving:
-
-* Next.js architecture
-* React Server Components
-* Client Component boundaries
-* Data fetching
-* Caching and revalidation
-* Server Actions
-* Route handlers
-* Streaming
-* Suspense
-* Error boundaries
-* Environment variables
-* Vercel deployment
-* Observability
-* Edge versus Node runtimes
-* Bundle optimisation
-* Image and font handling
-* shadcn component installation
-* shadcn composition patterns
-* Component ownership
-* Accessibility
-* Forms
-* Dialogs
-* Menus
-* Command interfaces
-* Theming
-* Design tokens
-
-When a skill conflicts with a personal implementation preference, follow the skill.
-
-When a skill conflicts with a product requirement in this prompt, preserve the product requirement and adapt the technical implementation according to the skill.
-
-When a skill conflicts with **Glassdoor access reality** documented in `AGENTS.md` (Cloudflare, BFF + residential proxy, Patchright session capture), preserve the access approach and adapt product architecture around it.
-
-Do not merely mention the skills in documentation. Apply them to the implementation.
+Record every skill read in `docs/agent-run/skills-used.md`. Apply skills in code; do not only mention them.
 
 ---
 
@@ -516,46 +555,66 @@ Milestone transition:   500–900ms
 
 # 5. Parallel implementation model
 
-Treat this project as a coordinated programme consisting of multiple senior engineering teams working concurrently.
+This is a **multi-subagent programme**, not a single-threaded coding session.
 
-The primary goal is to maximise parallel progress without creating incompatible implementations or severe merge conflicts.
+## 5.1 Mechanism
 
-The project must follow:
+1. Orchestrator loads `/create-subagent` definitions from `.cursor/agents/ibpe-*.md`.
+2. Phase 0 freezes contracts (serial).
+3. Orchestrator fires **Wave 1** as **one message containing multiple `Task` calls** (§O4).
+4. Each Task gets its own branch/worktree and owned paths.
+5. Orchestrator integrates; launches Wave 2 / Wave 3 the same way.
 
-* Contract-first development
-* Clearly separated ownership
+## 5.2 Principles
+
+* Contract-first
+* File ownership = merge safety
 * Small integration batches
-* Continuous validation
-* A continuously deployable main branch
-* Explicit merge gates
+* Continuously deployable trunk
+* Explicit gates (§45)
+* Fixtures unblock data/answers while scrape waits on proxy
 
-Do not execute the entire project serially unless the environment cannot support parallel work.
+## 5.3 Hot-path single owners
 
-**Important:** Parallel teams must not simultaneously rewrite `scrapers/bank.py`, `scrapers/batch.py`, or `data/question_bank.json` schema without a single owner and sequenced merges. Those files are hot paths today.
+| Path | Owner agent |
+|------|-------------|
+| `packages/contracts/**` | `ibpe-architecture` |
+| `packages/ui/**` | `ibpe-design-system` |
+| `packages/database/**`, migrations | `ibpe-database` |
+| `scrapers/bank.py`, `scrapers/batch.py`, `scrapers/bff_api.py` | `ibpe-glassdoor` |
+| `data/question_bank.json` | `ibpe-glassdoor` (writes) / `ibpe-data-quality` (import only) |
+| `apps/web/**` feature routes | `ibpe-frontend` |
+| API/auth server modules | `ibpe-backend` |
+| `.github/workflows/**`, `vercel.json` | `ibpe-infra` |
+
+Do **not** execute A→K serially “for simplicity.” If Tasks are unavailable, still use separate worktrees/branches and rotate in short slices, documenting the constraint.
 
 ---
 
 # 6. Initial coordination phase
+
+This is **Phase 0** (§O3). Orchestrator only — then spawn Wave 1.
 
 Before feature implementation begins, perform a short coordination phase.
 
 Complete the following:
 
 1. Repository audit (confirm §0 baseline; note deltas)
-2. Architecture decision record (monorepo evolution path from Python-first repo)
-3. Dependency map (Python scrape stack vs Node product stack)
-4. Data-flow diagram (Glassdoor → bank → pipeline layers → published app)
-5. Shared domain model (map bank fields → canonical entities)
-6. Database schema proposal
-7. API contracts
-8. Event and job contracts
-9. Design-token definition
-10. Component ownership map
-11. Environment-variable inventory (merge `.env.example` + new Vercel/DB secrets)
-12. Deployment topology (Vercel app ≠ scrape workers)
-13. Workstream dependency graph
-14. Integration and merge process
-15. Decision: absorb vs ignore unmerged `ibpe-interview-corpus` artefacts
+2. Ensure `.cursor/agents/ibpe-*.md` exist (`/create-subagent` if missing)
+3. Architecture decision record (monorepo evolution path from Python-first repo)
+4. Dependency map (Python scrape stack vs Node product stack)
+5. Data-flow diagram (Glassdoor → bank → pipeline layers → published app)
+6. Shared domain model (map bank fields → canonical entities)
+7. Database schema proposal
+8. API contracts
+9. Event and job contracts
+10. Design-token definition (tokens only — full DS is Wave 1 `ibpe-design-system`)
+11. Component ownership map
+12. Environment-variable inventory (merge `.env.example` + new Vercel/DB secrets) via `/env-vars`
+13. Deployment topology (Vercel app ≠ scrape workers) via `/vercel-cli` `/deployments-cicd` `/workflow`
+14. Workstream dependency graph + Task wave plan
+15. Integration and merge process
+16. Decision: absorb vs ignore unmerged `ibpe-interview-corpus` artefacts
 
 Create:
 
@@ -565,11 +624,13 @@ docs/agent-run/dependency-graph.md
 docs/agent-run/ownership-map.md
 docs/agent-run/integration-plan.md
 docs/agent-run/status.md
+docs/agent-run/status/          # per-stream files
+docs/agent-run/skills-used.md
 ```
 
 Do not wait for every detail to become perfect.
 
-Freeze the minimum shared interfaces needed for parallel implementation, then begin work.
+Freeze the minimum shared interfaces needed for parallel implementation, then **immediately** execute §O4 Wave 1 parallel Task spawn.
 
 ---
 
@@ -674,7 +735,37 @@ that is idempotent and preserves existing `id` hashes as source keys.
 
 # 8. Workstream organisation
 
+Each workstream below maps 1:1 to a project subagent. **Launch via Task**; do not re-implement as solo sequential work.
+
+| WS | Subagent file | Wave |
+|----|---------------|------|
+| A | `.cursor/agents/ibpe-architecture.md` | 1 |
+| B | `.cursor/agents/ibpe-design-system.md` | 1 |
+| C | `.cursor/agents/ibpe-frontend.md` | 2 |
+| D | `.cursor/agents/ibpe-backend.md` | 2 |
+| E | `.cursor/agents/ibpe-database.md` | 1 |
+| F | `.cursor/agents/ibpe-glassdoor.md` | 1 |
+| G | `.cursor/agents/ibpe-data-quality.md` | 1 |
+| H | `.cursor/agents/ibpe-answers.md` | 1 |
+| I | `.cursor/agents/ibpe-search.md` | 2 |
+| J | `.cursor/agents/ibpe-infra.md` | 1 then 3 |
+| K | `.cursor/agents/ibpe-qa.md` | 3 |
+
+### Example Wave 1 Task prompt skeleton (repeat per agent in one turn)
+
+```text
+You are the subagent defined in .cursor/agents/ibpe-<name>.md.
+Read your listed slash skills first (Glob **/skills/<name>/SKILL.md then Read).
+Repo baseline: docs/prompts/autonomous-fullstack-build.md §0.
+Branch: local/<workstream>-9954
+Owned paths only (see §5.3). Commit and push on your branch.
+Update docs/agent-run/status/<workstream>.md
+Stop when your Wave 1 exit criteria are met; report blockers exactly.
+```
+
 ## Workstream A — Architecture and platform foundations
+
+**Agent:** `ibpe-architecture` · **Skills:** `/bootstrap` `/env-vars` `/nextjs` `/vercel-storage`
 
 Owns:
 
@@ -707,6 +798,8 @@ This workstream should unblock all other teams quickly.
 
 ## Workstream B — Design system and shadcn foundation
 
+**Agent:** `ibpe-design-system` · **Skills:** `/shadcn` (required first) `/react-best-practices` `/nextjs`
+
 Owns:
 
 * shadcn installation and configuration inside `apps/web` / `packages/ui`
@@ -724,7 +817,7 @@ Owns:
 * Data-display components
 * Loading and error states
 
-The team must first read and follow the shadcn skill.
+The team must first read and follow the `/shadcn` skill.
 
 All reusable shadcn-based primitives must live in:
 
@@ -776,6 +869,8 @@ Do not ship default shadcn visual styling.
 
 ## Workstream C — Core frontend experience
 
+**Agent:** `ibpe-frontend` · **Skills:** `/nextjs` `/shadcn` `/react-best-practices` `/auth` `/verification`
+
 Owns:
 
 * App shell
@@ -795,7 +890,7 @@ Must consume design-system components from Workstream B.
 
 Must not edit core shared components directly without coordination.
 
-Must follow the Vercel and Next.js skills for:
+Must follow `/nextjs` and related skills for:
 
 * Server and Client Component boundaries
 * Data loading
@@ -817,6 +912,8 @@ Must not treat the Flask `web/` UI as the product frontend.
 ---
 
 ## Workstream D — Backend and domain services
+
+**Agent:** `ibpe-backend` · **Skills:** `/nextjs` `/auth` `/vercel-functions` `/env-vars`
 
 Owns:
 
@@ -847,6 +944,8 @@ Prefer Next.js Server Actions / route handlers per skills unless a separate serv
 
 ## Workstream E — Database and data platform
 
+**Agent:** `ibpe-database` · **Skills:** `/vercel-storage` `/supabase` `/supabase-postgres-best-practices` `/env-vars`
+
 Owns:
 
 * Database schema
@@ -868,6 +967,8 @@ Other workstreams may propose schema changes through contract updates but must n
 ---
 
 ## Workstream F — Glassdoor collection (extend existing)
+
+**Agent:** `ibpe-glassdoor` · **Skills:** `AGENTS.md` + `/env-vars` (not `/auth`)
 
 Owns:
 
@@ -913,6 +1014,8 @@ The existing scraper **must be analysed and extended** rather than discarded wit
 
 ## Workstream G — Data transformation and quality
 
+**Agent:** `ibpe-data-quality` · **Skills:** contracts; `/ai-sdk` if structured extraction
+
 Owns:
 
 * Cleaning
@@ -933,6 +1036,8 @@ Owns:
 
 ## Workstream H — Answers and financial validation
 
+**Agent:** `ibpe-answers` · **Skills:** `/ai-sdk` `/vercel-functions` `/verification`
+
 Owns:
 
 * Answer-source import
@@ -948,15 +1053,17 @@ Owns:
 * Answer confidence
 * Editorial review queue
 
-Where AI functionality is used, follow the available Vercel AI SDK skill and current AI SDK patterns.
+Where AI functionality is used, follow `/ai-sdk` and current AI SDK patterns.
 
-Do not build bespoke streaming or tool-calling infrastructure where the skill already defines a suitable pattern.
+Do not build bespoke streaming or tool-calling infrastructure where `/ai-sdk` already defines a suitable pattern.
 
 Never attribute generated answers to Glassdoor. Current bank `process` / experience fields are interview-report narrative, not editorial answers.
 
 ---
 
 ## Workstream I — Search and recommendations
+
+**Agent:** `ibpe-search` · **Skills:** `/ai-sdk` `/vercel-storage` `/supabase`
 
 Owns:
 
@@ -979,6 +1086,8 @@ Replace the Flask substring filter (`/api/questions?q=`) with hybrid search for 
 
 ## Workstream J — Infrastructure and deployment
 
+**Agent:** `ibpe-infra` · **Skills:** `/vercel-cli` `/deployments-cicd` `/vercel-storage` `/vercel-functions` `/env-vars` `/workflow` `/bootstrap`
+
 Owns:
 
 * Vercel configuration for `apps/web`
@@ -997,7 +1106,7 @@ Owns:
 * Deployment documentation
 * Preserving local scrape DX documented in `AGENTS.md`
 
-Must read and follow the Vercel skill before creating deployment architecture.
+Must read `/vercel-cli`, `/deployments-cicd`, `/vercel-storage`, `/vercel-functions`, `/env-vars`, `/workflow`, and `/bootstrap` before creating deployment architecture.
 
 Do not assume every workload should run in a Vercel request runtime.
 
@@ -1008,6 +1117,8 @@ Residential `HTTPS_PROXY` for BFF crawls is an operational secret, not an app pu
 ---
 
 ## Workstream K — QA and integration
+
+**Agent:** `ibpe-qa` · **Skills:** `/verification` `/ce-test-browser` `/react-best-practices` `/deployments-cicd`
 
 Owns:
 
@@ -1029,57 +1140,70 @@ No workstream should directly merge major changes to the production branch witho
 
 # 9. Parallel coordination rules
 
-Each workstream must maintain a short status entry in:
+## 9.1 Status files (avoid merge fights)
+
+Prefer per-stream status:
 
 ```text
-docs/agent-run/status.md
+docs/agent-run/status/architecture.md
+docs/agent-run/status/design-system.md
+docs/agent-run/status/frontend.md
+docs/agent-run/status/backend.md
+docs/agent-run/status/database.md
+docs/agent-run/status/glassdoor.md
+docs/agent-run/status/data-quality.md
+docs/agent-run/status/answers.md
+docs/agent-run/status/search.md
+docs/agent-run/status/infra.md
+docs/agent-run/status/qa.md
+docs/agent-run/status.md          # orchestrator rollup only
 ```
 
-Each update should record:
+Each stream records: objective, done, files, tests, contract proposals, blockers, deps, integration notes.
 
-* Current objective
-* Completed work
-* Files changed
-* Tests run
-* Contract changes proposed
-* Blockers
-* Dependencies
-* Integration notes
+## 9.2 Branches / worktrees
 
-Use branches, worktrees, or isolated task environments.
+Repo convention: `local/<descriptive-name>-9954` (or current cloud suffix).
 
-Suggested branch or worktree names (repo convention: `local/<name>-<suffix>` when using Cloud Agents):
+Suggested stream branches:
 
 ```text
-architecture-foundation
-design-system
-frontend-product
-backend-domain
-database-platform
-glassdoor-scraper
-data-transformation
-answer-validation
-search-recommendations
-infrastructure
-qa-integration
+local/architecture-foundation-9954
+local/design-system-9954
+local/frontend-product-9954
+local/backend-domain-9954
+local/database-platform-9954
+local/glassdoor-scraper-9954
+local/data-transformation-9954
+local/answer-validation-9954
+local/search-recommendations-9954
+local/infrastructure-9954
+local/qa-integration-9954
 ```
 
-Integration rules:
+Use `/ce-worktree` when available so streams do not clobber the orchestrator checkout.
+
+## 9.3 Integration rules
 
 1. Shared contracts merge first.
 2. Database migrations merge before dependent APIs.
-3. Design tokens and UI primitives merge before feature pages.
-4. API stubs or mocks may unblock frontend development.
-5. Fixtures + existing `question_bank.json` may unblock pipeline development before live crawls complete.
-6. Feature teams integrate in small batches.
-7. Main must remain buildable; `python main.py query` must keep working throughout.
-8. Broken integration branches must not block unrelated work.
-9. Schema changes require contract updates.
-10. Central files must have a single owner (`scrapers/bank.py`, `scrapers/batch.py`, `packages/contracts`, migrations).
+3. Design tokens / UI primitives merge before feature pages.
+4. API stubs may unblock `ibpe-frontend`.
+5. Fixtures + `question_bank.json` unblock G/H before live crawls.
+6. Integrate in small batches; trunk stays buildable; `python main.py query` keeps working.
+7. Broken stream branches must not freeze unrelated Tasks — relaunch or continue others.
+8. Schema changes require contract updates owned by `ibpe-architecture` + `ibpe-database`.
+9. Central files have a single owner (§5.3).
+10. Orchestrator may use `/verification` after Wave 2 before Wave 3 prod push.
 
-Avoid parallel teams editing the same central files.
+## 9.4 Anti-patterns (reject these)
 
-When unavoidable, sequence those changes deliberately.
+* One agent coding all workstreams in order
+* “We’ll parallelise later”
+* Feature teams editing `packages/ui` primitives directly
+* Frontend waiting idle for scrape credentials
+* Scrapers deployed as Vercel request handlers
+* Using `/auth` skill for Glassdoor login flows
 
 ---
 
