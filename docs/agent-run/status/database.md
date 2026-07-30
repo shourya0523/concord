@@ -32,4 +32,4 @@ npm run seed:bank -- --dry-run
 ## Handoff
 
 - Data-quality: GitHub → `canonical.*` + `publishable=true`
-- Backend (W2): set `app.clerk_user_id` for RLS; read `published.*` only
+- Backend (W2): set `app.neon_auth_user_id` for RLS; read `published.*` only

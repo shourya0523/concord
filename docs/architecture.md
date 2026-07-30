@@ -23,7 +23,7 @@ Never treat Glassdoor review prose as authoritative answer text. Never label syn
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │  apps/web (Next.js App Router) — Wave 2                     │
-│  Clerk auth · RSC · route handlers · @ibpe/ui               │
+│  Neon Auth · RSC · route handlers · @ibpe/ui                │
 └─────────────┬───────────────────────────────▲───────────────┘
               │                               │
               ▼                               │
@@ -34,7 +34,7 @@ Never treat Glassdoor review prose as authoritative answer text. Never label syn
            │
 ┌──────────┴──────────────────────────────────────────────────┐
 │  apps/worker + python main.py                               │
-│  scrapers/ (browser|bff) · ibpe_corpus · Gemini enrich      │
+│  scrapers/ (browser; BFF legacy) · ibpe_corpus · Gemini     │
 └──────────┬──────────────────────────────────────────────────┘
            │
      Vercel Blob (raw artefacts) · Upstash (locks/cache)
@@ -75,7 +75,7 @@ data/question_bank.json
 
 ```bash
 python main.py login
-python main.py batch --backend bff --track PE --limit 1
+python main.py batch --backend browser --track PE --limit 1
 python main.py query --track IB
 python main.py ui --port 5050
 ```
@@ -103,11 +103,11 @@ Key entities: `BankQuestion`, `CompletedJob`, `CanonicalQuestion`, `InterviewOcc
 | Layer | Choice |
 |-------|--------|
 | Web | Next.js App Router on Vercel (Node runtime default) |
-| Auth (product) | Clerk — not Glassdoor SSO |
+| Auth (product) | Neon Auth — not Glassdoor SSO (ADR 0006) |
 | DB | Neon Postgres |
 | Blobs | Vercel Blob |
 | Cache | Upstash Redis |
-| Scrape | Python + Patchright / curl_cffi BFF on worker hosts |
+| Scrape | Python + Patchright / manual captcha (BFF legacy) |
 | Enrich | Gemini via worker (`GEMINI_API_KEY`); app prefers AI Gateway |
 
 ## Logging & errors

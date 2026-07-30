@@ -44,36 +44,29 @@ Prefer [Cloud Agents Secrets](https://cursor.com/dashboard/cloud-agents) with th
 - **Next.js product** deploys to **Vercel** (`apps/web`). See `docs/deployment/` and `reports/deployment-report.md`.
 - **Scrapers / batch enrich** run on **workers** / Cloud Agents (`apps/worker`, `python main.py`, `ibpe`) — never as long-running work inside Vercel serverless **request** timeouts.
 - Keep `HTTPS_PROXY`, Glassdoor credentials, Capsolver keys, and cookie / `storage_state` files (`data/glassdoor_state.json`, `data/glassdoor_session.json`) as **server/worker secrets only**. Do **not** put them in Vercel **public** env or any `NEXT_PUBLIC_*` variable.
-- Product env (Neon, Clerk, Blob, `CRON_SECRET`) is separate — inventory in `docs/agent-run/env-inventory.md`.
+- Product env (Neon Postgres, **Neon Auth**, Blob, `CRON_SECRET`) is separate — inventory in `docs/agent-run/env-inventory.md`. See ADR 0006.
 
-**Cloudflare / captcha (documented approaches):** Automated Selenium/Google OAuth often still hits Cloudflare on Indeed (`secure.indeed.com`) from **datacenter IPs**. 2026 guides converge on:
+**Cloudflare / captcha (supported approach — ADR 0006):** Automated Selenium/Google OAuth often still hits Cloudflare on Indeed (`secure.indeed.com`) from **datacenter IPs**. We **do not** rely on BFF + residential proxy for normal dataset updates.
 
-### A) Preferred on cloud: BFF API + residential proxy (no browser login)
-
-Skips Indeed/Google OAuth entirely. Uses `curl_cffi` Chrome TLS impersonation against Glassdoor’s internal interview BFF endpoint.
-
-```bash
-# Set residential HTTPS_PROXY in Cloud Agents Secrets / .env first
-python main.py batch --backend bff --track IB --limit 1 --force
-```
-
-### B) Patchright session capture (headed)
+### Preferred: Patchright session capture + manual captcha
 
 1. **Patchright** headed Chrome (`channel="chrome"`)
-2. **Manual login once** (solve captcha + 2FA) — needs residential IP or home network
+2. **Manual login once** (solve captcha + 2FA) — home network or clean IP
 3. Save **`storage_state`** → `data/glassdoor_state.json`
-4. Reuse on scrape/batch
+4. Reuse on scrape/batch (`--backend browser`)
 
 ```bash
 python main.py login          # headed capture; approve 2FA / captcha in Chrome
 python main.py batch --limit 1
 ```
 
-### C) Login at home, upload state
+### Alternate: login at home, upload state
 
 Run `python main.py login` on a residential network, copy `data/glassdoor_state.json` into the cloud workspace, then `python main.py batch --limit 1`.
 
 Fallback: Google OAuth auto-login (`GLASSDOOR_LOGIN_METHOD=google`) + phone 2FA. Legacy cookie jar: `data/glassdoor_session.json`.
+
+Legacy `--backend bff` code remains in-repo but is **not** the programme default.
 
 ### App commands
 
@@ -93,13 +86,10 @@ python main.py query --track PE
 python main.py ui --port 5050
 # → http://127.0.0.1:5050
 
-# Batch scrape via BFF API (no browser / Indeed login — needs HTTPS_PROXY)
-python main.py batch --backend bff --track IB --limit 1 --force
-
-# Batch scrape (browser; reuses glassdoor_state.json / .env auto-login)
+# Batch scrape (browser; reuses glassdoor_state.json after `login`)
 python main.py batch --track IB --limit 1
 
-# Force manual browser login
+# Force manual browser login pause
 python main.py batch --track IB --limit 1 --manual-login
 ```
 

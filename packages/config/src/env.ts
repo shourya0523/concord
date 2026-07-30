@@ -24,15 +24,15 @@ export const ScrapeEnvSchema = z.object({
 });
 export type ScrapeEnv = z.infer<typeof ScrapeEnvSchema>;
 
-/** Product app (apps/web) — Neon + Clerk + Blob + Redis. */
+/** Product app (apps/web) — Neon Postgres + Neon Auth + Blob + Redis. */
 export const ProductEnvSchema = z.object({
   DATABASE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
-  // Clerk (Wave 2) — public publishable key only on client
-  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.preprocess(
+  // Neon Auth (Managed Better Auth) — Wave 2; see ADR 0006
+  NEON_AUTH_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  NEON_AUTH_COOKIE_SECRET: z.preprocess(
     emptyToUndefined,
-    z.string().optional(),
+    z.string().min(32).optional(),
   ),
-  CLERK_SECRET_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
   NEXT_PUBLIC_APP_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
   // Vercel Blob for raw artefacts / exports
   BLOB_READ_WRITE_TOKEN: z.preprocess(emptyToUndefined, z.string().optional()),
@@ -77,7 +77,8 @@ export const SERVER_ONLY_ENV_KEYS = [
   "CAPSOLVER_API_KEY",
   "GEMINI_API_KEY",
   "DATABASE_URL",
-  "CLERK_SECRET_KEY",
+  "NEON_AUTH_BASE_URL",
+  "NEON_AUTH_COOKIE_SECRET",
   "BLOB_READ_WRITE_TOKEN",
   "UPSTASH_REDIS_REST_TOKEN",
   "CRON_SECRET",

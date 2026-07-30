@@ -5,7 +5,7 @@ Next.js App Router product app.
 | Concern | Owner |
 |---------|-------|
 | Feature routes, company rooms, concept labs | `ibpe-frontend` (Wave 2) |
-| API route handlers, Clerk auth | `ibpe-backend` (Wave 2) |
+| API route handlers, Neon Auth | `ibpe-backend` (Wave 2) |
 | DS catalogue `/ds` | `ibpe-design-system` |
 | Deploy / vercel project root | `ibpe-infra` |
 

@@ -52,3 +52,7 @@ Uses legacy bank `id` (SHA1 of `company|position|question`) as the primary idemp
 |----------|----------|-------|
 | `DATABASE_URL` | Neon path | Prefer Vercel Marketplace Neon; use pooled URL for serverless |
 | Never | — | Do not use sunset `@vercel/postgres` |
+
+## 031
+
+`031_neon_auth_user_id.sql` — rename legacy `clerk_user_id` → `neon_auth_user_id` when upgrading older Wave 1 DBs (ADR 0006). Fresh 010/030 already use Neon Auth column names.

@@ -6,14 +6,17 @@ import { z } from "zod";
 export const FeatureFlagsSchema = z.object({
   /** Next.js product UI (Wave 2). */
   product_ui: z.boolean().default(false),
-  /** Clerk end-user auth (Wave 2). Distinct from Glassdoor scrape login. */
-  clerk_auth: z.boolean().default(false),
+  /** Neon Auth end-user auth (Wave 2). Distinct from Glassdoor scrape login. */
+  neon_auth: z.boolean().default(false),
   /** Hybrid search + pseudo-RAG (Wave 2). */
   hybrid_search: z.boolean().default(false),
   /** Gemini enrich jobs (Wave 1 answers stream). */
   gemini_enrich: z.boolean().default(true),
-  /** Prefer BFF scrape backend when proxy available. */
-  scrape_bff_default: z.boolean().default(true),
+  /**
+   * Prefer BFF scrape backend. Default false (ADR 0006): manual captcha /
+   * Patchright session is the supported dataset-update path.
+   */
+  scrape_bff_default: z.boolean().default(false),
   /** Allow synthesised answers into published corpus after validation. */
   publish_synthesised_answers: z.boolean().default(false),
   /** Company prep rooms use Glassdoor topic heat. */
@@ -23,7 +26,7 @@ export type FeatureFlags = z.infer<typeof FeatureFlagsSchema>;
 
 const ENV_FLAG_MAP: Record<keyof FeatureFlags, string> = {
   product_ui: "FLAG_PRODUCT_UI",
-  clerk_auth: "FLAG_CLERK_AUTH",
+  neon_auth: "FLAG_NEON_AUTH",
   hybrid_search: "FLAG_HYBRID_SEARCH",
   gemini_enrich: "FLAG_GEMINI_ENRICH",
   scrape_bff_default: "FLAG_SCRAPE_BFF_DEFAULT",

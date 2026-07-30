@@ -1,6 +1,6 @@
 # Glassdoor = Mode A firm signals (not teaching answers)
 
-Updated: 2026-07-30
+Updated: 2026-07-30 · ADR 0006
 
 ## Product role
 
@@ -12,22 +12,20 @@ Updated: 2026-07-30
 
 Glassdoor scrape output feeds **occurrence / preference signals** for Mode A room ranking and firm-flavoured prompts. It must not overwrite or invent teaching answers.
 
-## Collection paths (post PR #5 / #7)
+## Collection paths (supported)
 
-| Path | Entry | Cloud notes |
-|------|-------|-------------|
-| BFF (preferred) | `python main.py batch --backend bff` | Needs residential `HTTPS_PROXY`; no Indeed login |
-| Parallel BFF | `python scripts/parallel_batch.py --backend bff --workers N` | Same proxy requirement; stubs exit 2 if proxy missing unless `--allow-no-proxy` |
-| Browser | `python main.py batch --backend browser` | Patchright `data/glassdoor_state.json` or manual login |
+| Path | Entry | Notes |
+|------|-------|-------|
+| **Patchright + manual captcha (preferred)** | `python main.py login` then `batch --backend browser` | Solve captcha/2FA once; reuse `data/glassdoor_state.json` |
 | Parallel browser | `python scripts/parallel_batch.py --backend browser` | N Chrome workers + bank shard merge |
+| Home login → upload state | Login on residential net; copy state into cloud | Good for Cloud Agents without interactive display |
 
-## Proxy stub
+## Legacy / optional
 
-Without `HTTPS_PROXY` / `HTTP_PROXY` / `GLASSDOOR_PROXY`, BFF workers on datacenter IPs typically receive Cloudflare 403. Parallel BFF therefore:
-
-1. PrefLights for a proxy env var.
-2. Exits with a clear stub message (code 2) when missing.
-3. Allows override via `--allow-no-proxy` for residential-home smoke tests.
+| Path | Entry | Notes |
+|------|-------|-------|
+| BFF | `python main.py batch --backend bff` | Needs residential `HTTPS_PROXY`; **not** programme default |
+| Parallel BFF | `parallel_batch.py --backend bff` | Same; exits 2 without proxy unless `--allow-no-proxy` |
 
 Never commit `data/glassdoor_state.json`, cookie jars, or real proxy credentials.
 
@@ -38,5 +36,4 @@ Never commit `data/glassdoor_state.json`, cookie jars, or real proxy credentials
 ## Artefacts
 
 - Fixtures: `fixtures/glassdoor/` (blocked live + synthetic parser shapes)
-- Bank merges: `data/question_bank.json` (firm-tagged questions; still signal layer)
-- Parallel workdir (gitignored): `data/parallel_batch/`
+- Bank: `data/question_bank.json` (firm-signal seed for Mode A)

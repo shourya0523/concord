@@ -9,7 +9,7 @@ import { appSchema } from "./namespaces.js";
 
 export const users = appSchema.table("users", {
   id: text("id").primaryKey(),
-  clerkUserId: text("clerk_user_id").unique(),
+  neonAuthUserId: text("neon_auth_user_id").unique(),
   email: text("email"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

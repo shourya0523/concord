@@ -25,7 +25,7 @@
 ## Wave 2 (after foundation gate)
 
 - `ibpe-frontend` — company rooms + concept labs
-- `ibpe-backend` — APIs + Clerk auth
+- `ibpe-backend` — APIs + Neon Auth
 - `ibpe-search` — hybrid search + pseudo-RAG retrieval
 
 ## Wave 3

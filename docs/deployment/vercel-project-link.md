@@ -45,7 +45,7 @@ cd apps/web
 vercel env pull .env.local --yes
 ```
 
-Product / Vercel env vars (Neon, Clerk, Blob, `CRON_SECRET`, AI Gateway) live here.
+Product / Vercel env vars (Neon DB, Neon Auth, Blob, `CRON_SECRET`, AI Gateway) live here.
 
 **Never** put scrape secrets in Vercel **public** / `NEXT_PUBLIC_*` vars:
 

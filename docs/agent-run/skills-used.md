@@ -8,7 +8,7 @@ Agent: `ibpe-orchestrator` on branch `local/orchestrator-phase0-a9ff`
 | `/bootstrap` | `~/.cursor/plugins/cache/cursor-public/649/.../skills/bootstrap/SKILL.md` | Link Vercel → provision → `env pull` before db/dev; Neon not `@vercel/postgres`; AUTH_SECRET via vercel env |
 | `/nextjs` | `.../skills/nextjs/SKILL.md` | App Router + RSC; Node default; no custom Express; managed auth; AI via Gateway |
 | `/shadcn` | `.../skills/shadcn/SKILL.md` | `shadcn@latest init -d`; source-owned components; Editorial Finance Terminal overrides default look |
-| `/auth` | `.../skills/auth/SKILL.md` | Clerk via Vercel integration for product auth (Wave 2); never for Glassdoor |
+| `/auth` | `.../skills/auth/SKILL.md` | Skill defaults to Clerk; **programme uses Neon Auth** (ADR 0006) for product; never for Glassdoor |
 | `/ai-sdk` | `.../skills/ai-sdk/SKILL.md` | Gemini enrich via AI SDK + Gateway; structured `Output.object()`; no direct provider SDKs |
 | `/vercel-cli` | `.../skills/vercel-cli/SKILL.md` | Link from monorepo root carefully; `--yes` in CI; preview then prod |
 | `/vercel-storage` | `.../skills/vercel-storage/SKILL.md` | Neon Postgres + Blob for artefacts; Upstash if Redis needed; no sunset `@vercel/postgres`/`kv` |

@@ -484,7 +484,7 @@ CREATE TABLE IF NOT EXISTS canonical.answer_validation_results (
 -- User layer stubs
 CREATE TABLE IF NOT EXISTS app.users (
     id              text PRIMARY KEY,
-    clerk_user_id   text UNIQUE,
+    neon_auth_user_id   text UNIQUE,
     email           text,
     created_at      timestamptz NOT NULL DEFAULT now()
 );

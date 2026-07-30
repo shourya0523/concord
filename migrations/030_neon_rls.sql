@@ -1,5 +1,5 @@
 -- 030_neon_rls.sql
--- RLS baseline. Clerk JWT wiring lands in Wave 2 (backend sets app.clerk_user_id).
+-- RLS baseline. Neon Auth wiring lands in Wave 2 (backend sets app.neon_auth_user_id).
 
 ALTER TABLE raw.sources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE raw.source_runs ENABLE ROW LEVEL SECURITY;
@@ -39,8 +39,8 @@ ALTER TABLE app.mastery_records FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS app_users_self ON app.users;
 CREATE POLICY app_users_self ON app.users
     FOR ALL
-    USING (clerk_user_id = nullif(current_setting('app.clerk_user_id', true), ''))
-    WITH CHECK (clerk_user_id = nullif(current_setting('app.clerk_user_id', true), ''));
+    USING (neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), ''))
+    WITH CHECK (neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), ''));
 
 DROP POLICY IF EXISTS app_profiles_self ON app.user_profiles;
 CREATE POLICY app_profiles_self ON app.user_profiles
@@ -48,13 +48,13 @@ CREATE POLICY app_profiles_self ON app.user_profiles
     USING (
         user_id IN (
             SELECT id FROM app.users
-            WHERE clerk_user_id = nullif(current_setting('app.clerk_user_id', true), '')
+            WHERE neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), '')
         )
     )
     WITH CHECK (
         user_id IN (
             SELECT id FROM app.users
-            WHERE clerk_user_id = nullif(current_setting('app.clerk_user_id', true), '')
+            WHERE neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), '')
         )
     );
 
@@ -64,13 +64,13 @@ CREATE POLICY app_bookmarks_self ON app.bookmarks
     USING (
         user_id IN (
             SELECT id FROM app.users
-            WHERE clerk_user_id = nullif(current_setting('app.clerk_user_id', true), '')
+            WHERE neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), '')
         )
     )
     WITH CHECK (
         user_id IN (
             SELECT id FROM app.users
-            WHERE clerk_user_id = nullif(current_setting('app.clerk_user_id', true), '')
+            WHERE neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), '')
         )
     );
 
@@ -80,13 +80,13 @@ CREATE POLICY app_notes_self ON app.notes
     USING (
         user_id IN (
             SELECT id FROM app.users
-            WHERE clerk_user_id = nullif(current_setting('app.clerk_user_id', true), '')
+            WHERE neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), '')
         )
     )
     WITH CHECK (
         user_id IN (
             SELECT id FROM app.users
-            WHERE clerk_user_id = nullif(current_setting('app.clerk_user_id', true), '')
+            WHERE neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), '')
         )
     );
 
@@ -96,13 +96,13 @@ CREATE POLICY app_attempts_self ON app.question_attempts
     USING (
         user_id IN (
             SELECT id FROM app.users
-            WHERE clerk_user_id = nullif(current_setting('app.clerk_user_id', true), '')
+            WHERE neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), '')
         )
     )
     WITH CHECK (
         user_id IN (
             SELECT id FROM app.users
-            WHERE clerk_user_id = nullif(current_setting('app.clerk_user_id', true), '')
+            WHERE neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), '')
         )
     );
 
@@ -112,13 +112,13 @@ CREATE POLICY app_mastery_self ON app.mastery_records
     USING (
         user_id IN (
             SELECT id FROM app.users
-            WHERE clerk_user_id = nullif(current_setting('app.clerk_user_id', true), '')
+            WHERE neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), '')
         )
     )
     WITH CHECK (
         user_id IN (
             SELECT id FROM app.users
-            WHERE clerk_user_id = nullif(current_setting('app.clerk_user_id', true), '')
+            WHERE neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), '')
         )
     );
 
@@ -128,13 +128,13 @@ CREATE POLICY app_sessions_self ON app.study_sessions
     USING (
         user_id IN (
             SELECT id FROM app.users
-            WHERE clerk_user_id = nullif(current_setting('app.clerk_user_id', true), '')
+            WHERE neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), '')
         )
     )
     WITH CHECK (
         user_id IN (
             SELECT id FROM app.users
-            WHERE clerk_user_id = nullif(current_setting('app.clerk_user_id', true), '')
+            WHERE neon_auth_user_id = nullif(current_setting('app.neon_auth_user_id', true), '')
         )
     );
 

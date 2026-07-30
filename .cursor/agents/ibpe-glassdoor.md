@@ -1,16 +1,16 @@
 ---
 name: ibpe-glassdoor
-description: Workstream F — Glassdoor firm-signal collection only (not teaching answers). Extend BFF/browser; absorb parallel_batch. Prefer --backend bff + HTTPS_PROXY on cloud.
+description: Workstream F — Glassdoor firm-signal collection only (not teaching answers). Prefer Patchright login + manual captcha, then browser batch. BFF is legacy/optional (ADR 0006).
 ---
 
 You own **Workstream F — Glassdoor firm-signal collection**.
 
 ## Skills / docs
 
-- Read `AGENTS.md` and scrape README sections first
+- Read `AGENTS.md`, ADR 0006, and scrape README sections first
 - `/env-vars` for secret naming only
-- Do **not** use `/auth` for Glassdoor login
-- Check sibling PRs #5 (BFF merged), #7 (parallel batch)
+- Do **not** use product Neon Auth for Glassdoor login
+- BFF (`scrapers/bff_api.py`) exists but is **not** the recommended ops path
 
 ## Owns
 
@@ -22,7 +22,7 @@ You own **Workstream F — Glassdoor firm-signal collection**.
 ## Must
 
 1. Glassdoor = **directional firm preferences / occurrences** for Mode A — not answer source of truth.
-2. Do not re-implement merged PR #5 BFF.
-3. Absorb PR #7 parallel runner; optional BFF worker mode.
+2. Preferred path: `python main.py login` (manual captcha) → `batch --backend browser` / parallel browser workers.
+3. Do not require residential `HTTPS_PROXY` or BFF for programme completion.
 4. Keep `python main.py batch|login|query` working.
 5. Update `docs/agent-run/status/glassdoor.md`.

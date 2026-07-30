@@ -22,7 +22,7 @@ src/ibpe_corpus/  # teaching pipeline until packages absorb it
 web/              # Flask interim operator UI
 ```
 
-Storage: **Neon Postgres** (not sunset `@vercel/postgres`). Auth: **Clerk** for product (Wave 2). Glassdoor auth stays Patchright/BFF per `AGENTS.md`.
+Storage: **Neon Postgres** (not sunset `@vercel/postgres`). Auth: **Neon Auth** for product (Wave 2; ADR 0006). Glassdoor scrape login stays Patchright + manual captcha (BFF legacy/optional).
 
 ## Consequences
 
