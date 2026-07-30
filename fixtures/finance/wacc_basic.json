@@ -1,0 +1,15 @@
+{
+  "fixture_id": "finance-wacc-basic",
+  "topic": "wacc",
+  "description": "Standard after-tax WACC with 60/40 capital structure",
+  "inputs": {
+    "equity_weight": 0.6,
+    "cost_of_equity": 0.10,
+    "debt_weight": 0.4,
+    "cost_of_debt": 0.05,
+    "tax_rate": 0.25
+  },
+  "expected": {
+    "wacc": 0.075
+  }
+}

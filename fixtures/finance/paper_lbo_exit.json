@@ -1,0 +1,15 @@
+{
+  "fixture_id": "finance-paper-lbo-exit",
+  "topic": "paper_lbo",
+  "description": "Exit EV from EBITDA × multiple less net debt; MOIC vs sponsor equity",
+  "inputs": {
+    "ebitda_exit": 50.0,
+    "exit_multiple": 10.0,
+    "net_debt_exit": 200.0,
+    "sponsor_equity": 150.0
+  },
+  "expected": {
+    "exit_equity": 300.0,
+    "moic": 2.0
+  }
+}

@@ -1,0 +1,287 @@
+{
+  "job": "gemini_enrich",
+  "generated_at": "2026-07-30T08:47:12.293853+00:00",
+  "metrics": {
+    "input_questions": 3,
+    "proposals": 3,
+    "company_prep_nodes": 3,
+    "concept_lab_nodes": 3,
+    "review_queued": 3,
+    "dry_run": true,
+    "credentials_configured": false,
+    "model": "google/gemini-2.5-flash",
+    "prompt_version": "enrich-v1",
+    "answer_provenance_violations": 0,
+    "answered_canonical_ids": 0
+  },
+  "provenance_rule": "Gemini enrichment is always gemini_synthesised; never attributed to Glassdoor or to a GitHub path that lacked the text.",
+  "company_prep_sample": [
+    {
+      "firm_id": "unscoped",
+      "topic_id": "wacc",
+      "canonical_question_id": "cq_enrich_wacc",
+      "enrichment_id": "enr_269f5b3e88df4627",
+      "soft_relevance": 0.5,
+      "provenance": "gemini_synthesised"
+    },
+    {
+      "firm_id": "unscoped",
+      "topic_id": "paper_lbo",
+      "canonical_question_id": "cq_enrich_lbo",
+      "enrichment_id": "enr_f85037ef387d4e1a",
+      "soft_relevance": 0.5,
+      "provenance": "gemini_synthesised"
+    },
+    {
+      "firm_id": "unscoped",
+      "topic_id": "dcf",
+      "canonical_question_id": "cq_enrich_dcf",
+      "enrichment_id": "enr_98a8c4d4ba0f4e4d",
+      "soft_relevance": 0.5,
+      "provenance": "gemini_synthesised"
+    }
+  ],
+  "concept_lab_sample": [
+    {
+      "concept_slug": "wacc",
+      "canonical_question_id": "cq_enrich_wacc",
+      "enrichment_id": "enr_269f5b3e88df4627",
+      "prerequisites": [],
+      "diagram_ids": [
+        "diag_8ef1602a002944a5"
+      ],
+      "resource_ids": [],
+      "provenance": "gemini_synthesised"
+    },
+    {
+      "concept_slug": "paper_lbo",
+      "canonical_question_id": "cq_enrich_lbo",
+      "enrichment_id": "enr_f85037ef387d4e1a",
+      "prerequisites": [],
+      "diagram_ids": [
+        "diag_b63a4a77eeae44c6"
+      ],
+      "resource_ids": [],
+      "provenance": "gemini_synthesised"
+    },
+    {
+      "concept_slug": "dcf",
+      "canonical_question_id": "cq_enrich_dcf",
+      "enrichment_id": "enr_98a8c4d4ba0f4e4d",
+      "prerequisites": [],
+      "diagram_ids": [
+        "diag_48751095035c45d5"
+      ],
+      "resource_ids": [],
+      "provenance": "gemini_synthesised"
+    }
+  ],
+  "proposals_sample": [
+    {
+      "id": "enr_269f5b3e88df4627",
+      "canonical_question_id": "cq_enrich_wacc",
+      "track": "IB",
+      "topic": "wacc",
+      "subtopic": null,
+      "concepts": [
+        {
+          "slug": "wacc",
+          "title": "Wacc",
+          "prerequisites": []
+        }
+      ],
+      "difficulty": "medium",
+      "interview_stage_hints": [
+        "technical"
+      ],
+      "firm_soft_tags": [],
+      "mode_routing": {
+        "modes": [
+          "both"
+        ],
+        "company_prep_weight": 0.5,
+        "concept_learn_weight": 0.7
+      },
+      "pe_relevance": null,
+      "ib_relevance": "core",
+      "interview_ready_rewrite": null,
+      "diagram_drafts": [
+        {
+          "id": "diag_8ef1602a002944a5",
+          "type": "wacc",
+          "format": "mermaid",
+          "spec": "flowchart LR\n  Q[wacc] --> C[wacc]\n  C --> A[Answer]",
+          "a11y_fallback": "Concept flow for wacc",
+          "provenance": "gemini_synthesised"
+        }
+      ],
+      "resource_drafts": [],
+      "confidence": 0.35,
+      "status": "staged",
+      "provenance": "gemini_synthesised",
+      "model_version": "google/gemini-2.5-flash+heuristic",
+      "prompt_version": "enrich-v1",
+      "created_at": "2026-07-30T08:47:12.293602Z",
+      "metadata": {
+        "source_id": "gemini_enrichment_v1",
+        "dry_run": true,
+        "note": "Heuristic enrich; set GEMINI_API_KEY for live model calls"
+      }
+    },
+    {
+      "id": "enr_f85037ef387d4e1a",
+      "canonical_question_id": "cq_enrich_lbo",
+      "track": "PE",
+      "topic": "paper_lbo",
+      "subtopic": null,
+      "concepts": [
+        {
+          "slug": "paper_lbo",
+          "title": "Paper_Lbo",
+          "prerequisites": []
+        }
+      ],
+      "difficulty": "medium",
+      "interview_stage_hints": [
+        "technical"
+      ],
+      "firm_soft_tags": [],
+      "mode_routing": {
+        "modes": [
+          "both"
+        ],
+        "company_prep_weight": 0.5,
+        "concept_learn_weight": 0.6
+      },
+      "pe_relevance": "core",
+      "ib_relevance": null,
+      "interview_ready_rewrite": null,
+      "diagram_drafts": [
+        {
+          "id": "diag_b63a4a77eeae44c6",
+          "type": "paper_lbo",
+          "format": "mermaid",
+          "spec": "flowchart LR\n  Q[paper_lbo] --> C[paper_lbo]\n  C --> A[Answer]",
+          "a11y_fallback": "Concept flow for paper_lbo",
+          "provenance": "gemini_synthesised"
+        }
+      ],
+      "resource_drafts": [],
+      "confidence": 0.35,
+      "status": "staged",
+      "provenance": "gemini_synthesised",
+      "model_version": "google/gemini-2.5-flash+heuristic",
+      "prompt_version": "enrich-v1",
+      "created_at": "2026-07-30T08:47:12.293699Z",
+      "metadata": {
+        "source_id": "gemini_enrichment_v1",
+        "dry_run": true,
+        "note": "Heuristic enrich; set GEMINI_API_KEY for live model calls"
+      }
+    },
+    {
+      "id": "enr_98a8c4d4ba0f4e4d",
+      "canonical_question_id": "cq_enrich_dcf",
+      "track": "IB",
+      "topic": "dcf",
+      "subtopic": null,
+      "concepts": [
+        {
+          "slug": "dcf",
+          "title": "Dcf",
+          "prerequisites": []
+        }
+      ],
+      "difficulty": "medium",
+      "interview_stage_hints": [
+        "technical"
+      ],
+      "firm_soft_tags": [],
+      "mode_routing": {
+        "modes": [
+          "both"
+        ],
+        "company_prep_weight": 0.5,
+        "concept_learn_weight": 0.7
+      },
+      "pe_relevance": null,
+      "ib_relevance": "core",
+      "interview_ready_rewrite": null,
+      "diagram_drafts": [
+        {
+          "id": "diag_48751095035c45d5",
+          "type": "dcf",
+          "format": "mermaid",
+          "spec": "flowchart LR\n  Q[dcf] --> C[dcf]\n  C --> A[Answer]",
+          "a11y_fallback": "Concept flow for dcf",
+          "provenance": "gemini_synthesised"
+        }
+      ],
+      "resource_drafts": [],
+      "confidence": 0.35,
+      "status": "staged",
+      "provenance": "gemini_synthesised",
+      "model_version": "google/gemini-2.5-flash+heuristic",
+      "prompt_version": "enrich-v1",
+      "created_at": "2026-07-30T08:47:12.293744Z",
+      "metadata": {
+        "source_id": "gemini_enrichment_v1",
+        "dry_run": true,
+        "note": "Heuristic enrich; set GEMINI_API_KEY for live model calls"
+      }
+    }
+  ],
+  "editorial_queue_pending": [
+    {
+      "id": "edq_f451ab5bb1f442b0",
+      "canonical_question_id": "cq_enrich_wacc",
+      "answer_id": null,
+      "enrichment_id": "enr_269f5b3e88df4627",
+      "reason": "low_enrichment_confidence",
+      "status": "pending",
+      "priority": 1,
+      "assignee": null,
+      "notes": null,
+      "provenance": "editorial",
+      "created_at": "2026-07-30T08:47:12.293673Z",
+      "updated_at": "2026-07-30T08:47:12.293674Z",
+      "metadata": {
+        "confidence": 0.35
+      }
+    },
+    {
+      "id": "edq_1034e470da8642a2",
+      "canonical_question_id": "cq_enrich_lbo",
+      "answer_id": null,
+      "enrichment_id": "enr_f85037ef387d4e1a",
+      "reason": "low_enrichment_confidence",
+      "status": "pending",
+      "priority": 1,
+      "assignee": null,
+      "notes": null,
+      "provenance": "editorial",
+      "created_at": "2026-07-30T08:47:12.293720Z",
+      "updated_at": "2026-07-30T08:47:12.293720Z",
+      "metadata": {
+        "confidence": 0.35
+      }
+    },
+    {
+      "id": "edq_8de6b715a194460c",
+      "canonical_question_id": "cq_enrich_dcf",
+      "answer_id": null,
+      "enrichment_id": "enr_98a8c4d4ba0f4e4d",
+      "reason": "low_enrichment_confidence",
+      "status": "pending",
+      "priority": 1,
+      "assignee": null,
+      "notes": null,
+      "provenance": "editorial",
+      "created_at": "2026-07-30T08:47:12.293765Z",
+      "updated_at": "2026-07-30T08:47:12.293766Z",
+      "metadata": {
+        "confidence": 0.35
+      }
+    }
+  ]
+}
