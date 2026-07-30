@@ -8,7 +8,7 @@
 - [x] Ownership / dependency / integration / status docs
 - [x] Minimum `packages/contracts` freeze
 - [x] Scaffold owned package dirs
-- [ ] Push + PR; spawn Wave 1 Tasks
+- [x] Push + PR; spawn Wave 1 Tasks
 
 ## Wave 1 (parallel Tasks — one message)
 
@@ -36,3 +36,11 @@
 ## Integration cadence
 
 After Wave 1 returns: merge architecture → database → design-system → infra first; rebase data/answers/glassdoor; open integration PR to main; then Wave 2.
+
+
+## Wave 2 status (2026-07-30)
+
+- [x] Wave 1 on main (#15)
+- [x] ADR 0006 on main (#16)
+- [ ] Parallel spawn: frontend, backend, search
+- [ ] Integrate Wave 2 PR
