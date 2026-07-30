@@ -43,7 +43,22 @@ With the venv activated, `python` / `python3` use that environment. If you skip 
 
 ## Login flow
 
-Glassdoor uses Indeed SSO. When `GLASSDOOR_EMAIL` and `GLASSDOOR_PASSWORD` are set in `.env`, the scraper logs in automatically (and caches cookies in `data/glassdoor_session.json`).
+Glassdoor uses Indeed SSO **or** Google OAuth. Automated login reads `.env`:
+
+```shell
+GLASSDOOR_EMAIL=...
+GLASSDOOR_PASSWORD=...
+GLASSDOOR_LOGIN_METHOD=auto   # auto|google|indeed
+# Optional for Google 2FA:
+# GLASSDOOR_TOTP_SECRET=BASE32SECRET
+# Optional for Indeed Cloudflare:
+# CAPSOLVER_API_KEY=...
+# HTTPS_PROXY=http://user:pass@host:port
+```
+
+- **Gmail accounts default to Google OAuth**, which avoids Indeed’s Cloudflare Managed Challenge.
+- If Google prompts 2FA, approve on your phone or set `GLASSDOOR_TOTP_SECRET`.
+- Indeed email login still works on residential networks / with Capsolver + proxy; datacenter IPs are often blocked.
 
 ```shell
 # Auto login from .env (default when credentials are set)

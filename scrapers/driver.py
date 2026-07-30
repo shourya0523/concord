@@ -12,7 +12,15 @@ GLASSDOOR_FALLBACK_HOME = "https://www.glassdoor.com/Search/results.htm?keyword=
 
 def create_driver():
     """Launch undetected Chrome (no navigation yet)."""
-    return Driver(uc=True)
+    import os
+
+    proxy = (os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY") or "").strip()
+    kwargs = {"uc": True}
+    if proxy:
+        # SeleniumBase accepts proxy as host:port or user:pass@host:port
+        kwargs["proxy"] = proxy
+        print(f"Launching Chrome with proxy {proxy.split('@')[-1]}")
+    return Driver(**kwargs)
 
 
 def _is_recruiter_page(url: str) -> bool:

@@ -30,11 +30,15 @@ Create a local `.env` (gitignored) from `.env.example`:
 ```bash
 GLASSDOOR_EMAIL=...
 GLASSDOOR_PASSWORD=...
+GLASSDOOR_LOGIN_METHOD=google   # recommended for gmail — skips Indeed Cloudflare
+# GLASSDOOR_TOTP_SECRET=...     # optional Google Authenticator secret
+# CAPSOLVER_API_KEY=...         # optional Indeed Turnstile solver
+# HTTPS_PROXY=...               # optional residential proxy
 ```
 
 Prefer [Cloud Agents Secrets](https://cursor.com/dashboard/cloud-agents) with the same variable names in cloud runs. Do not commit real credentials.
 
-Automated login uses Indeed SSO and may hit Cloudflare on datacenter IPs. If auto login fails, use `--manual-login` or reuse `data/glassdoor_session.json` cookies after one successful login.
+**Cloudflare note:** Indeed auth uses Cloudflare Managed Challenge and often hard-blocks datacenter IPs. Use Google OAuth (`GLASSDOOR_LOGIN_METHOD=google`) to bypass it. Approve the phone 2FA prompt (or set TOTP). Session cookies in `data/glassdoor_session.json` are reused afterward.
 
 ### App commands
 
