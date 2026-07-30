@@ -47,3 +47,4 @@ data/parallel_batch/
 *.swp
 .idea/
 .vscode/
+.worktrees/
