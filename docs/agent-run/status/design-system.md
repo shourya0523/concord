@@ -1,6 +1,6 @@
 # Status: design-system
 
-State: in_progress → complete (Wave 1 scaffold)
+State: complete
 Wave: 1
 Updated: 2026-07-30
 Branch: `local/ws-design-system-a9ff`
