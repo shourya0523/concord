@@ -128,6 +128,23 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Re-scrape jobs even if they are marked completed in the bank",
     )
+    batch_parser.add_argument(
+        "--backend",
+        type=str,
+        choices=["browser", "bff"],
+        default="browser",
+        help=(
+            "browser = Selenium/Patchright login (hits Indeed Cloudflare on "
+            "datacenter IPs). bff = curl_cffi + Glassdoor BFF API (no browser "
+            "login; needs residential HTTPS_PROXY on cloud)."
+        ),
+    )
+    batch_parser.add_argument(
+        "--pages",
+        type=int,
+        default=5,
+        help="Max BFF interview pages per company (default: 5; --backend bff only)",
+    )
 
     query_parser = subparsers.add_parser(
         "query", help="Filter and print questions from the bank"
@@ -242,6 +259,8 @@ def main() -> None:
                 sleep_seconds=args.sleep,
                 manual_login=args.manual_login,
                 force=args.force,
+                backend=args.backend,
+                max_pages=args.pages,
             )
         elif args.command == "query":
             _run_query(args)
@@ -256,7 +275,7 @@ def main() -> None:
         epilog=(
             "Also available:\n"
             "  python main.py login [--timeout 600]\n"
-            "  python main.py batch [--track IB|PE|Banking] [--limit N]\n"
+            "  python main.py batch [--backend bff] [--track IB|PE|Banking] [--limit N]\n"
             "  python main.py query [--track IB|PE|Banking] [--company NAME] [--position ROLE]\n"
             "  python main.py ui [--port 5050]"
         ),

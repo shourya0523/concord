@@ -41,11 +41,24 @@ With the venv activated, `python` / `python3` use that environment. If you skip 
 .venv/bin/python main.py query --track PE
 ```
 
-## Login flow
+## Login / Cloudflare bypass
 
-### Preferred: Patchright session capture (documented 2026 approach)
+Cloudflare on **Indeed Google OAuth** (`secure.indeed.com`) blocks most datacenter IPs even when you solve the checkbox. Two documented alternatives:
 
-If auto-login or Google OAuth still lands on a Cloudflare captcha, use the documented flow: headed Patchright Chrome → login once → save full `storage_state` → reuse.
+### Preferred on cloud: BFF API (no browser login)
+
+Calls Glassdoor’s internal interview API with `curl_cffi` TLS impersonation — skips Indeed entirely. Needs a **residential** `HTTPS_PROXY`.
+
+```shell
+# .env / Cloud Agents Secrets:
+# HTTPS_PROXY=http://user:pass@host:port
+
+python main.py batch --backend bff --track IB --limit 1 --force
+```
+
+### Patchright session capture
+
+Headed Patchright Chrome → login once → save `storage_state` → reuse. Still needs a clean (ideally residential) IP for Indeed/Google.
 
 ```shell
 pip install -r requirements.txt
@@ -53,7 +66,7 @@ python main.py login          # solve captcha / 2FA in the Chrome window
 python main.py batch --limit 1
 ```
 
-State file: `data/glassdoor_state.json` (gitignored). A **residential proxy** (`HTTPS_PROXY`) greatly improves captcha pass rates on cloud/datacenter IPs.
+State file: `data/glassdoor_state.json` (gitignored). Or run `login` at home and copy that file into the cloud workspace.
 
 ### Automated login (`.env`)
 
@@ -70,9 +83,9 @@ GLASSDOOR_LOGIN_METHOD=auto   # auto|google|indeed
 # HTTPS_PROXY=http://user:pass@host:port
 ```
 
-- **Gmail accounts default to Google OAuth**, which avoids Indeed’s Cloudflare Managed Challenge.
+- **Gmail accounts default to Google OAuth**, but Google auth still routes through Indeed (`secure.indeed.com`) and often hits Cloudflare on datacenter IPs.
 - If Google prompts 2FA, approve on your phone or set `GLASSDOOR_TOTP_SECRET`.
-- Indeed email login still works on residential networks / with Capsolver + proxy; datacenter IPs are often blocked.
+- Prefer `--backend bff` + residential `HTTPS_PROXY` on cloud VMs to skip Indeed login entirely.
 
 ```shell
 # Auto login from .env (default when credentials are set)
