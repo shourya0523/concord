@@ -192,3 +192,9 @@ It should not include:
 ## Bottom line
 
 The current evidence supports building a conservative research harness and parser test bed, not a live Glassdoor crawler. The first production-quality milestone should be a block-aware fetcher plus parsers validated against fixtures whose origins are explicit.
+
+## 2026-07-30 addendum (Workstream F)
+
+PR #5 landed a **browserless BFF** path (`scrapers/bff_api.py` + `batch --backend bff`) using `curl_cffi` Chrome impersonation. It still depends on a **residential** `HTTPS_PROXY` on datacenter cloud IPs. PR #7’s `scripts/parallel_batch.py` now forwards `--backend bff` to workers with an explicit proxy preflight stub.
+
+Product constraint unchanged and reinforced: Glassdoor feeds **Mode A firm occurrence / preference signals only** — teaching Q/A remains the GitHub corpus path. See `docs/research/glassdoor-mode-a-signals.md`.

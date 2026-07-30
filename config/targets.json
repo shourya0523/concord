@@ -156,7 +156,8 @@
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
-        "Private Equity Associate"
+        "Private Equity Associate",
+        "Private Equity Summer Analyst"
       ]
     },
     {
@@ -164,7 +165,8 @@
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
-        "Private Equity Associate"
+        "Private Equity Associate",
+        "Private Equity Summer Analyst"
       ]
     },
     {
@@ -173,7 +175,8 @@
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
-        "Private Equity Associate"
+        "Private Equity Associate",
+        "Private Equity Summer Analyst"
       ]
     },
     {
@@ -183,7 +186,8 @@
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
-        "Private Equity Associate"
+        "Private Equity Associate",
+        "Private Equity Summer Analyst"
       ]
     },
     {
@@ -191,7 +195,8 @@
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
-        "Private Equity Associate"
+        "Private Equity Associate",
+        "Private Equity Summer Analyst"
       ]
     },
     {
@@ -199,7 +204,8 @@
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
-        "Private Equity Associate"
+        "Private Equity Associate",
+        "Private Equity Summer Analyst"
       ]
     },
     {
@@ -207,7 +213,8 @@
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
-        "Private Equity Associate"
+        "Private Equity Associate",
+        "Private Equity Summer Analyst"
       ]
     },
     {
@@ -215,7 +222,8 @@
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
-        "Private Equity Associate"
+        "Private Equity Associate",
+        "Private Equity Summer Analyst"
       ]
     },
     {
@@ -223,7 +231,8 @@
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
-        "Private Equity Associate"
+        "Private Equity Associate",
+        "Private Equity Summer Analyst"
       ]
     },
     {
@@ -231,11 +240,176 @@
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
-        "Private Equity Associate"
+        "Private Equity Associate",
+        "Private Equity Summer Analyst"
       ]
     },
     {
       "company": "Hellman & Friedman",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate",
+        "Private Equity Summer Analyst"
+      ]
+    },
+    {
+      "company": "Vista Equity Partners",
+      "search_as": "Vista Equity Partners",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate",
+        "Private Equity Summer Analyst"
+      ]
+    },
+    {
+      "company": "CVC Capital Partners",
+      "search_as": "CVC",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "EQT",
+      "search_as": "EQT",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Permira",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Ares Management",
+      "search_as": "Ares Management",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Clayton Dubilier & Rice",
+      "search_as": "Clayton Dubilier & Rice",
+      "aliases": ["CD&R"],
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "GTCR",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Clearlake Capital",
+      "search_as": "Clearlake Capital",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Francisco Partners",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Insight Partners",
+      "search_as": "Insight Partners",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate",
+        "Growth Equity Associate"
+      ]
+    },
+    {
+      "company": "General Atlantic",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate",
+        "Growth Equity Associate"
+      ]
+    },
+    {
+      "company": "TA Associates",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate",
+        "Growth Equity Associate"
+      ]
+    },
+    {
+      "company": "Oaktree Capital Management",
+      "search_as": "Oaktree",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Centerbridge Partners",
+      "search_as": "Centerbridge",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Blue Owl",
+      "search_as": "Blue Owl",
+      "aliases": ["Owl Rock", "Blue Owl Capital"],
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Brookfield Asset Management",
+      "search_as": "Brookfield",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "Partners Group",
+      "track": "PE",
+      "positions": [
+        "Private Equity Analyst",
+        "Private Equity Associate"
+      ]
+    },
+    {
+      "company": "L Catterton",
+      "search_as": "L Catterton",
+      "aliases": ["Catterton"],
       "track": "PE",
       "positions": [
         "Private Equity Analyst",
@@ -321,6 +495,33 @@
     },
     {
       "company": "Bessemer Venture Partners",
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
+      "company": "Founders Fund",
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
+      "company": "Tiger Global",
+      "search_as": "Tiger Global Management",
+      "aliases": ["Tiger Global Management"],
+      "track": "VC",
+      "positions": [
+        "Venture Capital Analyst",
+        "Venture Capital Associate"
+      ]
+    },
+    {
+      "company": "Coatue",
+      "search_as": "Coatue Management",
       "track": "VC",
       "positions": [
         "Venture Capital Analyst",
