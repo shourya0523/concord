@@ -58,6 +58,13 @@ python main.py batch --track IB --limit 1
 python main.py batch --track IB --limit 1 --manual-login
 ```
 
+### Testing / lint notes
+
+- No automated test suite and no lint config live in this repo (no `pytest` tests, no `ruff`/`flake8`/`pre-commit`). `pytest` is only pulled in transitively by `seleniumbase`. For a quick sanity check use `python -m compileall main.py scrapers scraper_utils web`.
+- `scrapers.driver.create_driver()` (SeleniumBase `uc=True`) auto-downloads a matching `chromedriver` into `.venv/.../seleniumbase/drivers/` on first use; the download needs network and only happens once.
+- `python main.py query ... | head` prints a harmless `BrokenPipeError` when `head` closes the pipe early; the query itself still works.
+- The `batch` scraper needs Glassdoor creds + a non-datacenter IP; the CLI `query` and the `ui` both run fully offline against `data/question_bank.json` (~2842 questions).
+
 ### Verification checklist
 
 ```bash
