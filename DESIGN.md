@@ -20,7 +20,7 @@ This is a **monorepo** containing:
 | Mode | Focus | Primary inputs | Flagship surfaces |
 |------|-------|----------------|-------------------|
 | **A — Company prep** | What Firm X actually asks | Glassdoor topic **heat** (occurrence signals) × teaching Q/A ranked by heat ∩ weakness | Company room, multi-firm heat compare, **pseudo-RAG prep session** |
-| **B — Concept labs** | Master finance concepts | GitHub corpus + Gemini-enriched curriculum + **interactive JS diagrams** + resource rails | Concept page, diagram canvas, prerequisite roadmap, concept drill |
+| **B — Learn (modules + concept labs)** | Master finance concepts via structured curriculum | GitHub corpus + Gemini-enriched **learning modules** + **interactive JS diagrams** + resource rails | Module catalog, module hub (lessons → labs → quiz), concept lab pages, roadmap |
 
 **Data rules (binding):**
 - GitHub / curated Q/A = **teaching truth** (answers, explanations)
@@ -35,13 +35,13 @@ This is a **monorepo** containing:
 |------------|---------|---------|
 | Question bank | 2,500+ curated Qs; 2,000+ “reported in interviews” across 50+ firms | Teaching corpus (GitHub + validated answers) + Glassdoor as **heat signals**, not answer source |
 | Firm prep | Filter practice by bank; bank-specific reported Qs | **Company prep rooms** with **visible topic-heat matrix**, multi-firm compare, weakness overlay |
-| Learning modules | 40 Learn modules (lessons, flashcards, quizzes, podcasts) | **Concept labs** with **interactive JS diagrams**, resource rails, prerequisite roadmaps |
+| Learning modules | 40 Learn modules (lessons, flashcards, quizzes, podcasts) | **Yes — first-class Learn modules** (lessons → concept labs → drills → quiz), differentiated by **interactive JS diagrams**, firm-heat bridges, and apply-to-company-prep CTAs (not podcast-first) |
 | Adaptive practice | Mastery tracking, saved Qs, flashcards | **Pseudo-RAG sessions** (heat ∩ weakness ∩ prompt), explainable “why this,” spaced review |
 | Mocks | Audio mock library + separate IB Mock (voice AI) | Firm-templated **interview simulator** + Warren coach + interviewer cast; AI assists scoring/feedback with citations |
 | AI role | IB Mock voice delivery practice | Gemini for enrichment graphs, session briefs, retrieval reasons, follow-ups — **corpus-grounded**, not open web chat |
 | Notes / roadmap | Personal notes on questions | Notes + bookmarks + **interview-date study plan** mixing company drills + concept checkpoints |
 
-**Design implication:** Screens must center **company heat**, **pseudo-RAG packs with citations**, **diagram-first concept learning**, and **roadmap/plan urgency** — not a generic flashcard/drill app.
+**Design implication:** Screens must center **company heat**, **pseudo-RAG packs with citations**, **Learn modules → concept labs (diagram-first)**, and **roadmap/plan urgency**. Active-recall drills live *inside* modules — the product must not *feel* like a bare flashcard app.
 
 ---
 
@@ -610,7 +610,7 @@ Applied consistently, **never mixed within the same element type**.
 
 ## 10. Required Screens / Flows (Revised — Concord Product Shape)
 
-Flows are organized around **Mode A (company prep)** and **Mode B (concept labs)** — not a generic drill app. Every flow below must surface company heat, AI-grounded retrieval, diagrams, and/or roadmap notes where they belong.
+Flows are organized around **Mode A (company prep)** and **Mode B (Learn: modules + concept labs)** — not a generic drill app. Every flow below must surface company heat, AI-grounded retrieval, diagrams, modules, and/or roadmap notes where they belong.
 
 ### 10.0 Journey Map (How Modes Connect)
 
@@ -622,12 +622,17 @@ Dashboard (heat snapshot + weak topics + next session "why")
      │                                              ↓
      │                                    Signature question study
      │                                    (layered reveal + diagram + resources)
-     ├─ Mode B ─► Concept lab ─► Diagram + roadmap notes ─► Concept drill
-     │                                              ↓
-     │                                    "Apply at [Firm]" → Mode A
-     ├─ Study plan (interview-date urgency × heat ∩ weakness)
+     ├─ Mode B ─► Learn module catalog ─► Module hub
+     │                 ↓                      ↓
+     │            Lessons / notes      Concept lab (diagram)
+     │                 ↓                      ↓
+     │            Active-recall drill   Module quiz / checkpoint
+     │                 └──────────┬───────────┘
+     │                            ↓
+     │                 "Apply at [Firm]" → Mode A
+     ├─ Study plan (interview-date urgency × modules + heat ∩ weakness)
      ├─ Interview simulator (firm-templated)
-     └─ Progress (firm readiness + concept mastery + heat∩weakness)
+     └─ Progress (firm readiness + module/concept mastery + heat∩weakness)
 ```
 
 ---
@@ -636,7 +641,7 @@ Dashboard (heat snapshot + weak topics + next session "why")
 
 **Screens:**
 1. Welcome (Warren intro — product promise: company rooms + concept labs)
-2. Path select: **Company prep** / **Concept learning** / Both
+2. Path select: **Company prep** / **Learn (modules)** / Both
 3. Track + role (IB / PE / Both; Analyst / Associate / …)
 4. **Multi-select target firms** (required for Mode A; empty set blocked)
 5. Interview date + daily availability (feeds study plan urgency)
@@ -654,16 +659,16 @@ Dashboard (heat snapshot + weak topics + next session "why")
 
 ### 10.2 Dashboard / Home
 
-**Asymmetric editorial composition** (not a card grid). Mode toggle: Company prep ↔ Concept lab.
+**Asymmetric editorial composition** (not a card grid). Mode toggle: Company prep ↔ Learn.
 
 **Sections:**
 1. Target-company switcher (persisted multi-select)
 2. **Topic-heat snapshot** for selected set (click → full heat compare)
 3. Weak-topic spotlight (heat ∩ weakness) with **explainable "why"**
-4. Auto-suggested next session (prefer **pseudo-RAG** or weak-topic drill; show retrieval reasons)
+4. Auto-suggested next session (prefer **pseudo-RAG**, **continue Learn module**, or weak-topic drill; show reasons)
 5. Days until interview + study streak
-6. Today's plan peek (company drill + concept checkpoint mix)
-7. Shortcuts: company room, heat compare, concept roadmap, simulator
+6. Today's plan peek (company drill + **module checkpoint** mix)
+7. Shortcuts: company room, heat compare, **Learn catalog**, module roadmap, simulator
 
 **Visual opportunities:**
 - **Heat snapshot** — mini firm×topic matrix (`TopicHeatmap`); glow on 1 weakest cell; hatch = user weakness
@@ -739,33 +744,81 @@ Dashboard (heat snapshot + weak topics + next session "why")
 
 ---
 
-### 10.6 Mode B — Concept Lab (`/concepts/[slug]`)
+### 10.6 Mode B — Learning Modules (`/learn`, `/learn/[module]`)
 
-**Flagship learning surface.** Diagram-first, not text dump.
+**First-class curriculum surface** (IB Vine Learn analogue). Modules package teaching into a path; **concept labs are the deep units inside**.
+
+We are not skipping modules in favor of orphaned concept pages. Structure:
+
+```text
+Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / flashcards → Module quiz
+                              ↓
+                     Firm-heat bridge / Apply at [Firm]
+```
+
+#### 10.6.1 Module catalog (`/learn`)
+
+**Sections:** track filters (IB / PE / Behavioural / Verticals); module cards with progress %; recommended next module (prereqs + weak topics + firm heat).
+
+**Visual opportunities:**
+- Module cards — paper texture + rough.js border; progress as calm numeric % (circled when complete)
+- Domain chips (Accounting, Valuation, DCF, M&A, LBO, Markets, Behavioural, …)
+- Recommended module — Warren `bracket` with explainable why (prereq ready + heat∩weakness)
+
+**Key data:** module id/slug, domain, lesson count, diagram count, user progress %, prereq module ids, recommendation reason
+
+#### 10.6.2 Module hub (`/learn/[module]`)
 
 **Sections:**
-1. Concept hero (title, domain, mastery label)
+1. Module hero (title, estimated time, mastery)
+2. **Module roadmap** — ordered checkpoints: lessons → concept labs → drills → quiz
+3. Lesson list (structured content + lab notes)
+4. Embedded / linked **concept labs** (diagram-first deep dives)
+5. Active-recall set (flashcard-style Q&A *within* the module — not the whole product metaphor)
+6. End-of-module quiz + diagram checkpoint
+7. “Where firms ask this” heat strip for target companies
+8. CTA: Start module session / Continue / Apply at [Firm]
+
+**Visual opportunities:**
+- Hand-drawn **module roadmap path** (rough.js): current = lime circle; done = strike-through / crossed-off; locked = dashed
+- Lesson open state — progressive notes with `box` on formulae; Warren pitfall `bracket`
+- Mini heat strip for module topics × user’s target firms
+- Quiz score — rough-notation `circle`; calm number motion
+
+**Key data:** ordered checkpoint graph, lesson bodies, linked concept slugs, drill item ids, quiz items, firm_relevance for module topics, completion state per checkpoint
+
+**MVP module set (illustrative):** Accounting Foundations; Enterprise Value & Equity Value; DCF & WACC; M&A / Merger Models; LBO & Paper LBO; Behavioural Story Bank; plus PE-oriented variants as coverage allows.
+
+---
+
+### 10.7 Mode B — Concept Lab (`/concepts/[slug]`)
+
+**Atomic deep-dive inside modules** (also reachable from company rooms / search). Diagram-first, not text dump.
+
+**Sections:**
+1. Concept hero (title, domain, parent module crumb, mastery label)
 2. **Interactive diagram canvas** (Mermaid / finance diagram host) — first-class teaching medium
-3. Progressive lab notes / learning roadmap (prerequisites → core → advanced → apply-at-firm)
+3. Progressive lab notes (prerequisites → core → advanced → apply-at-firm)
 4. Resource rail (internal concepts + labelled external refs)
 5. Linked questions + Start drill CTA
-6. "Where this shows up" firm bridges (optional Glassdoor heat relevance)
+6. Parent module progress peek + next checkpoint
+7. "Where this shows up" firm bridges (Glassdoor heat relevance)
 
 **Visual opportunities:**
 - **DiagramCanvas** as hero visual — step-highlight nodes; rough.js frame; reduced-motion → table/text fallback
-- **Learning roadmap** — hand-drawn vertical path (rough.js curve) with checkpoint nodes; completed = strike-through / crossed-off; current = lime circle; locked = dashed
+- Parent-module roadmap mini-path (where this concept sits)
 - Prerequisite graph mini-map (nodes = concepts; edges = depends-on)
 - Formula/definition callouts — rough-notation `box`
 - Firm bridge chips — heat intensity number + hatch if weak for user
 - Warren bracket asides on common pitfalls
 
-**Key data:** concept slug, mermaid/diagram definition version, a11y fallback, prerequisite edges, mastery, firm_relevance map, resources[], linked question ids
+**Key data:** concept slug, parent module id, mermaid/diagram definition version, a11y fallback, prerequisite edges, mastery, firm_relevance map, resources[], linked question ids
 
 **MVP diagrams:** three-statement linkages, EV→equity bridge, DCF/WACC build-up, sources & uses, paper-LBO IRR/MOIC sketch
 
 ---
 
-### 10.7 Signature Question Study (Layered Reveal)
+### 10.8 Signature Question Study (Layered Reveal)
 
 **Product-defining interaction** for both modes (adaptive study, RAG turns, concept drills).
 
@@ -796,42 +849,42 @@ Dashboard (heat snapshot + weak topics + next session "why")
 
 ---
 
-### 10.8 Adaptive / Weak-Topic Drills & Concept Drills
+### 10.9 Adaptive / Weak-Topic Drills & Concept Drills
 
-**Modes:** adaptive weak-topic; company adaptive (firm heat ∩ weakness); single-concept drill; timed / spaced review.
+**Modes:** adaptive weak-topic; company adaptive (firm heat ∩ weakness); module/concept drill; timed / spaced review.
 
 **Visual opportunities:**
 - Session header shows explainable ranking ("low mastery + high GS frequency + due for review") — bracket annotation
-- Mid-session peek: diagram + heat context without leaving focus
-- Drill summary: accuracy metrics (calm numbers), XP paper-burst, recommended next concept checkpoint
+- Mid-session peek: diagram + parent module + heat context without leaving focus
+- Drill summary: accuracy metrics (calm numbers), XP paper-burst, recommended next **module checkpoint**
 
-**Key data:** session type, frozen question membership, per-item ratings (Again/Hard/Good/Easy), mastery deltas, explanation strings
+**Key data:** session type, frozen question membership, per-item ratings (Again/Hard/Good/Easy), mastery deltas, explanation strings, parent module id when in Learn
 
 ---
 
-### 10.9 Study Plan / Learning Roadmap
+### 10.10 Study Plan / Learning Roadmap
 
-**Not a bare to-do list.** Mixes Mode A and Mode B with interview-date urgency.
+**Not a bare to-do list.** Mixes Mode A company work and Mode B **module lessons/labs** with interview-date urgency.
 
 **Sections:**
 1. Interview countdown + weekly goals
-2. Daily assignments: company drills + concept labs + **diagram checkpoints**
-3. Prerequisite-aware ordering (roadmap notes)
+2. Daily assignments: company drills + **Learn module checkpoints** + concept labs + **diagram checkpoints**
+3. Prerequisite-aware module ordering
 4. Catch-up logic when behind
 5. Mock interview slots
 
 **Visual opportunities:**
-- Roadmap timeline (rough.js path) mixing firm chips and concept nodes
+- Roadmap timeline (rough.js path) mixing firm chips, **module nodes**, and concept nodes
 - Completed items — `crossed-off` / strike-through
 - Diagram checkpoints — small diagram thumbnails in plan cells
 - Urgency band intensifies as date approaches (calm amber → coral pattern, not bounce)
 - Warren encourages catch-up; pauses while user edits availability
 
-**Key data:** interview date, daily availability, target firms, mastery, heat priorities, prerequisite graph, assignment status
+**Key data:** interview date, daily availability, target firms, module progress, mastery, heat priorities, prerequisite graph, assignment status
 
 ---
 
-### 10.10 Interview Simulator (Firm-Templated)
+### 10.11 Interview Simulator (Firm-Templated)
 
 **Setup:** firm + role → IB or PE stage template (Why banking / Accounting / Paper LBO / …).
 
@@ -850,7 +903,7 @@ Dashboard (heat snapshot + weak topics + next session "why")
 
 ---
 
-### 10.11 Notes, Bookmarks, Collections
+### 10.12 Notes, Bookmarks, Collections
 
 **Screens:** note editor on question/concept; bookmark lists; custom collections; search saved items.
 
@@ -863,15 +916,15 @@ Dashboard (heat snapshot + weak topics + next session "why")
 
 ---
 
-### 10.12 Progress / Analytics
+### 10.13 Progress / Analytics
 
 **Sections:**
 1. Firm readiness (Mode A) for each target
-2. Concept mastery map (Mode B) with weaker topics highlighted
+2. **Learn module progress** + concept mastery map (Mode B) with weaker topics highlighted
 3. **Heat ∩ weakness matrix** (full target set)
 4. Accuracy / mastery over time (calm line)
 5. Study frequency calendar
-6. Mock / RAG session history
+6. Mock / RAG / module-quiz session history
 7. Diagram checkpoint completion
 
 **Visual opportunities:**
@@ -884,7 +937,7 @@ Dashboard (heat snapshot + weak topics + next session "why")
 
 ---
 
-### 10.13 Profile / Settings
+### 10.14 Profile / Settings
 
 Target firms, role, interview date, notifications, theme, account. Utilitarian — no dashboard charts. Firm switcher here mirrors dashboard persistence.
 
@@ -902,11 +955,14 @@ Every place a heatmap, diagram, roadmap, or AI-citation moment becomes a signatu
 | **Company room** | Dominant topic heat | Per-firm topic intensity, sample size N | Full matrix; click → scoped RAG |
 | **Heat compare** | Multi-firm matrix | Aligned intensities across 2–N firms | Compare mode; shared vs unique callouts |
 | **Pseudo-RAG** | Citation / why-retrieved cards | reasons[], citations[], heat/weak/sim scores | Rough borders; underline on match phrase; provenance chips |
+| **Learn catalog** | Module progress cards | module progress %, domain, lesson/diagram counts | Paper cards; circled % when complete |
+| **Module hub** | Module roadmap path | Ordered checkpoints (lesson/lab/drill/quiz) + completion | Rough.js path; circle current; strike done |
+| **Module hub** | Firm heat strip | Module topics × target firm intensities | Mini heat bars + N caption |
 | **Concept lab** | Interactive diagram | Versioned Mermaid / finance diagram defs + a11y fallback | DiagramCanvas; step-highlight; rough frame |
-| **Concept lab** | Learning roadmap path | Prerequisite edges + checkpoint completion | Rough.js path; circle current; strike completed |
+| **Concept lab** | Parent-module mini-path | Position of concept inside module roadmap | Rough.js mini checkpoints |
 | **Question study** | Layered reveal + diagram slot | Layer payloads, diagram id, provenance labels | Sequential settle; highlight/underline/box/bracket |
 | **Question study** | Resource rail | Internal/external links with publisher + why | Labelled list, not bare URLs |
-| **Study plan** | Mixed Mode A/B roadmap | Assignments × interview date × heat∩weakness | Timeline path; diagram checkpoint thumbs |
+| **Study plan** | Mixed Mode A/B roadmap | Assignments × modules × interview date × heat∩weakness | Timeline path; module + diagram checkpoint thumbs |
 | **Simulator** | Stage path + score hero | Stage scores, overall readiness | Checkpoints; torn-paper-hero; circled score |
 | **Progress** | Heat ∩ weakness matrix | Full target firm×topic + weak flags | Dual encoding; glow ≤3 cells |
 | **Progress** | Mastery / accuracy over time | date → mastery or accuracy | Rough.js line; calm ease-out |
@@ -1304,7 +1360,9 @@ These are **not suggestions** — they are **hard rules** that every implementat
 
 16. **Diagrams are first-class teaching media.** Concept labs and layered reveals embed interactive JS diagrams (with a11y/table fallback) — not PNG screenshots as the primary experience.
 
-17. **Study plan mixes Mode A + Mode B** with interview-date urgency and diagram checkpoints — not a generic drill checklist.
+17. **Study plan mixes Mode A + Mode B** with interview-date urgency, **Learn module checkpoints**, and diagram checkpoints — not a generic drill checklist.
+
+18. **Learning modules are first-class.** Mode B is not orphaned concept pages alone — catalog → module hub (lessons → concept labs → drills → quiz) with firm-heat bridges.
 
 ---
 
@@ -1331,10 +1389,10 @@ Once this DESIGN.md is approved:
 
 **Phase 1 — Full-Journey Mockups** (not isolated component demos):
 1. **Mode A company journey** — company room heat → multi-firm compare → pseudo-RAG pack (citations + why-retrieved) → layered question study with diagram peek + AI follow-up chips
-2. **Mode B concept journey** — concept lab diagram + learning roadmap notes → concept drill → layered reveal with diagram slot → “Apply at [Firm]” bridge into Mode A
-3. **Plan → simulator journey** — interview-date study plan (company + concept + diagram checkpoints) → firm-templated mock → score reveal + annotated feedback → recommended concept labs
+2. **Mode B Learn journey** — module catalog → module hub roadmap → lesson → concept lab diagram → module drill/quiz → “Apply at [Firm]” bridge into Mode A
+3. **Plan → simulator journey** — interview-date study plan (company + **module** + diagram checkpoints) → firm-templated mock → score reveal + annotated feedback → recommended modules/labs
 
-Each journey must show hard parts in real context: topic heat dual-encoding, rough.js/notation semantic map, DiagramCanvas, citation/provenance chips, Warren focus-pause, DiceBear interviewer in sim, torn-paper hero only on score reveal.
+Each journey must show hard parts in real context: topic heat dual-encoding, Learn module roadmap, rough.js/notation semantic map, DiagramCanvas, citation/provenance chips, Warren focus-pause, DiceBear interviewer in sim, torn-paper hero only on score reveal.
 
 Present each journey. Explain technique used for each hard part. **STOP. Wait for approval before Phase 2 build.**
 
