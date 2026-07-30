@@ -3295,11 +3295,13 @@ The project is complete only when:
 ## Data
 
 * Raw, staging, normalised, canonical, validated, and published layers exist.
-* Legacy bank imported without duplication.
+* **GitHub / open-source Q/A imported** as teaching source of truth (license noted).
+* Glassdoor bank imported as **firm-signal / occurrence** layer only.
+* Gemini enrichment jobs categorise into company-prep + concept-lab graphs.
 * Deduplication works beyond SHA1.
 * Entity resolution works.
 * Quality scoring works.
-* Answer origins are tracked.
+* Answer origins are tracked (corpus vs synthesised vs editorial).
 * Financial validation exists.
 * Data-quality tests pass.
 

@@ -10,9 +10,9 @@ Created per `/create-subagent`. Used by the cloud orchestrator in `docs/prompts/
 | `ibpe-frontend.md` | C — company rooms + concept labs + diagrams |
 | `ibpe-backend.md` | D — APIs / `/auth` |
 | `ibpe-database.md` | E — `/vercel-storage` / Supabase |
-| `ibpe-glassdoor.md` | F — scrape extend |
-| `ibpe-data-quality.md` | G — pipeline |
-| `ibpe-answers.md` | H — `/ai-sdk` answers |
+| `ibpe-glassdoor.md` | F — Glassdoor firm signals only |
+| `ibpe-data-quality.md` | G — GitHub Q/A import + transform |
+| `ibpe-answers.md` | H — Gemini enrich + validators |
 | `ibpe-search.md` | I — search / recs |
 | `ibpe-infra.md` | J — `/vercel-cli` `/deployments-cicd` |
 | `ibpe-qa.md` | K — `/verification` |
