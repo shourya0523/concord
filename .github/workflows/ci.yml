@@ -26,6 +26,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Install (matches Vercel)
+        run: npm ci
+      - name: Build web workspace (matches Vercel)
+        run: npm run build --workspace=@ibpe/web
       - name: Node package placeholder checks
         run: bash scripts/ci_node_packages.sh
 
