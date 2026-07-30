@@ -18,10 +18,14 @@ from ibpe_corpus.schemas.models import (
 )
 
 # Never claim live Glassdoor provenance from these importers.
+# contract_provenance aligns with packages/contracts ProvenanceEnum.
 GITHUB_PROVENANCE = {
     "provenance": "source_provided",
+    "contract_provenance": "github_source",
+    "product_role": "teaching_qa",
     "source_family": SOURCE_FAMILY,
     "not_glassdoor": True,
+    "teaching_source": True,
 }
 
 

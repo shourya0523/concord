@@ -1,14 +1,15 @@
 # Answer coverage report
 
-- Canonical questions: 3310
-- Answers (non-rejected): 837
-- Coverage: 25.3%
-- Source-provided: 377
-- Corpus-matched: 310
-- Generated: 150
-- Validated: 461
+- Publishable teaching questions: 431
+- Answers (non-rejected): 431
+- Coverage: 100.0%
+- Source-provided: 376
+- Corpus-matched: 3
+- Generated: 52
+- Validated: 55
 - Rejected: 0
 
 ## Provenance rule
 
 Synthesised answers are never labelled `source_provided`.
+Glassdoor bank rows never supply teaching answers.

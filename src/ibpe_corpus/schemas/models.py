@@ -87,6 +87,22 @@ class Domain(str, Enum):
     OTHER = "other"
 
 
+# Mirrors packages/contracts ProvenanceEnum (Phase 0 freeze).
+class CorpusProvenance(str, Enum):
+    GITHUB_SOURCE = "github_source"
+    STATIC_SEED = "static_seed"
+    GLASSDOOR_OCCURRENCE = "glassdoor_occurrence"
+    GEMINI_SYNTHESISED = "gemini_synthesised"
+    EDITORIAL = "editorial"
+
+
+class ProductRole(str, Enum):
+    TEACHING_QA = "teaching_qa"
+    FIRM_SIGNAL = "firm_signal"
+    ENRICHMENT = "enrichment"
+    PATTERN_ONLY = "pattern_only"
+
+
 class RawArtefact(BaseModel):
     id: str = Field(default_factory=lambda: new_id("art"))
     source_family: str

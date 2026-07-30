@@ -90,10 +90,13 @@ def test_import_firebase_qb_export_mini(tmp_path: Path):
     for q in questions:
         assert q.exact_source_text
         assert q.extracted_metadata["provenance"] == "source_provided"
+        assert q.extracted_metadata["contract_provenance"] == "github_source"
+        assert q.extracted_metadata["product_role"] == "teaching_qa"
         assert "glassdoor" not in (q.extracted_metadata.get("source_family") or "")
     for a in answers:
         assert a.extracted_metadata["answer_provenance"] == "source_provided"
         assert a.extracted_metadata.get("question_record_id")
+        assert a.extracted_metadata["contract_provenance"] == "github_source"
 
 
 def test_import_staged_capital_markets_if_present():
