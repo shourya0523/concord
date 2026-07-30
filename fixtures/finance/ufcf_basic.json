@@ -1,0 +1,15 @@
+{
+  "fixture_id": "finance-ufcf-basic",
+  "topic": "ufcf",
+  "description": "Simple unlevered FCF build",
+  "inputs": {
+    "ebit": 100.0,
+    "tax_rate": 0.25,
+    "da": 20.0,
+    "capex": 30.0,
+    "delta_nwc": 5.0
+  },
+  "expected": {
+    "ufcf": 60.0
+  }
+}

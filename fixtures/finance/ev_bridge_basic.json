@@ -1,0 +1,16 @@
+{
+  "fixture_id": "finance-ev-bridge-basic",
+  "topic": "ev_bridge",
+  "description": "Equity + net debt (+ preferred + NCI) identity",
+  "inputs": {
+    "equity_value": 1000.0,
+    "gross_debt": 400.0,
+    "cash": 100.0,
+    "preferred": 50.0,
+    "nci": 25.0
+  },
+  "expected": {
+    "net_debt": 300.0,
+    "enterprise_value": 1375.0
+  }
+}

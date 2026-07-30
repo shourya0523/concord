@@ -1,0 +1,14 @@
+{
+  "fixture_id": "finance-moic-irr-2x-5y",
+  "topic": "moic_irr",
+  "description": "2.0x MOIC over 5 years → IRR ≈ 14.87%",
+  "inputs": {
+    "entry_equity": 100.0,
+    "exit_equity": 200.0,
+    "years": 5.0
+  },
+  "expected": {
+    "moic": 2.0,
+    "irr_approx": 0.148698354997
+  }
+}

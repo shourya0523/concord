@@ -1,15 +1,24 @@
 # Answer coverage report
 
-- Publishable teaching questions: 416
-- Answers (non-rejected): 416
-- Coverage: 100.0%
-- Source-provided: 364
-- Corpus-matched: 0
-- Generated: 52
-- Validated: 52
+- Canonical questions: 3310
+- Answers (non-rejected): 837
+- Coverage: 25.3%
+- Source-provided: 377
+- Corpus-matched: 310
+- Generated: 150
+- Validated: 461
 - Rejected: 0
 
 ## Provenance rule
 
 Synthesised answers are never labelled `source_provided`.
-Glassdoor bank rows never supply teaching answers.
+Gemini enrichment is always `gemini_synthesised` and never attributed to Glassdoor
+or to a GitHub path that did not contain the text. Corpus / GitHub answers win;
+synthesis fills gaps only.
+
+## Enrichment (Wave 1 skeleton)
+
+- Job: `python -m ibpe_corpus.answers.enrich_job`
+- Calculators + fixtures: `fixtures/finance/*`
+- Editorial queue stub: `ibpe_corpus.answers.editorial`
+- Graph outputs: company_prep + concept_lab nodes in enrichment report
