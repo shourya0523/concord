@@ -34,3 +34,14 @@
 ## When a stream is blocked
 
 Document blocker in status file; orchestrator relaunches only that stream; others continue.
+
+## Merge gates (Workstream K — additive)
+
+Wave 3 product/release evidence lives on `local/ws-qa-d1de`:
+
+- `reports/test-report.md` — Product + Release checklist with Pass/Fail/Skip
+- `reports/accessibility-report.md`
+- `reports/performance-report.md`
+- `scripts/qa_product_smoke.sh` — re-runnable HTTP + CLI smoke
+
+**Do not** mark Wave 3 complete on unit tests alone. Auth `/api/auth/*` **503** when Neon Auth unset is an allowed skip (document, don’t hard-fail). `GET /api/search` string coercion is an open Partial Fail tracked in the test report.
