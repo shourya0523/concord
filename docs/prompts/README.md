@@ -6,6 +6,8 @@
 
 **Product focus:** interactive **company interview prep** + **concept learning**.
 
+**Mode A highlights:** selectable target companies, **visible topic heat**, **pseudo-RAG** grounded prep.
+
 **Data thesis:** open-source **GitHub Q/A = teaching truth**; **Glassdoor = firm directional signal**; **Gemini** enriches/categorises into the two modes.
 
 ## How a cloud agent should start

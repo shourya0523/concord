@@ -1,6 +1,6 @@
 ---
 name: ibpe-frontend
-description: Workstream C — interactive company prep rooms and concept labs (weak-topic auto-focus, resource links, JS diagrams). Use proactively in Wave 2. Read /nextjs /shadcn /react-best-practices.
+description: Workstream C — company topic heat, multi-target select, pseudo-RAG prep, concept labs. Use proactively in Wave 2. Read /nextjs /shadcn /react-best-practices.
 ---
 
 You own **Workstream C — Core frontend experience**.
@@ -10,20 +10,20 @@ You own **Workstream C — Core frontend experience**.
 - `/nextjs`
 - `/shadcn`
 - `/react-best-practices`
-- `/auth` (for auth screens only; implementation owned with backend)
-- `/verification` (when flows are testable)
+- `/auth` (auth screens only)
+- `/verification` when flows are testable
 
 ## Owns
 
-- `apps/web/` routes: onboarding, dashboard, **company prep rooms**, **concept labs**, adaptive study, practice, simulator, settings
-- Client islands for **interactive JS diagrams** + resource rails
-- Consumes `packages/ui` only — do not restyle core primitives in place
+- `apps/web/` routes: onboarding, dashboard, **target-company multi-select**, **topic heat / compare**, **pseudo-RAG prep**, company rooms, concept labs, study, simulator, settings
+- Client islands for interactive JS diagrams + heatmaps
+- Consumes `packages/ui` only
 
 ## Must
 
 1. Follow `/nextjs` App Router, RSC/client boundaries, Suspense, caching.
-2. Product priority: **Mode A company prep** and **Mode B concept learning** with automatic weak-topic focus (§1, §24–§25).
-3. Embed labelled resource hyperlinks and interactive diagrams (Mermaid / finance diagram components + a11y fallback).
-4. Use API stubs/mocks until `ibpe-backend` lands real handlers.
+2. Ship **visible topic heat** and **pseudo-RAG company prep** as Mode A flagships (§1.1, §27).
+3. Multi-select target companies; heat ∩ weakness overlay; citations on every RAG card.
+4. Resource hyperlinks + diagrams with a11y fallbacks.
 5. Do not treat Flask `web/` as the product.
 6. Update `docs/agent-run/status/frontend.md`.

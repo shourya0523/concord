@@ -793,7 +793,10 @@ The shared contracts must define:
 * **Concept schema** (slug, prerequisites, firm relevance weights)
 * **Diagram schema** (id, type, source format e.g. mermaid|interactive-json, version, a11y fallback)
 * **Learning-resource schema** (label, url, kind internal|external, provenance, concept/firm links)
-* Practice-session schema (mode: company|concept|adaptive_weak|…)
+* Practice-session schema (mode: company|concept|adaptive_weak|pseudo_rag|…)
+* **Target-company-set schema** (ordered firm ids on user profile)
+* **Topic-heat schema** (firm_id, topic_id, intensity, sample_size, window, method)
+* **Pseudo-RAG pack schema** (query, firm_ids, item ids, scores, citations, frozen_at)
 * Attempt schema
 * Mastery schema
 * Study-plan schema
@@ -952,6 +955,9 @@ The design-system team should create reusable components such as:
 * Confidence control
 * Mastery control
 * **Diagram canvas** (Mermaid / interactive finance diagram host + reduced-motion fallback)
+* **Topic heatmap** (firm × topic intensity, weakness overlay, compare mode, a11y non-colour encoding)
+* **Target-company multi-select**
+* **Pseudo-RAG citation card** (why retrieved + provenance)
 * **Resource link list** (labelled hyperlinks, internal/external)
 * **Weak-topic chip** / focus callout
 * **Company room header** / **Concept lab header**
@@ -2726,7 +2732,8 @@ Ranking factors should include:
 ```text
 text relevance
 semantic relevance
-firm match
+firm match (selected target set)
+topic heat for targets
 role match
 topic match
 reported frequency
@@ -2739,9 +2746,9 @@ has diagram / has resources (soft boost when user in concept mode)
 
 Prevent duplicated low-quality reports from dominating ranking.
 
-Create a curated search-evaluation set and report ranking quality.
+Create a curated search-evaluation set and report ranking quality (include **pseudo-RAG company packs**).
 
-Command palette must jump to **companies**, **concepts**, **questions**, and **resources**.
+Command palette must jump to **companies**, **heat compare**, **concepts**, **questions**, **resources**, and **start RAG prep**.
 
 ---
 
@@ -2824,7 +2831,9 @@ Implement typed APIs or server functions for:
 * Firms
 * Roles
 * Topics
-* Practice sessions (company | concept | adaptive_weak | …)
+* Topic heat (per firm / selected set)
+* Pseudo-RAG pack create / continue
+* Practice sessions (company | concept | adaptive_weak | pseudo_rag | …)
 * Attempts
 * Mastery
 * Notes
@@ -2838,6 +2847,7 @@ Implement typed APIs or server functions for:
 * Job status
 * Exports
 * Bank import
+* GitHub corpus import status
 
 Add:
 
@@ -3303,7 +3313,9 @@ Use the following gates.
 ## Product gate
 
 * Authentication works
-* Company prep room + concept lab work
+* Company prep room + **visible topic heat** + multi-target select work
+* **Pseudo-RAG prep** returns cited corpus packs for selected companies
+* Concept lab work
 * Weak-topic auto-focus session works and shows explanation
 * Diagrams render with fallback
 * Resource hyperlinks work
@@ -3378,6 +3390,8 @@ The project is complete only when:
 * shadcn primitives are customised.
 * Dashboard avoids generic card-grid design and centres **next learn** / weak topics.
 * **Company prep** and **Concept lab** modes both work.
+* **Visible topic heat** for selectable target companies (with compare + weakness overlay).
+* **Pseudo-RAG interview prep** serves grounded, cited packs for the selected firm set.
 * Question study is a signature experience with layered reveal.
 * Interactive JS diagrams render with a11y fallbacks.
 * Resource hyperlinks are labelled and reachable from study + concepts.
