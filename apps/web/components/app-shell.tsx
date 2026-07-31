@@ -15,6 +15,7 @@ const NAV = [
       { href: "/prep/heat", label: "Topic heat" },
       { href: "/prep/rag", label: "Session pack" },
       { href: "/study", label: "Study" },
+      { href: "/saved", label: "Saved" },
     ],
   },
   {

@@ -1,8 +1,10 @@
-import { handleRouteError, jsonError, respondTyped } from "@/lib/api/http";
+import { handleRouteError, jsonError, parseOrError, respondTyped } from "@/lib/api/http";
 import { NotesListResponseSchema } from "@/lib/api/schemas";
+import { getApiUser } from "@/lib/api/auth";
 import { getSession, isNeonAuthConfigured } from "@/lib/auth/server";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
+import { CreateNoteRequestSchema, createNote } from "@/lib/data/notes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,6 +64,25 @@ export async function GET() {
       })),
       source: "published",
     });
+  } catch (err) {
+    return handleRouteError(err);
+  }
+}
+
+/** POST /api/notes — capture a note on a question (or free-standing). */
+export async function POST(request: Request) {
+  try {
+    const user = await getApiUser("capture notes");
+    if (!user.ok) return user.response;
+    const body = await request.json().catch(() => ({}));
+    const parsed = parseOrError(CreateNoteRequestSchema, body);
+    if (!parsed.ok) return parsed.response;
+    const result = await createNote({
+      userId: user.userId,
+      email: user.email,
+      input: parsed.data,
+    });
+    return respondTyped(NotesListResponseSchema, result, { status: 201 });
   } catch (err) {
     return handleRouteError(err);
   }

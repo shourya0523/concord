@@ -10,6 +10,8 @@ import { DiagramIsland } from "@/components/diagram-island"
 import { readStoredTargets } from "@/components/target-select-island"
 import {
   Annotate,
+  HeatStrip,
+  PaperBurst,
   PaperSheet,
   ProvenanceChip,
   SemanticPill,
@@ -17,6 +19,7 @@ import {
   WarrenCallout,
 } from "@/components/paper"
 import { conceptIdForTopic, topicLabel } from "@/lib/topics"
+import { weakTopicsFromMastery } from "@/lib/weak-topics"
 
 type StudyDetail = {
   question: {
@@ -70,12 +73,52 @@ export default function StudyPage() {
   const [bookmarked, setBookmarked] = React.useState(false)
   const [conceptSlug, setConceptSlug] = React.useState<string | null>(null)
   const [firstTarget, setFirstTarget] = React.useState<string | null>(null)
+  const [weakTopicSet, setWeakTopicSet] = React.useState<Set<string>>(new Set())
+  const [elapsedSeconds, setElapsedSeconds] = React.useState(0)
+  const [noteOpen, setNoteOpen] = React.useState(false)
+  const [noteBody, setNoteBody] = React.useState("")
+  const [noteSaved, setNoteSaved] = React.useState(false)
+  const [peekHeat, setPeekHeat] = React.useState<
+    Array<{ topic: string; intensity: number; sampleSize: number }>
+  >([])
+  const [attemptCount, setAttemptCount] = React.useState(0)
   const startedAt = React.useRef(0)
   const typing = answer.trim().length > 0
 
   React.useEffect(() => {
     setFirstTarget(readStoredTargets()[0] ?? null)
+    fetch("/api/mastery")
+      .then(async (response) =>
+        response.ok
+          ? ((await response.json()) as {
+              items?: Array<{ subject_type: string; subject_id: string; score: number }>
+            })
+          : { items: [] },
+      )
+      .then((payload) => {
+        setWeakTopicSet(
+          new Set(
+            weakTopicsFromMastery(
+              (payload.items ?? []).map((item) => ({
+                subject_type: item.subject_type as "concept",
+                subject_id: item.subject_id,
+                score: item.score,
+              })),
+            ).map((entry) => entry.topic),
+          ),
+        )
+      })
+      .catch(() => undefined)
   }, [])
+
+  // Thinking timer — calm mono counter until the attempt is submitted.
+  React.useEffect(() => {
+    if (submitted || !detail) return
+    const interval = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt.current) / 1000))
+    }, 1000)
+    return () => window.clearInterval(interval)
+  }, [submitted, detail])
 
   const layers = React.useMemo<Layer[]>(() => {
     const study = detail?.study
@@ -249,8 +292,31 @@ export default function StudyPage() {
       return
     }
     setSubmitted(true)
+    setAttemptCount((count) => count + 1)
     setRevealed(Math.min(1, layers.length))
     setStatus("Attempt saved. Answer layers unlocked.")
+  }
+
+  async function saveNote() {
+    if (!detail || !noteBody.trim()) return
+    const response = await fetch("/api/notes", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        question_id: detail.question.id,
+        body: noteBody.trim(),
+      }),
+    })
+    if (response.status === 401) {
+      setStatus("Sign in to keep notes — your wording is still in the editor.")
+      return
+    }
+    if (response.ok) {
+      setNoteSaved(true)
+      setNoteBody("")
+      setNoteOpen(false)
+      window.setTimeout(() => setNoteSaved(false), 2000)
+    }
   }
 
   async function toggleBookmark() {
@@ -303,6 +369,41 @@ export default function StudyPage() {
 
   const topic = detail?.question.topic ?? null
 
+  // Peek rail heat context for this question's topic at the primary target.
+  React.useEffect(() => {
+    if (!topic || !firstTarget) {
+      setPeekHeat([])
+      return
+    }
+    const controller = new AbortController()
+    fetch(`/api/prep/heat?firm_id=${encodeURIComponent(firstTarget)}`, {
+      signal: controller.signal,
+    })
+      .then(async (response) =>
+        response.ok
+          ? ((await response.json()) as {
+              topics?: Array<{ topic_id: string; intensity: number; sample_size: number }>
+            })
+          : { topics: [] },
+      )
+      .then((payload) => {
+        setPeekHeat(
+          (payload.topics ?? [])
+            .filter((row) => row.topic_id === topic)
+            .map((row) => ({
+              topic: row.topic_id,
+              intensity: row.intensity,
+              sampleSize: row.sample_size,
+            })),
+        )
+      })
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [topic, firstTarget])
+
+  const elapsedLabel = `${Math.floor(elapsedSeconds / 60)}:${String(elapsedSeconds % 60).padStart(2, "0")}`
+  const sessionComplete = revealed === layers.length && layers.length > 0
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -320,12 +421,16 @@ export default function StudyPage() {
         </div>
       </div>
 
-      <article className="space-y-6">
+      <article className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_15rem]">
+        <div className="space-y-6">
         <h2 className="font-display text-4xl leading-tight tracking-tight md:text-5xl">
           {detail?.question.canonical_wording ?? status}
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           {topic ? <MetadataPill>{topicLabel(topic)}</MetadataPill> : null}
+          {topic && weakTopicSet.has(topic) ? (
+            <SemanticPill tone="weak">weak for you</SemanticPill>
+          ) : null}
           {detail?.question.difficulty ? (
             <MetadataPill>{detail.question.difficulty}</MetadataPill>
           ) : null}
@@ -334,6 +439,15 @@ export default function StudyPage() {
             <ProvenanceChip provenance={detail.study.validation.provenance_type} />
           ) : null}
           {bookmarked ? <SemanticPill tone="milestone">Bookmarked</SemanticPill> : null}
+          {noteSaved ? <SemanticPill tone="success">Note saved</SemanticPill> : null}
+          {!submitted && detail ? (
+            <span
+              className="font-mono text-[11px] tracking-wide text-muted-foreground"
+              aria-label="Thinking time"
+            >
+              thinking {elapsedLabel}
+            </span>
+          ) : null}
         </div>
 
         {detail?.bank_signals.length ? (
@@ -376,6 +490,38 @@ export default function StudyPage() {
             </Button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">{RATING_GUIDE}</p>
+          <div className="mt-3 border-t border-border/70 pt-3">
+            {noteOpen ? (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground" htmlFor="study-note">
+                  Note — your own wording (Warren prompts, you write)
+                </label>
+                <textarea
+                  id="study-note"
+                  value={noteBody}
+                  onChange={(event) => setNoteBody(event.target.value)}
+                  className="min-h-20 w-full border border-border bg-transparent p-2.5 text-sm leading-relaxed outline-none focus:border-foreground"
+                  placeholder="How would you say this in an interview?"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" disabled={!noteBody.trim()} onClick={() => void saveNote()}>
+                    Save note
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setNoteOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                onClick={() => setNoteOpen(true)}
+              >
+                Capture your own wording →
+              </button>
+            )}
+          </div>
         </PaperSheet>
 
         <div className="flex items-center gap-3">
@@ -481,12 +627,70 @@ export default function StudyPage() {
           ) : null}
         </div>
 
-        {revealed === layers.length && layers.length > 0 ? (
-          <WarrenCallout mood="celebrating" size={48}>
-            All validated layers reviewed and your attempt is saved — this session now feeds your
-            mastery record and the next pack&apos;s ranking.
-          </WarrenCallout>
+        {sessionComplete ? (
+          <PaperSheet seedKey={`study-close-${detail?.question.id}`} torn={false}>
+            <div className="flex flex-wrap items-center gap-5">
+              <PaperBurst play seedKey={`burst-${detail?.question.id}`} />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">Session close</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  {attemptCount > 0
+                    ? `${attemptCount} attempt${attemptCount === 1 ? "" : "s"} saved this session — mastery updated, next pack re-ranked.`
+                    : "All validated layers reviewed."}{" "}
+                  Next: the {topic ? topicLabel(topic) : "concept"} checkpoint in your module
+                  roadmap.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link href="/learn">
+                    <Button size="sm">Next module checkpoint</Button>
+                  </Link>
+                  <Link href="/progress">
+                    <Button size="sm" variant="outline">
+                      See progress
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+              <Warren mood="celebrating" size={56} />
+            </div>
+          </PaperSheet>
         ) : null}
+        </div>
+
+        <aside className="space-y-5 border-t border-border pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
+          <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+            Mid-session peek
+          </p>
+          {detail?.study?.diagram_asset ? (
+            <DiagramIsland
+              title={detail.study.diagram_asset.title}
+              source={detail.study.diagram_asset.body}
+              a11yFallback={detail.study.diagram_asset.a11y_fallback ?? detail.study.diagram_asset.title}
+            />
+          ) : (
+            <p className="text-xs text-muted-foreground">No diagram for this topic.</p>
+          )}
+          {peekHeat.length > 0 ? (
+            <div className="space-y-1.5">
+              <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
+                Heat context · your target
+              </p>
+              <HeatStrip compact entries={peekHeat} />
+            </div>
+          ) : null}
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p className="font-mono text-[10px] tracking-wide uppercase">Why this question</p>
+            <p>
+              {[
+                topic ? `${topicLabel(topic)} topic` : null,
+                topic && weakTopicSet.has(topic) ? "in your weak set" : null,
+                detail?.question.difficulty ? `${detail.question.difficulty} difficulty` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ") || "Adaptive selection"}
+            </p>
+          </div>
+        </aside>
       </article>
     </div>
   )
