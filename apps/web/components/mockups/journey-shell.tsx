@@ -13,6 +13,36 @@ const JOURNEYS = [
   { href: "/mockups/plan-sim", label: "Plan · Sim" },
 ] as const
 
+/** Full light token set — wins even if html still has .dark from system theme. */
+export const MOCKUP_LIGHT_VARS = {
+  "--paper": "oklch(0.985 0.004 85)",
+  "--ink": "oklch(0.18 0.014 55)",
+  "--graphite": "oklch(0.42 0.016 60)",
+  "--stone": "oklch(0.91 0.01 85)",
+  "--lime": "oklch(0.86 0.18 128)",
+  "--lime-foreground": "oklch(0.2 0.04 130)",
+  "--background": "oklch(0.985 0.004 85)",
+  "--foreground": "oklch(0.18 0.014 55)",
+  "--card": "oklch(0.995 0.002 85)",
+  "--card-foreground": "oklch(0.18 0.014 55)",
+  "--popover": "oklch(0.995 0.002 85)",
+  "--popover-foreground": "oklch(0.18 0.014 55)",
+  "--primary": "oklch(0.22 0.02 55)",
+  "--primary-foreground": "oklch(0.98 0.004 85)",
+  "--secondary": "oklch(0.94 0.008 85)",
+  "--secondary-foreground": "oklch(0.18 0.014 55)",
+  "--muted": "oklch(0.955 0.006 85)",
+  "--muted-foreground": "oklch(0.48 0.015 60)",
+  "--accent": "oklch(0.955 0.015 128)",
+  "--accent-foreground": "oklch(0.18 0.014 55)",
+  "--border": "oklch(0.88 0.008 80)",
+  "--input": "oklch(0.88 0.008 80)",
+  "--ring": "oklch(0.22 0.02 55)",
+  color: "oklch(0.18 0.014 55)",
+  background:
+    "radial-gradient(120% 80% at 100% 0%, oklch(0.97 0.008 85), transparent 55%), oklch(0.985 0.004 85)",
+} as CSSProperties
+
 export function JourneyShell({
   title,
   eyebrow,
@@ -27,22 +57,7 @@ export function JourneyShell({
   techniques: Array<{ part: string; technique: string }>
 }) {
   return (
-    <div
-      className="mockup-surface min-h-screen text-foreground"
-      style={
-        {
-          /* Neutral paper — no green cast */
-          "--paper": "oklch(0.985 0.004 85)",
-          "--background": "oklch(0.985 0.004 85)",
-          "--card": "oklch(0.995 0.002 85)",
-          "--accent": "oklch(0.96 0.02 128)",
-          "--muted": "oklch(0.96 0.006 85)",
-          "--border": "oklch(0.88 0.008 80)",
-          background:
-            "radial-gradient(120% 80% at 100% 0%, oklch(0.97 0.01 85), transparent 55%), var(--paper)",
-        } as CSSProperties
-      }
-    >
+    <div className="mockup-surface min-h-screen" style={MOCKUP_LIGHT_VARS}>
       <MockupThemeLock />
       <MockupSvgFilters />
       <header className="border-b border-border/80">
@@ -51,7 +66,7 @@ export function JourneyShell({
             <p className="font-sans text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
               Concord · {eyebrow}
             </p>
-            <h1 className="font-display mt-1 text-3xl leading-tight tracking-tight md:text-4xl">
+            <h1 className="font-display mt-1 text-3xl leading-tight tracking-tight text-foreground md:text-4xl">
               {title}
             </h1>
           </div>
@@ -80,7 +95,7 @@ export function JourneyShell({
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-10 md:px-6">{children}</main>
+      <main className="mx-auto max-w-3xl px-4 py-10 text-foreground md:px-6">{children}</main>
 
       <footer className="mx-auto max-w-3xl px-4 pb-12 md:px-6">
         <details className="group border-t border-border/80 pt-6">

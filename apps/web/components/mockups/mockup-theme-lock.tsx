@@ -3,26 +3,24 @@
 import * as React from "react"
 import { useTheme } from "next-themes"
 
-/** Mockups are light-paper only — system/dark must not leak. */
+/** Mockups are light-paper only — strip .dark even if system prefers dark. */
 export function MockupThemeLock() {
-  const { theme, setTheme } = useTheme()
-  const previous = React.useRef<string | undefined>(undefined)
-  const locked = React.useRef(false)
+  const { setTheme } = useTheme()
 
   React.useEffect(() => {
-    if (locked.current) return
-    locked.current = true
-    previous.current = theme
     setTheme("light")
-    document.documentElement.classList.remove("dark")
-    document.documentElement.classList.add("light")
-    return () => {
-      if (previous.current && previous.current !== "light") {
-        setTheme(previous.current)
-      }
+    const root = document.documentElement
+    const apply = () => {
+      root.classList.remove("dark")
+      root.classList.add("light")
+      root.style.colorScheme = "light"
     }
-    // Intentionally once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    apply()
+    const obs = new MutationObserver(() => {
+      if (root.classList.contains("dark")) apply()
+    })
+    obs.observe(root, { attributes: true, attributeFilter: ["class"] })
+    return () => obs.disconnect()
   }, [setTheme])
 
   return null
