@@ -16,6 +16,7 @@
     "@ibpe/config": "*",
     "@ibpe/contracts": "*",
     "@ibpe/database": "*",
+    "@ibpe/search": "*",
     "@ibpe/ui": "*",
     "@neondatabase/auth": "0.4.2-beta",
     "@neondatabase/serverless": "^1.0.2",

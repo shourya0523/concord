@@ -1,13 +1,13 @@
-import { MasterySchema } from "@ibpe/contracts";
 import { handleRouteError, respondTyped } from "@/lib/api/http";
 import { MasteryListResponseSchema } from "@/lib/api/schemas";
 import { getSession, isNeonAuthConfigured } from "@/lib/auth/server";
 import { jsonError } from "@/lib/api/http";
+import { listMastery } from "@/lib/data/mastery";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** GET /api/mastery — stub empty list until attempts accumulate. */
+/** GET /api/mastery — live app.mastery_records with stub fallback. */
 export async function GET() {
   try {
     const session = await getSession();
@@ -21,12 +21,7 @@ export async function GET() {
       });
     }
 
-    // Placeholder: real mastery reads go through RLS + app.mastery_records
-    const items = MasterySchema.array().parse([]);
-    return respondTyped(MasteryListResponseSchema, {
-      items,
-      source: "stub",
-    });
+    return respondTyped(MasteryListResponseSchema, await listMastery(session.data.user.id));
   } catch (err) {
     return handleRouteError(err);
   }
