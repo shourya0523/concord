@@ -64,6 +64,14 @@
   --color-heat-3: var(--heat-3);
   --color-heat-4: var(--heat-4);
   --color-weak: var(--weak);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-error: var(--error);
+  --color-error-foreground: var(--error-foreground);
+  --color-streak: var(--streak);
+  --color-streak-foreground: var(--streak-foreground);
+  --color-milestone: var(--milestone);
+  --color-milestone-foreground: var(--milestone-foreground);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -128,6 +136,20 @@
   --heat-3: oklch(0.78 0.15 128);
   --heat-4: oklch(0.72 0.2 128);
   --weak: oklch(0.62 0.14 35);
+
+  /* Concord pastel semantic system (DESIGN.md) */
+  --success: oklch(0.82 0.08 145);
+  --success-foreground: oklch(0.25 0.04 148);
+  --error: oklch(0.78 0.12 25);
+  --error-foreground: oklch(0.28 0.04 28);
+  --streak: oklch(0.84 0.11 75);
+  --streak-foreground: oklch(0.32 0.04 72);
+  --milestone: oklch(0.80 0.10 290);
+  --milestone-foreground: oklch(0.30 0.04 285);
+
+  --ease-settle: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  --ease-calm: ease-out;
 }
 
 .dark {
@@ -203,6 +225,39 @@
 
   ::selection {
     background: color-mix(in oklch, var(--lime) 45%, transparent);
+  }
+}
+
+@keyframes warren-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.02);
+  }
+}
+
+@keyframes warren-pop {
+  0% {
+    transform: scale(0.92);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes settle-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
