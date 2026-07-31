@@ -1,9 +1,9 @@
 # Status: search
 
-State: in_progress → pack/heat shipped (Wave 2)
+State: in_progress → pack/heat + cited brief rewrite shipped (Wave 2)
 Wave: 2
-Branch: `local/ws-search-a9ff`
-Updated: 2026-07-30
+Branch: `local/ws-search-rag-brief-bb32`
+Updated: 2026-07-31
 
 ## Done
 
@@ -13,6 +13,8 @@ Updated: 2026-07-30
 - [x] Facet helpers for topics/domains/provenance/difficulty
 - [x] Pseudo-RAG pack builder: retrieve → heat/weakness filter → rerank → freeze + cite
 - [x] Pack metadata explains weak-topic and heat hits
+- [x] Prep RAG API returns `brief`, `brief_source`, and cited brief chips
+- [x] Gemini session-brief rewrite guarded by API key and cited pack item IDs; template fallback stays deterministic
 - [x] Types aligned with `@ibpe/contracts` (`SearchRequest/Response`, `TopicHeat`, `PseudoRagPack`, `Provenance`)
 - [x] Unit tests + `npm run demo -w @ibpe/search`
 - [x] `reports/search-evaluation.md` started
