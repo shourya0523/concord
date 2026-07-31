@@ -1,6 +1,6 @@
 # Concord — Design Language & Technical Specification
 
-**Status:** Phase 1 mockups in progress — journeys at `/mockups` (awaiting approval before Phase 2)
+**Status:** Phase 1 mockups ready for approval — journeys at `/mockups` (do not start Phase 2 until approved)
 
 ---
 

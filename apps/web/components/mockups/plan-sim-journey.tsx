@@ -33,15 +33,21 @@ export function PlanSimJourney() {
     <div className="space-y-8">
       <ol className="flex flex-wrap gap-2 font-mono text-[11px] tracking-wide uppercase">
         {STEPS.map((s) => (
-          <li
-            key={s}
-            className={
-              step === s
-                ? "rounded-full border border-lime/40 bg-accent px-3 py-1"
-                : "rounded-full border border-transparent px-3 py-1 text-muted-foreground"
-            }
-          >
-            {s}
+          <li key={s}>
+            <button
+              type="button"
+              onClick={() => {
+                if (s === "score") setScored(true)
+                setStep(s)
+              }}
+              className={
+                step === s
+                  ? "rounded-full border border-lime/40 bg-accent px-3 py-1"
+                  : "rounded-full border border-transparent px-3 py-1 text-muted-foreground hover:border-border"
+              }
+            >
+              {s}
+            </button>
           </li>
         ))}
       </ol>
@@ -164,21 +170,30 @@ export function PlanSimJourney() {
 
       {step === "score" ? (
         <section className="space-y-6 animate-[settle-in_280ms_var(--ease-settle)]">
-          <div
-            className="rounded-[1.5rem] bg-card p-6 md:p-10"
-            style={{ filter: scored ? "url(#torn-paper-hero)" : undefined }}
-          >
-            <HandwritingHeadline phrase="You scored 87%!" play={scored} />
-            <p className="font-display mt-4 text-6xl tracking-tight">
-              <Annotate type="circle" show={scored}>
-                87
-              </Annotate>
-              <span className="text-3xl text-muted-foreground"> / 100</span>
-            </p>
-            <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-              Hero torn-paper filter (animated turbulence) — reserved for score reveal only. Number
-              uses calm ease, never bounce.
-            </p>
+          <div className="relative overflow-hidden rounded-[1.5rem] bg-card">
+            {/* Decorative torn edges only — keep score type unfiltered/readable */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-4 bg-card"
+              style={{ filter: scored ? "url(#torn-paper-hero)" : undefined }}
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-card"
+              style={{ filter: scored ? "url(#torn-paper-hero)" : undefined }}
+            />
+            <div className="relative p-6 md:p-10">
+              <HandwritingHeadline phrase="You scored 87%!" play={scored} />
+              <p className="font-display mt-4 text-6xl tracking-tight">
+                <Annotate type="circle" show={scored}>
+                  87
+                </Annotate>
+                <span className="text-3xl text-muted-foreground"> / 100</span>
+              </p>
+              <p className="mt-3 max-w-xl text-sm text-muted-foreground">
+                Torn-paper on edges only — score type stays sharp. Number uses calm ease, never bounce.
+              </p>
+            </div>
           </div>
 
           <RoughFrame seedKey="sim-feedback">

@@ -52,15 +52,18 @@ export function ModeAJourney() {
     <div className="space-y-8">
       <ol className="flex flex-wrap gap-2 font-mono text-[11px] tracking-wide uppercase">
         {STEPS.map((s) => (
-          <li
-            key={s}
-            className={
-              step === s
-                ? "rounded-full border border-lime/40 bg-accent px-3 py-1"
-                : "rounded-full border border-transparent px-3 py-1 text-muted-foreground"
-            }
-          >
-            {s}
+          <li key={s}>
+            <button
+              type="button"
+              onClick={() => setStep(s)}
+              className={
+                step === s
+                  ? "rounded-full border border-lime/40 bg-accent px-3 py-1"
+                  : "rounded-full border border-transparent px-3 py-1 text-muted-foreground hover:border-border"
+              }
+            >
+              {s}
+            </button>
           </li>
         ))}
       </ol>

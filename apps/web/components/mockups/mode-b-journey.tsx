@@ -60,15 +60,18 @@ export function ModeBJourney() {
     <div className="space-y-8">
       <ol className="flex flex-wrap gap-2 font-mono text-[11px] tracking-wide uppercase">
         {STEPS.map((s) => (
-          <li
-            key={s}
-            className={
-              step === s
-                ? "rounded-full border border-lime/40 bg-accent px-3 py-1"
-                : "rounded-full border border-transparent px-3 py-1 text-muted-foreground"
-            }
-          >
-            {s}
+          <li key={s}>
+            <button
+              type="button"
+              onClick={() => setStep(s)}
+              className={
+                step === s
+                  ? "rounded-full border border-lime/40 bg-accent px-3 py-1"
+                  : "rounded-full border border-transparent px-3 py-1 text-muted-foreground hover:border-border"
+              }
+            >
+              {s}
+            </button>
           </li>
         ))}
       </ol>
@@ -176,6 +179,35 @@ export function ModeBJourney() {
           <DiagramCanvas
             title={diagram?.title ?? "Paper LBO sketch"}
             source={diagram?.mermaid}
+            fallback={
+              <svg viewBox="0 0 520 160" className="h-auto w-full max-w-xl" role="img">
+                <title>Sources and uses flow</title>
+                <rect x="8" y="24" width="100" height="40" rx="6" fill="var(--accent)" stroke="var(--ink)" />
+                <text x="58" y="48" textAnchor="middle" className="fill-foreground" style={{ fontSize: 12 }}>
+                  Equity
+                </text>
+                <rect x="8" y="88" width="100" height="40" rx="6" fill="var(--accent)" stroke="var(--ink)" />
+                <text x="58" y="112" textAnchor="middle" className="fill-foreground" style={{ fontSize: 12 }}>
+                  Debt
+                </text>
+                <path d="M110 44 H160" stroke="var(--ink)" strokeWidth="1.5" markerEnd="url(#arrow)" />
+                <path d="M110 108 H160" stroke="var(--ink)" strokeWidth="1.5" />
+                <rect x="160" y="56" width="110" height="44" rx="6" fill="var(--card)" stroke="var(--ink)" />
+                <text x="215" y="82" textAnchor="middle" className="fill-foreground" style={{ fontSize: 12 }}>
+                  HoldCo
+                </text>
+                <path d="M270 78 H320" stroke="var(--ink)" strokeWidth="1.5" />
+                <rect x="320" y="56" width="110" height="44" rx="6" fill="var(--card)" stroke="var(--ink)" />
+                <text x="375" y="82" textAnchor="middle" className="fill-foreground" style={{ fontSize: 12 }}>
+                  Target
+                </text>
+                <path d="M430 78 H470" stroke="var(--ink)" strokeWidth="1.5" />
+                <rect x="470" y="56" width="42" height="44" rx="6" fill="var(--lime)" stroke="var(--ink)" />
+                <text x="491" y="82" textAnchor="middle" className="fill-foreground" style={{ fontSize: 10 }}>
+                  Uses
+                </text>
+              </svg>
+            }
             reducedMotionFallback={
               <table className="w-full text-left text-sm">
                 <caption className="mb-2 font-mono text-[11px] uppercase text-muted-foreground">
