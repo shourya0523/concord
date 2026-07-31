@@ -247,33 +247,71 @@ Use sparingly. Most elevation comes from **borders** and **paper texture**, not 
 
 ### Warren — Fixed-Identity Coach
 
-**Role:** Persistent companion through prep mode (study plan, drills, progress). Not present in mock interviews (interviewers take over).
+**Role:** Persistent companion through prep mode (study plan, drills, progress, Learn). **Not** present as the speaking face in mock interviews (interviewer cast takes over; Warren may return after score).
 
-**Identity:** Fixed character, not procedurally generated. One canonical design.
+**Identity:** Fixed, hand-illustrated character — **never** DiceBear, never procedural seeds, never stock avatar kits. One canonical design owned by Concord.
 
-**Emotional range:** Full sprite-like expressiveness:
-- **Idle/breathing** — subtle ambient loop (pauses during user focus states)
-- **Thinking** — Warren analyzing user's answer
-- **Encouraging** — gentle nudge when stuck
-- **Celebrating** — milestone/streak achievement (bouncy spring animation)
-- **Concerned** — weak topic flagged, consecutive errors
+#### Character brief (locked)
 
-**Animation states:**
-- **Idle/breathing must pause during active-focus states** (e.g. user is typing an answer, reading feedback). Warren should **never compete for attention** while someone is concentrating.
-- Resume at **transitions and reward moments** (answer submitted → score revealed → celebration).
+| Trait | Decision | Why |
+|-------|----------|-----|
+| Form | Human mentor (bust) | Finance seriousness; warmth from illustration, not animal mascot |
+| Archetype | Older coach (~60s), calm authority | Name nods to wise-investor mentor energy; **original character**, not a likeness of any real person |
+| Hair | Balding crown + soft white/grey side hair | Strong silhouette; reads at 40px |
+| Eyes / glasses | Round wire frames **on the eyes** at UI sizes | Forehead-perched glasses only in large hero art — too noisy below 64px |
+| Attire | Navy cardigan over cream collared shirt, **no tie** | Coach ≠ interviewer. Interviewers wear firm attire via DiceBear cast |
+| Outline | Stable ink stroke, editorial flat fills | Matches rough.js paper system without wobbling face geometry |
+| Accent | Lime / streak marks **only** on Celebrating | Never lime skin, never lime cardigan |
 
-**Construction method (to be resolved in Phase 1 mockup):**
-- **SVG-based illustration** with layer swapping (expressions, poses)
-- **Sprite sheet** with frame-based animation
-- **Lottie JSON** animation export from After Effects
-- Prefer SVG or Lottie for web — must be **scalable, performant on mobile**, and support **fixed-seed rendering** so Warren doesn't "wobble" between page loads
+**Voice (copy):** Short, specific, explainable. Never hype. Examples: “GS over-indexes LBO — start there.” / “I’ll wait while you write.”
+
+**Emotional range (layer-swapped, same silhouette):**
+
+| Mood | Face | Prop | When |
+|------|------|------|------|
+| **Idle** | Soft smile, open eyes | — | Ambient; breathing loop |
+| **Thinking** | Flat mouth, slight brow lift | Small thought circle | Ranking / packing / analyzing |
+| **Encouraging** | Warm smile, lifted brows | — | Nudge when stuck |
+| **Celebrating** | Wide smile | Tiny spark marks | State-confirmed milestone only |
+| **Concerned** | Soft frown, inward brows | — | Weak topic / consecutive misses |
+| **Paused** | Neutral, attentive | — | User focused (typing/reading) — **breathing off** |
+
+**Animation:**
+- Idle breathing: subtle scale/translate; **must pause** while `userFocused`
+- Mood changes: instant layer swap (or ≤200ms calm ease) — no morphing that wobbles identity
+- Celebrating: short pop (bounce easing) only after confirmed score
+
+**Construction (Phase 1 decision — locked):**
+- **SVG layer tree** in `apps/web/components/mockups/warren.tsx` (later `@ibpe/ui`)
+- Layers: `body` (cardigan + shirt) → `head` → `hair` → `glasses` → `eyes` → `brows-{mood}` → `mouth-{mood}` → `prop-{mood}`
+- Only eyes/brows/mouth/prop swap per mood; body/head/glasses/hair stay fixed
+- Raster concept sheets live in `apps/web/public/mockups/warren/` for art direction reference — **runtime uses SVG**, not PNG sprites
+- Lottie reserved as future upgrade if motion needs exceed CSS
 
 **Placement:**
-- Appears in **sidebar/header** during prep flows
-- **Inline callouts** next to feedback text (bracket annotation)
-- **Modal/overlay** for milestone celebrations
+- Compact bust (64–88px) beside asides in prep flows
+- Inline with `bracket` annotations
+- Larger (96–120px) only on welcome / milestone moments
+
+**Contrast with interviewer cast:**
+| | Warren | Interviewers |
+|--|--------|----------------|
+| Art | Hand SVG, one identity | DiceBear seeded |
+| Role | Coach / meta | In-scene professionals |
+| Emotion | Full mood set | listening / speaking / evaluating |
+| Attire | Cardigan coach | Firm-coded personas |
+
+**Anti-patterns (reject in review):**
+- Bootstrap / Heroicon / “user circle” placeholders
+- DiceBear or any seeded avatar for Warren
+- Photoreal or 3D head
+- Lime-filled body
+- Competing motion while the user types
+
+Concept sheets (art direction): `/mockups/warren/warren-portrait-idle.png`, `warren-expression-sheet.png`, `warren-silhouette-scale.png`.
 
 ### Interviewer Cast — 3-5 Fixed Named Personas
+
 
 **Role:** Mock interview mode only. Each interviewer has a distinct personality/background (e.g. "Morgan — VP at Goldman Sachs," "Alex — PE Associate at KKR").
 
@@ -1006,7 +1044,7 @@ Every place a heatmap, diagram, roadmap, or AI-citation moment becomes a signatu
    - **Pros:** Simple, predictable
    - **Cons:** Large file size (even with WebP), not scalable (raster), lower quality on retina
 
-**Phase 1 decision:** Build **SVG-based with layer swapping** as primary path. Test Lottie as fallback if animation complexity demands it.
+**Phase 1 decision:** **SVG layer-swap** locked (see §6 character brief + concept sheets under `/mockups/warren/`). Runtime component: `apps/web/components/mockups/warren.tsx`. Lottie only if later motion needs exceed CSS.
 
 **Key constraint:** Warren must **pause breathing loop during user focus states** (typing, reading). Implement via React state: `isUserFocused` → pause CSS animation.
 

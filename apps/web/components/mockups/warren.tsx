@@ -13,6 +13,7 @@ export type WarrenMood =
 
 type WarrenProps = {
   mood?: WarrenMood
+  /** Pause breathing during user focus (typing/reading). */
   userFocused?: boolean
   aside?: string
   className?: string
@@ -20,8 +21,9 @@ type WarrenProps = {
 }
 
 /**
- * Warren — fixed coach identity (DESIGN.md).
- * Older mentor: balding crown, round glasses, navy jacket — readable at 72px.
+ * Warren — Concord's fixed coach sprite.
+ * Art direction: /public/mockups/warren/*.png + DESIGN.md §6.
+ * Construction: stable body/head/glasses; mood swaps brows + mouth + prop only.
  */
 export function Warren({
   mood = "idle",
@@ -33,29 +35,6 @@ export function Warren({
   const reduced = typeof window !== "undefined" ? prefersReducedMotion() : false
   const effective: WarrenMood = userFocused ? "paused" : mood
   const breathe = !userFocused && effective === "idle" && !reduced
-
-  const brow =
-    effective === "concerned"
-      ? "M31 36 Q38 33 45 36"
-      : effective === "celebrating"
-        ? "M31 34 Q38 31 45 34"
-        : "M31 35 Q38 33 45 35"
-  const brow2 =
-    effective === "concerned"
-      ? "M51 36 Q58 33 65 36"
-      : effective === "celebrating"
-        ? "M51 34 Q58 31 65 34"
-        : "M51 35 Q58 33 65 35"
-  const mouth =
-    effective === "celebrating"
-      ? "M40 58 Q48 64 56 58"
-      : effective === "concerned"
-        ? "M40 60 Q48 56 56 60"
-        : effective === "thinking"
-          ? "M42 59 H54"
-          : effective === "encouraging"
-            ? "M40 58 Q48 63 56 58"
-            : "M41 59 Q48 61 55 59"
 
   return (
     <aside
@@ -75,90 +54,7 @@ export function Warren({
               : undefined,
         }}
       >
-        <svg viewBox="0 0 96 96" width={size} height={size} role="img">
-          <title>Warren</title>
-          {/* jacket */}
-          <path
-            d="M20 90 C 28 68, 68 68, 76 90 Z"
-            fill="oklch(0.28 0.03 250)"
-            stroke="var(--ink)"
-            strokeWidth="1.5"
-          />
-          {/* shirt */}
-          <path
-            d="M42 78 L48 90 L54 78 Z"
-            fill="oklch(0.97 0.005 90)"
-            stroke="var(--ink)"
-            strokeWidth="1.2"
-          />
-          {/* neck */}
-          <rect x="44" y="68" width="8" height="12" fill="oklch(0.90 0.03 70)" stroke="var(--ink)" strokeWidth="1" />
-          {/* head */}
-          <ellipse
-            cx="48"
-            cy="46"
-            rx="24"
-            ry="26"
-            fill="oklch(0.90 0.03 70)"
-            stroke="var(--ink)"
-            strokeWidth="1.75"
-          />
-          {/* balding crown highlight */}
-          <ellipse cx="48" cy="28" rx="14" ry="8" fill="oklch(0.94 0.02 70)" />
-          {/* side hair */}
-          <path
-            d="M24 48 C 22 34, 30 24, 38 22"
-            fill="none"
-            stroke="oklch(0.55 0.03 60)"
-            strokeWidth="5"
-            strokeLinecap="round"
-          />
-          <path
-            d="M72 48 C 74 34, 66 24, 58 22"
-            fill="none"
-            stroke="oklch(0.55 0.03 60)"
-            strokeWidth="5"
-            strokeLinecap="round"
-          />
-          {/* round glasses */}
-          <circle cx="38" cy="46" r="9" fill="oklch(0.97 0.01 90 / 0.35)" stroke="var(--ink)" strokeWidth="1.7" />
-          <circle cx="58" cy="46" r="9" fill="oklch(0.97 0.01 90 / 0.35)" stroke="var(--ink)" strokeWidth="1.7" />
-          <path d="M47 46 H49" stroke="var(--ink)" strokeWidth="1.6" />
-          <path d="M29 45 H22" stroke="var(--ink)" strokeWidth="1.4" strokeLinecap="round" />
-          <path d="M67 45 H74" stroke="var(--ink)" strokeWidth="1.4" strokeLinecap="round" />
-          {/* eyes */}
-          <circle cx="38" cy="46" r="2" fill="var(--ink)" />
-          <circle cx="58" cy="46" r="2" fill="var(--ink)" />
-          {/* brows */}
-          <path d={brow} fill="none" stroke="var(--ink)" strokeWidth="1.6" strokeLinecap="round" />
-          <path d={brow2} fill="none" stroke="var(--ink)" strokeWidth="1.6" strokeLinecap="round" />
-          {/* nose */}
-          <path
-            d="M48 48 L46 54 L50 54"
-            fill="none"
-            stroke="var(--ink)"
-            strokeWidth="1.3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {/* mouth */}
-          <path d={mouth} fill="none" stroke="var(--ink)" strokeWidth="1.7" strokeLinecap="round" />
-          {effective === "thinking" ? (
-            <>
-              <circle cx="78" cy="24" r="5" fill="none" stroke="var(--graphite)" strokeWidth="1.4" />
-              <circle cx="86" cy="16" r="3" fill="none" stroke="var(--graphite)" strokeWidth="1.2" />
-            </>
-          ) : null}
-          {effective === "celebrating" ? (
-            <path
-              d="M18 20 L22 12 M28 22 L32 14 M70 20 L74 12"
-              fill="none"
-              stroke="oklch(0.55 0.12 75)"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          ) : null}
-        </svg>
+        <WarrenSvg mood={effective} />
       </div>
       {aside ? (
         <div className="min-w-0 pt-1">
@@ -169,5 +65,152 @@ export function Warren({
         </div>
       ) : null}
     </aside>
+  )
+}
+
+function WarrenSvg({ mood }: { mood: WarrenMood }) {
+  const browIdle = {
+    left: "M30 40 Q38 37 46 40",
+    right: "M50 40 Q58 37 66 40",
+  }
+  const brows =
+    mood === "concerned"
+      ? { left: "M30 41 Q38 38 46 42", right: "M50 42 Q58 38 66 41" }
+      : mood === "celebrating" || mood === "encouraging"
+        ? { left: "M30 38 Q38 35 46 38", right: "M50 38 Q58 35 66 38" }
+        : mood === "thinking"
+          ? { left: "M30 39 Q38 36 46 39", right: "M50 40 Q58 37 66 39" }
+          : browIdle
+
+  const mouth =
+    mood === "celebrating"
+      ? "M38 60 Q48 68 58 60"
+      : mood === "encouraging"
+        ? "M39 60 Q48 65 57 60"
+        : mood === "concerned"
+          ? "M39 62 Q48 58 57 62"
+          : mood === "thinking"
+            ? "M40 61 H56"
+            : mood === "paused"
+              ? "M40 61 Q48 62 56 61"
+              : "M39 60 Q48 63 57 60"
+
+  return (
+    <svg viewBox="0 0 96 96" width="100%" height="100%" role="img">
+      <title>Warren</title>
+
+      {/* —— body (fixed) —— */}
+      <g id="warren-body">
+        <path
+          d="M18 92 C 26 70, 70 70, 78 92 Z"
+          fill="oklch(0.32 0.04 250)"
+          stroke="var(--ink)"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M40 78 L48 92 L56 78 Z"
+          fill="oklch(0.96 0.01 90)"
+          stroke="var(--ink)"
+          strokeWidth="1.3"
+          strokeLinejoin="round"
+        />
+      </g>
+
+      {/* —— neck —— */}
+      <rect
+        x="43"
+        y="68"
+        width="10"
+        height="12"
+        rx="2"
+        fill="oklch(0.88 0.03 70)"
+        stroke="var(--ink)"
+        strokeWidth="1.1"
+      />
+
+      {/* —— head (fixed) —— */}
+      <g id="warren-head">
+        <ellipse
+          cx="48"
+          cy="46"
+          rx="25"
+          ry="27"
+          fill="oklch(0.89 0.03 70)"
+          stroke="var(--ink)"
+          strokeWidth="1.7"
+        />
+        {/* balding crown */}
+        <ellipse cx="48" cy="28" rx="15" ry="9" fill="oklch(0.93 0.02 70)" />
+      </g>
+
+      {/* —— hair sides (fixed) —— */}
+      <g id="warren-hair" fill="oklch(0.78 0.01 85)" stroke="var(--ink)" strokeWidth="1.2">
+        <path d="M23 52 C 20 40, 26 26, 36 22 C 30 34, 28 44, 26 54 Z" />
+        <path d="M73 52 C 76 40, 70 26, 60 22 C 66 34, 68 44, 70 54 Z" />
+      </g>
+
+      {/* —— glasses on eyes (fixed at UI sizes) —— */}
+      <g id="warren-glasses" fill="none" stroke="var(--ink)" strokeWidth="1.7">
+        <circle cx="37" cy="46" r="9.5" />
+        <circle cx="59" cy="46" r="9.5" />
+        <path d="M46.5 46 H49.5" />
+        <path d="M27.5 45 H21" strokeLinecap="round" />
+        <path d="M68.5 45 H75" strokeLinecap="round" />
+      </g>
+
+      {/* —— eyes (fixed pupils; mood doesn't move eyeballs for stability) —— */}
+      <g id="warren-eyes" fill="var(--ink)">
+        <circle cx="37" cy="46" r="2.2" />
+        <circle cx="59" cy="46" r="2.2" />
+      </g>
+
+      {/* —— brows (mood) —— */}
+      <g id={`warren-brows-${mood}`} fill="none" stroke="var(--ink)" strokeWidth="1.7" strokeLinecap="round">
+        <path d={brows.left} />
+        <path d={brows.right} />
+      </g>
+
+      {/* —— nose (fixed) —— */}
+      <path
+        d="M48 48 L45.5 54 L50.5 54"
+        fill="none"
+        stroke="var(--ink)"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* —— mouth (mood) —— */}
+      <path
+        id={`warren-mouth-${mood}`}
+        d={mouth}
+        fill="none"
+        stroke="var(--ink)"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+
+      {/* —— props (mood) —— */}
+      {mood === "thinking" ? (
+        <g id="warren-prop-thinking" fill="none" stroke="var(--graphite)" strokeWidth="1.4">
+          <circle cx="78" cy="22" r="5" />
+          <circle cx="86" cy="14" r="3" />
+        </g>
+      ) : null}
+      {mood === "celebrating" ? (
+        <g
+          id="warren-prop-celebrating"
+          fill="none"
+          stroke="oklch(0.55 0.12 75)"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <path d="M16 22 L20 14" />
+          <path d="M26 24 L30 16" />
+          <path d="M70 20 L74 12" />
+        </g>
+      ) : null}
+    </svg>
   )
 }
