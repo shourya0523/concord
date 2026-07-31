@@ -56,6 +56,12 @@
   --color-ink: var(--ink);
   --color-graphite: var(--graphite);
   --color-stone: var(--stone);
+  --color-chrome: var(--chrome);
+  --color-chrome-hover: var(--chrome-hover);
+  --color-chrome-border: var(--chrome-border);
+  --color-chrome-workspace: var(--chrome-workspace);
+  --color-chrome-text: var(--chrome-text);
+  --color-chrome-muted: var(--chrome-muted);
   --color-lime: var(--lime);
   --color-lime-foreground: var(--lime-foreground);
   --color-heat-0: var(--heat-0);
@@ -96,6 +102,14 @@
   --stone: #d4cec0;
   --lime: #8fbc8f;
   --lime-foreground: #111111;
+
+  /* Chrome — true black / grey (neutral only, DESIGN.md §3) */
+  --chrome: #111111;
+  --chrome-hover: #2a2a2a;
+  --chrome-border: #333333;
+  --chrome-workspace: #1a1a1a;
+  --chrome-text: #e8e8e8;
+  --chrome-muted: #888888;
 
   --background: var(--paper);
   --foreground: var(--ink);

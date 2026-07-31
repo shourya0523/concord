@@ -9,13 +9,13 @@ import {
   MetadataPill,
 } from "@ibpe/ui/components/editorial"
 
-import { TargetSelectIsland, readStoredTargets } from "@/components/target-select-island"
+import { TargetSelectIsland, fetchFirmOptions, readStoredTargets } from "@/components/target-select-island"
 import { TopicHeatIsland } from "@/components/topic-heat-island"
 import { WeakTopicFocusBar } from "@/components/weak-topic-focus-bar"
-import { FIRMS } from "@/lib/mock-data"
 
 export function DashboardIsland() {
   const [targets, setTargets] = React.useState<string[]>([])
+  const [firmNames, setFirmNames] = React.useState<Map<string, { name: string; slug: string }>>(new Map())
   const [mode, setMode] = React.useState<"company_prep" | "concept_learn">("company_prep")
   const [mastery, setMastery] = React.useState<Array<{ score: number; subject_id: string }>>([])
   const [planItems, setPlanItems] = React.useState(0)
@@ -23,6 +23,11 @@ export function DashboardIsland() {
 
   React.useEffect(() => {
     setTargets(readStoredTargets())
+    void fetchFirmOptions().then((options) => {
+      setFirmNames(
+        new Map(options.map((firm) => [firm.id, { name: firm.name, slug: firm.id.replace(/^firm_/, "") }])),
+      )
+    })
     const controller = new AbortController()
     Promise.all([
       fetch("/api/mastery", { signal: controller.signal }),
@@ -53,7 +58,7 @@ export function DashboardIsland() {
     return () => controller.abort()
   }, [])
 
-  const primary = FIRMS.find((f) => f.id === targets[0])
+  const primary = targets[0] ? firmNames.get(targets[0]) : undefined
   const weakCount = mastery.filter((item) => item.score < 0.68).length
   const averageMastery = mastery.length
     ? Math.round((mastery.reduce((sum, item) => sum + item.score, 0) / mastery.length) * 100)

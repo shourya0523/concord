@@ -6,28 +6,43 @@ import { useRouter } from "next/navigation"
 import { TopicHeatmap, type TopicHeatCell } from "@ibpe/ui/components/topic-heatmap"
 
 import { readStoredTargets } from "@/components/target-select-island"
-import {
-  FIRMS,
-  TOPICS,
-  heatFirms,
-  intensityToHeatLevel,
-  WEAK_TOPICS,
-} from "@/lib/mock-data"
+import { sortTopicSlugs, topicLabel } from "@/lib/topics"
+import { weakTopicsFromMastery } from "@/lib/weak-topics"
+import { intensityBand } from "@/components/paper/heat-strip"
 
 type Props = {
   firmIds?: string[]
   compareMode?: boolean
   className?: string
+  onCellsLoaded?: (cells: TopicHeatCell[]) => void
 }
 
-function slugForFirmId(firmId: string): string {
-  return FIRMS.find((f) => f.id === firmId)?.slug ?? "goldman-sachs"
+type HeatPayload = {
+  firms: Array<{ id: string; slug: string; name: string }>
+  topics: Array<{
+    firm_id: string
+    topic_id: string
+    intensity: number
+    sample_size: number
+  }>
+  source?: string
+  note?: string
 }
 
-export function TopicHeatIsland({ firmIds, compareMode = true, className }: Props) {
+function toHeatLevel(intensity: number): 0 | 1 | 2 | 3 | 4 {
+  return intensityBand(intensity)
+}
+
+/**
+ * Firm×topic matrix fed entirely by /api/prep/heat (tagged occurrences) and
+ * /api/mastery (weak overlay). No static firm/topic catalogs.
+ */
+export function TopicHeatIsland({ firmIds, compareMode = true, className, onCellsLoaded }: Props) {
   const router = useRouter()
   const [ids, setIds] = React.useState<string[]>(firmIds ?? [])
   const [cells, setCells] = React.useState<TopicHeatCell[]>([])
+  const [firms, setFirms] = React.useState<Array<{ id: string; label: string }>>([])
+  const [topics, setTopics] = React.useState<Array<{ id: string; label: string }>>([])
   const [status, setStatus] = React.useState<"idle" | "loading" | "ready" | "error">("idle")
 
   React.useEffect(() => {
@@ -37,8 +52,6 @@ export function TopicHeatIsland({ firmIds, compareMode = true, className }: Prop
     }
     setIds(readStoredTargets())
   }, [firmIds])
-
-  const firms = heatFirms(ids)
 
   React.useEffect(() => {
     if (ids.length === 0) {
@@ -50,36 +63,55 @@ export function TopicHeatIsland({ firmIds, compareMode = true, className }: Prop
     const params = new URLSearchParams()
     ids.forEach((id) => params.append("firm_id", id))
     setStatus("loading")
-    fetch(`/api/prep/heat?${params.toString()}`, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Heat request failed (${response.status})`)
-        return (await response.json()) as {
-          topics: Array<{
-            firm_id: string
-            topic_id: string
-            intensity: number
-            sample_size: number
-          }>
-        }
-      })
-      .then((payload) => {
-        const weak = new Set(WEAK_TOPICS.map((topic) => topic.id))
-        const firmMap = new Map(FIRMS.map((firm) => [firm.id, firm]))
-        const topicMap = new Map(TOPICS.map((topic) => [topic.id, topic.label]))
-        setCells(
-          payload.topics.map((row) => ({
+
+    Promise.all([
+      fetch(`/api/prep/heat?${params.toString()}`, { signal: controller.signal }).then(
+        async (response) => {
+          if (!response.ok) throw new Error(`Heat request failed (${response.status})`)
+          return (await response.json()) as HeatPayload
+        },
+      ),
+      fetch("/api/mastery", { signal: controller.signal })
+        .then(async (response) =>
+          response.ok
+            ? ((await response.json()) as {
+                items?: Array<{ score: number; subject_id: string; subject_type: string }>
+              })
+            : { items: [] },
+        )
+        .catch(() => ({ items: [] }) as {
+          items?: Array<{ score: number; subject_id: string; subject_type: string }>
+        }),
+    ])
+      .then(([payload, masteryPayload]) => {
+        const weak = new Set(
+          weakTopicsFromMastery(
+            (masteryPayload.items ?? []).map((item) => ({
+              subject_type: item.subject_type as "concept",
+              subject_id: item.subject_id,
+              score: item.score,
+            })),
+          ).map((entry) => entry.topic),
+        )
+        const slugByFirm = new Map(payload.firms.map((firm) => [firm.id, firm]))
+        const visibleTopics = sortTopicSlugs(
+          payload.topics.map((row) => row.topic_id),
+        ).filter((topic) => topic !== "untagged")
+        const nextCells = payload.topics
+          .filter((row) => row.topic_id !== "untagged")
+          .map((row) => ({
             firmId: row.firm_id,
-            firmLabel:
-              firmMap.get(row.firm_id)?.aliases[0] ??
-              firmMap.get(row.firm_id)?.name ??
-              row.firm_id,
+            firmLabel: slugByFirm.get(row.firm_id)?.name ?? row.firm_id,
             topicId: row.topic_id,
-            topicLabel: topicMap.get(row.topic_id) ?? row.topic_id.replace(/^topic_/, ""),
-            intensity: intensityToHeatLevel(row.intensity),
+            topicLabel: topicLabel(row.topic_id),
+            intensity: toHeatLevel(row.intensity),
             weak: weak.has(row.topic_id),
             count: row.sample_size,
-          })),
-        )
+          }))
+        setFirms(payload.firms.map((firm) => ({ id: firm.id, label: firm.name })))
+        setTopics(visibleTopics.map((topic) => ({ id: topic, label: topicLabel(topic) })))
+        setCells(nextCells)
+        onCellsLoaded?.(nextCells)
         setStatus("ready")
       })
       .catch((error: unknown) => {
@@ -92,7 +124,7 @@ export function TopicHeatIsland({ firmIds, compareMode = true, className }: Prop
   }, [ids.join(",")])
 
   function onCellActivate(cell: TopicHeatCell) {
-    router.push(`/companies/${slugForFirmId(cell.firmId)}?focus=${cell.topicId}`)
+    router.push(`/companies/${cell.firmId.replace(/^firm_/, "")}?focus=${cell.topicId}`)
   }
 
   if (ids.length === 0) {
@@ -110,7 +142,8 @@ export function TopicHeatIsland({ firmIds, compareMode = true, className }: Prop
   if (status === "error" || (status === "ready" && cells.length === 0)) {
     return (
       <p className="border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-        No topic signals are published for this firm set yet. Choose another firm or return later.
+        No tagged topic signals are published for this firm set yet. Occurrence volume still
+        counts toward firm readiness — choose another firm or check back after the next import.
       </p>
     )
   }
@@ -118,7 +151,7 @@ export function TopicHeatIsland({ firmIds, compareMode = true, className }: Prop
   return (
     <TopicHeatmap
       firms={firms}
-      topics={[...TOPICS]}
+      topics={topics}
       cells={cells}
       compareMode={compareMode}
       onCellActivate={onCellActivate}
