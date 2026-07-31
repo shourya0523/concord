@@ -4,7 +4,7 @@
  */
 import { createAuthProxy, isNeonAuthConfigured } from "@/lib/auth/server";
 
-const protect = createAuthProxy({ loginUrl: "/auth/sign-in" });
+const protect = createAuthProxy({ loginUrl: "/sign-in" });
 
 export default protect;
 

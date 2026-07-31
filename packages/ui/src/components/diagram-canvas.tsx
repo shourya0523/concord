@@ -15,9 +15,13 @@ export type DiagramCanvasProps = {
   children?: React.ReactNode
 }
 
+let mermaidId = 0
+
 /**
- * Host for Mermaid / interactive finance diagrams.
- * Stub: shows source in a terminal panel; Wave 2 wires Mermaid renderer.
+ * Host for Mermaid / interactive finance diagrams (DESIGN.md §12 — diagrams
+ * are first-class teaching media). Mermaid is dynamically imported so the
+ * renderer only ships to pages that actually show a diagram. Paper-styled:
+ * cream nodes, ink strokes, Geist labels.
  */
 function DiagramCanvas({
   title = "Diagram",
@@ -28,6 +32,8 @@ function DiagramCanvas({
   children,
 }: DiagramCanvasProps) {
   const [reduced, setReduced] = React.useState(false)
+  const [svg, setSvg] = React.useState<string | null>(null)
+  const [failed, setFailed] = React.useState(false)
 
   React.useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -36,6 +42,47 @@ function DiagramCanvas({
     mq.addEventListener("change", update)
     return () => mq.removeEventListener("change", update)
   }, [])
+
+  React.useEffect(() => {
+    if (!source || reduced) return
+    let cancelled = false
+    const id = `diagram-canvas-${++mermaidId}`
+    void import("mermaid")
+      .then((module) => {
+        const mermaid = module.default
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "strict",
+          theme: "base",
+          themeVariables: {
+            background: "#f7f1e4",
+            primaryColor: "#f7f1e4",
+            primaryBorderColor: "#111111",
+            primaryTextColor: "#111111",
+            lineColor: "#111111",
+            secondaryColor: "#ebe4d4",
+            tertiaryColor: "#ebe4d4",
+            fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif",
+            fontSize: "14px",
+          },
+          flowchart: { htmlLabels: true, curve: "basis" },
+        })
+        return mermaid.render(id, source)
+      })
+      .then((result) => {
+        if (!cancelled) setSvg(result.svg)
+      })
+      .catch((error: unknown) => {
+        console.warn("[diagram] mermaid render failed", error)
+        if (!cancelled) setFailed(true)
+      })
+    return () => {
+      cancelled = true
+      // mermaid leaves an error element in the DOM on parse failures
+      document.getElementById(`d${id}`)?.remove()
+      document.getElementById(id)?.remove()
+    }
+  }, [source, reduced])
 
   if (reduced && reducedMotionFallback) {
     return (
@@ -61,15 +108,21 @@ function DiagramCanvas({
       </figcaption>
       <div className="min-h-[12rem] p-4">
         {children ??
-          fallback ??
-          (source ? (
-            <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
-              {source}
-            </pre>
+          (svg ? (
+            <div
+              className="[&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
+              dangerouslySetInnerHTML={{ __html: svg }}
+            />
+          ) : failed ? (
+            (fallback ?? null)
+          ) : source ? (
+            <p className="text-sm text-muted-foreground">Drawing diagram…</p>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Diagram host ready — attach Mermaid or interactive SVG.
-            </p>
+            (fallback ?? (
+              <p className="text-sm text-muted-foreground">
+                Diagram host ready — attach Mermaid or interactive SVG.
+              </p>
+            ))
           ))}
       </div>
     </figure>
