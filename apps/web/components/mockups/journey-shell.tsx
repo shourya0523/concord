@@ -25,7 +25,7 @@ export const MOCKUP_LIGHT_VARS = {
   "--error": "#e8b4b8",
   "--streak": "#f0d78c",
   "--milestone": "#c4b5e0",
-  "--lime": "#8fbc8f",
+  "--lime": "#b8e046",
   "--lime-foreground": "#1a1a1a",
   "--background": "#1a1a1a",
   "--foreground": "#111111",

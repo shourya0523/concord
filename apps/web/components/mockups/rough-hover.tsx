@@ -8,16 +8,16 @@ import { prefersReducedMotion } from "@/lib/mockups/motion"
 
 type Ann = ReturnType<typeof annotate>
 
-function inkColor(): string {
-  if (typeof window === "undefined") return "#111111"
-  const raw = getComputedStyle(document.documentElement).getPropertyValue("--ink").trim()
-  // rough-notation needs a concrete color; fall back if var unresolved
-  if (!raw || raw.startsWith("oklch") || raw.startsWith("var")) return "#111111"
+/** Lime stroke for line hover accents (DESIGN.md). */
+function limeHoverColor(): string {
+  if (typeof window === "undefined") return "#b8e046"
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--lime").trim()
+  if (!raw || raw.startsWith("oklch") || raw.startsWith("var")) return "#b8e046"
   return raw
 }
 
 /**
- * Hand-drawn box on hover/focus — preferred over glow/ring (DESIGN.md).
+ * Hand-drawn lime box on hover/focus — preferred over glow/ring (DESIGN.md).
  */
 export function RoughHover({
   children,
@@ -42,7 +42,7 @@ export function RoughHover({
     clear()
     const a = annotate(el, {
       type: "box",
-      color: inkColor(),
+      color: limeHoverColor(),
       strokeWidth: 1.5,
       padding,
       animate: !prefersReducedMotion(),
@@ -69,7 +69,7 @@ export function RoughHover({
 }
 
 /**
- * Event-delegation: rough box around hovered buttons in a scope (heatmap cells).
+ * Event-delegation: lime rough box around hovered buttons in a scope (heatmap cells).
  */
 export function InkHoverScope({
   children,
@@ -104,7 +104,7 @@ export function InkHoverScope({
       active.current = btn
       const a = annotate(btn as HTMLElement, {
         type: "box",
-        color: inkColor(),
+        color: limeHoverColor(),
         strokeWidth: 1.4,
         padding: 2,
         animate: !prefersReducedMotion(),

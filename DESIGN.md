@@ -1,6 +1,6 @@
 # Concord — Design Language & Technical Specification
 
-**Status:** Phase 1 mockups ready for approval — journeys at `/mockups` (do not start Phase 2 until approved)
+**Status:** Phase 1 mockups on `main` at `/mockups` — black · grey · cream shell with **lime line-hover accents**. Do not start Phase 2 until approved.
 
 ---
 
@@ -9,65 +9,52 @@
 ### What We're Building On
 
 This is a **monorepo** containing:
-
 - **Existing Python scraper** (`main.py`, `scrapers/`) — Glassdoor interview question collection (**firm signals only**)
 - **Next.js web app** (`apps/web`) — product UI (company rooms, concept labs, heat, pseudo-RAG stubs already scaffolded)
 - **Package ecosystem** — `@ibpe/ui` (shadcn DS + `TopicHeatmap` + `DiagramCanvas`), `@ibpe/contracts`, `@ibpe/database`, `@ibpe/search`, `@ibpe/ai`
 - **Data pipeline** (`src/ibpe_corpus/`) — GitHub Q/A import (teaching truth), Glassdoor occurrence signals, Gemini enrichment
-- **Existing design tokens** — "Editorial Finance Terminal" theme (warm paper / ink / acid-lime) — **to be evolved** into the pastel paper system in this document
-
-
+- **Existing design tokens** — "Editorial Finance Terminal" (warm paper / ink / acid-lime) **evolved** into this doc: black/grey chrome · cream paper · **lime reserved for line hover accents** + pastel data/rewards
 
 ### Product Thesis (Two Equal Modes)
 
-
-| Mode                                   | Focus                                             | Primary inputs                                                                                      | Flagship surfaces                                                              |
-| -------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| **A — Company prep**                   | What Firm X actually asks                         | Glassdoor topic **heat** (occurrence signals) × teaching Q/A ranked by heat ∩ weakness              | Company room, multi-firm heat compare, **pseudo-RAG prep session**             |
+| Mode | Focus | Primary inputs | Flagship surfaces |
+|------|-------|----------------|-------------------|
+| **A — Company prep** | What Firm X actually asks | Glassdoor topic **heat** (occurrence signals) × teaching Q/A ranked by heat ∩ weakness | Company room, multi-firm heat compare, **pseudo-RAG prep session** |
 | **B — Learn (modules + concept labs)** | Master finance concepts via structured curriculum | GitHub corpus + Gemini-enriched **learning modules** + **interactive JS diagrams** + resource rails | Module catalog, module hub (lessons → labs → quiz), concept lab pages, roadmap |
 
-
 **Data rules (binding):**
-
 - GitHub / curated Q/A = **teaching truth** (answers, explanations)
 - Glassdoor = **firm directional signals only** (topic heat, frequency) — never answer text
 - Gemini = **enrichment + session AI** (tags, diagrams drafts, “why this question,” follow-ups) — never uncited firm quotes, never laundered as “reported”
-
-
 
 ### Competitive Framing — IB Vine vs Concord
 
 [IB Vine](https://ibvine.io/) is the closest comparable product. Concord is **not a clone**; the design must express our differentiation.
 
-
-| Capability        | IB Vine                                                             | Concord                                                                                                                                                                                            |
-| ----------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Question bank     | 2,500+ curated Qs; 2,000+ “reported in interviews” across 50+ firms | Teaching corpus (GitHub + validated answers) + Glassdoor as **heat signals**, not answer source                                                                                                    |
-| Firm prep         | Filter practice by bank; bank-specific reported Qs                  | **Company prep rooms** with **visible topic-heat matrix**, multi-firm compare, weakness overlay                                                                                                    |
-| Learning modules  | 40 Learn modules (lessons, flashcards, quizzes, podcasts)           | **Yes — first-class Learn modules** (lessons → concept labs → drills → quiz), differentiated by **interactive JS diagrams**, firm-heat bridges, and apply-to-company-prep CTAs (not podcast-first) |
-| Adaptive practice | Mastery tracking, saved Qs, flashcards                              | **Pseudo-RAG sessions** (heat ∩ weakness ∩ prompt), explainable “why this,” spaced review                                                                                                          |
-| Mocks             | Audio mock library + separate IB Mock (voice AI)                    | Firm-templated **interview simulator** + Warren coach + interviewer cast; AI assists scoring/feedback with citations                                                                               |
-| AI role           | IB Mock voice delivery practice                                     | Gemini for enrichment graphs, session briefs, retrieval reasons, follow-ups — **corpus-grounded**, not open web chat                                                                               |
-| Notes / roadmap   | Personal notes on questions                                         | Notes + bookmarks + **interview-date study plan** mixing company drills + concept checkpoints                                                                                                      |
-
+| Capability | IB Vine | Concord |
+|------------|---------|---------|
+| Question bank | 2,500+ curated Qs; 2,000+ “reported in interviews” across 50+ firms | Teaching corpus (GitHub + validated answers) + Glassdoor as **heat signals**, not answer source |
+| Firm prep | Filter practice by bank; bank-specific reported Qs | **Company prep rooms** with **visible topic-heat matrix**, multi-firm compare, weakness overlay |
+| Learning modules | 40 Learn modules (lessons, flashcards, quizzes, podcasts) | **Yes — first-class Learn modules** (lessons → concept labs → drills → quiz), differentiated by **interactive JS diagrams**, firm-heat bridges, and apply-to-company-prep CTAs (not podcast-first) |
+| Adaptive practice | Mastery tracking, saved Qs, flashcards | **Pseudo-RAG sessions** (heat ∩ weakness ∩ prompt), explainable “why this,” spaced review |
+| Mocks | Audio mock library + separate IB Mock (voice AI) | Firm-templated **interview simulator** + Warren coach + interviewer cast; AI assists scoring/feedback with citations |
+| AI role | IB Mock voice delivery practice | Gemini for enrichment graphs, session briefs, retrieval reasons, follow-ups — **corpus-grounded**, not open web chat |
+| Notes / roadmap | Personal notes on questions | Notes + bookmarks + **interview-date study plan** mixing company drills + concept checkpoints |
 
 **Design implication:** Screens must center **company heat**, **pseudo-RAG packs with citations**, **Learn modules → concept labs (diagram-first)**, and **roadmap/plan urgency**. Active-recall drills live *inside* modules — the product must not *feel* like a bare flashcard app.
 
 ---
 
-
-
 ## 2. Creative Direction
 
 **Imagine Notion, Khan Academy, and Duolingo had a child:**
 
-- **Notion's monochrome editorial discipline** as the resting state (true black/white/grayscale for ~80% of the interface)
+- **Notion's monochrome editorial discipline** as the resting state (**black / grey chrome · cream paper · black ink** for ~80% of the interface)
 - **Notion's information architecture** as the layout base: **left sidebar + single document page**, page title as the only H1, nested pages for flow steps, callouts for Warren — not dashboards, not journey marketing chrome
 - **Khan Academy's tactile hand-drawn warmth** as the illustration texture (rough.js hand-drawn primitives) — used **sparingly** inside content, never as full-page chrome
 - **Duolingo's reward-driven gamification energy** as the emotional engine (streaks, XP, celebrations) — but restrained into a **pastel palette** rather than saturated primaries, so it reads **premium and calm** rather than toy-like
 
 **Layout resting rules (Notion base):**
-
 1. Sidebar = workspace navigation (Company / Learn / Plan + step pages). Main = **cream document** on **true black / grey** chrome (never warm brown, never light-on-light).
 2. One page title. Breadcrumb optional and quiet. No stacked marketing headers.
 3. Warren lives in a **paper callout block**, not a competing hero column.
@@ -75,37 +62,33 @@ This is a **monorepo** containing:
 5. Meta (“hard parts”, Phase labels) stays out of the reading path — sidebar footer at most.
 
 **Interaction (drawing system):**
-
-- Prefer **rough-notation** `box` (hand-drawn outline) for hover/focus on interactive controls and heatmap cells.
+- Prefer **rough-notation `box`** (hand-drawn outline) for hover/focus on interactive controls and heatmap cells.
+- **Line hover accents use lime** (`--lime`) — the drawn box / underline stroke on hover is acid-lime, not black ink and not glow.
 - **Do not** use glow, soft ring, or drop-shadow as the primary hover affordance.
 - Glow remains reserved for rare data callouts (e.g. single weakest heat cell), never for button chrome.
 
 **Paper / torn pages:**
-
-- Resting chrome = **black / charcoal sidebar** against a **cream document**.
+- Resting chrome = **black sidebar** + **dark grey workspace** against a **cream document**.
 - **Paper UI** inside content: cream sheet, rough.js border, optional **torn edge strips** (filter on decorative edges only — never on body text).
 - Static torn filter for sheets; animated hero torn only on score / milestone reveals.
 
-**Settled palette:** Black · grey · cream, with **pastel accents** only for heat / rewards / semantics. Do **not** run light-grey chrome behind a white page (light-on-light) — the cream page must sit on dark grey so foreground reads.
+**Settled palette:** Black · grey · cream, with **lime for line hover accents** and **pastel accents** for heat / rewards / semantics. Do **not** run light-grey chrome behind a white page (light-on-light) — the cream page must sit on dark grey so foreground reads.
 
 This is a **banking interview prep platform** — trust reads through precision, not energy. Numbers stay visually calm. No bounce on financial figures. Hand-drawn aesthetic adds **warmth and approachability** to a high-stakes domain without compromising **editorial rigor**.
 
 ---
 
-
-
 ## 3. Color System
 
+### Settled base — Black / Grey / Cream (+ lime hover lines)
 
-
-### Settled base — Black / Grey / Cream
-
-Contrast model: **black / grey chrome · cream paper · black ink · pastel data**. Chrome is **true neutral** (chroma 0) — no warm brown charcoal.
+Contrast model: **black / grey chrome · cream paper · black ink · lime line-hover · pastel data**.
+Chrome is **true neutral** (chroma 0) — no warm brown charcoal.
 
 ```css
 /* Chrome — true black / grey (neutral only) */
---chrome: #111111;           /* Black sidebar */
---chrome-hover: #2a2a2a;     /* Grey hover */
+--chrome: #000000;           /* Black sidebar */
+--chrome-hover: #2a2a2a;     /* Grey hover fill */
 --chrome-border: #333333;
 --chrome-workspace: #1a1a1a; /* Dark grey canvas behind cream */
 --chrome-text: #e8e8e8;
@@ -117,50 +100,48 @@ Contrast model: **black / grey chrome · cream paper · black ink · pastel data
 --ink: #111111;              /* Black text on cream */
 --graphite: #555555;         /* Grey secondary */
 --stone: #d4cec0;            /* Border on cream */
+
+/* Line hover accent (rough-notation box / underline on hover) */
+--lime: oklch(0.86 0.21 128);
+--lime-foreground: oklch(0.2 0.04 130);
 ```
 
 Primary actions on cream use **black** fill with cream label.
-
+**Hover line marks** (rough-notation `box` / underline drawn around controls & heatmap cells) use **`--lime`** — not ink, not glow.
 Pastel accents (heat, success, error, streak, milestone) stay data/reward-only — see below. They never paint the shell.
 
 ### Semantic Pastel System
 
 Used deliberately (not everywhere, but more generously than "two zones only") for:
-
 - Data visualizations (heatmaps, charts)
 - Reward/feedback micro-interactions (streaks, XP, correctness)
 - All color-coded states (weak topics, mastery levels)
 
 **Soft sage** (success/correct/gain):
-
 ```css
 --success: oklch(0.82 0.08 145);
 --success-foreground: oklch(0.25 0.04 148);
 ```
 
 **Soft coral** (error/incorrect/loss):
-
 ```css
 --error: oklch(0.78 0.12 25);
 --error-foreground: oklch(0.28 0.04 28);
 ```
 
 **Soft amber** (streaks/XP):
-
 ```css
 --streak: oklch(0.84 0.11 75);
 --streak-foreground: oklch(0.32 0.04 72);
 ```
 
 **Soft lavender** (tier/milestone):
-
 ```css
 --milestone: oklch(0.80 0.10 290);
 --milestone-foreground: oklch(0.30 0.04 285);
 ```
 
 **Heat scale** (topic intensity, 0-4):
-
 ```css
 /* Light mode */
 --heat-0: oklch(0.96 0.008 90);   /* No heat / no data */
@@ -173,12 +154,9 @@ Used deliberately (not everywhere, but more generously than "two zones only") fo
 ```
 
 **Weak topic overlay**:
-
 ```css
 --weak: oklch(0.62 0.14 35);  /* Coral-leaning for "needs work" */
 ```
-
-
 
 ### Accessibility Rule (Binding Constraint)
 
@@ -193,7 +171,6 @@ Heatmap cells display numeric intensity **in addition to** background color. Col
 ### Number Calm Rule (Binding Constraint)
 
 Numbers stay visually calm regardless of context:
-
 - **No bounce animation** on financial figures, scores, or percentages
 - **No saturation spikes** when values change
 - Use **calm linear/ease-out** transitions only (see Animation Logic)
@@ -201,11 +178,7 @@ Numbers stay visually calm regardless of context:
 
 ---
 
-
-
 ## 4. Typography System
-
-
 
 ### Fonts
 
@@ -216,12 +189,9 @@ Numbers stay visually calm regardless of context:
 ```
 
 **Role mapping:**
-
 - **Display** (Instrument Serif) — page headlines, section titles, metric numbers
 - **Sans** (Geist) — body text, UI controls, labels
 - **Mono** (Geist Mono) — code, technical labels, data tables, small-caps eyebrows
-
-
 
 ### Scale
 
@@ -241,14 +211,11 @@ micro: 0.75rem (text-xs)
 eyebrow: 0.6875rem / 11px (text-[11px], tracking-[0.14em], uppercase)
 ```
 
-
-
 ### Hierarchy Pattern
 
 Eyebrow (mono, muted) → Display headline (Instrument Serif, foreground) → Body (Geist sans).
 
 Example:
-
 ```
 COMPANY PREP [mono, 11px, muted]
 Goldman Sachs [Instrument Serif, 3rem, ink]
@@ -257,11 +224,7 @@ Goldman Sachs [Instrument Serif, 3rem, ink]
 
 ---
 
-
-
 ## 5. Spacing, Radii, Shadows
-
-
 
 ### Spacing Scale (8px base)
 
@@ -277,8 +240,6 @@ Goldman Sachs [Instrument Serif, 3rem, ink]
 --spacing-10: 4rem;    /* 64px */
 --spacing-12: 6rem;    /* 96px */
 ```
-
-
 
 ### Border Radii
 
@@ -307,11 +268,7 @@ Use sparingly. Most elevation comes from **borders** and **paper texture**, not 
 
 ---
 
-
-
 ## 6. Characters
-
-
 
 ### Warren — Fixed-Identity Coach
 
@@ -321,41 +278,35 @@ Use sparingly. Most elevation comes from **borders** and **paper texture**, not 
 
 #### Character brief (locked)
 
-
-| Trait          | Decision                                            | Why                                                                                                 |
-| -------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Form           | Human mentor (bust)                                 | Finance seriousness; warmth from illustration, not animal mascot                                    |
-| Archetype      | Older coach (~60s), calm authority                  | Name nods to wise-investor mentor energy; **original character**, not a likeness of any real person |
-| Hair           | Balding crown + soft white/grey side hair           | Strong silhouette; reads at 40px                                                                    |
-| Eyes / glasses | Round wire frames **on the eyes** at UI sizes       | Forehead-perched glasses only in large hero art — too noisy below 64px                              |
-| Attire         | Navy cardigan over cream collared shirt, **no tie** | Coach ≠ interviewer. Interviewers wear firm attire via DiceBear cast                                |
-| Outline        | Stable ink stroke, editorial flat fills             | Matches rough.js paper system without wobbling face geometry                                        |
-| Accent         | Lime / streak marks **only** on Celebrating         | Never lime skin, never lime cardigan                                                                |
-
+| Trait | Decision | Why |
+|-------|----------|-----|
+| Form | Human mentor (bust) | Finance seriousness; warmth from illustration, not animal mascot |
+| Archetype | Older coach (~60s), calm authority | Name nods to wise-investor mentor energy; **original character**, not a likeness of any real person |
+| Hair | Balding crown + soft white/grey side hair | Strong silhouette; reads at 40px |
+| Eyes / glasses | Round wire frames **on the eyes** at UI sizes | Forehead-perched glasses only in large hero art — too noisy below 64px |
+| Attire | Navy cardigan over cream collared shirt, **no tie** | Coach ≠ interviewer. Interviewers wear firm attire via DiceBear cast |
+| Outline | Stable ink stroke, editorial flat fills | Matches rough.js paper system without wobbling face geometry |
+| Accent | Lime / streak marks **only** on Celebrating | Never lime skin, never lime cardigan |
 
 **Voice (copy):** Short, specific, explainable. Never hype. Examples: “GS over-indexes LBO — start there.” / “I’ll wait while you write.”
 
 **Emotional range (layer-swapped, same silhouette):**
 
-
-| Mood            | Face                         | Prop                 | When                                              |
-| --------------- | ---------------------------- | -------------------- | ------------------------------------------------- |
-| **Idle**        | Soft smile, open eyes        | —                    | Ambient; breathing loop                           |
-| **Thinking**    | Flat mouth, slight brow lift | Small thought circle | Ranking / packing / analyzing                     |
-| **Encouraging** | Warm smile, lifted brows     | —                    | Nudge when stuck                                  |
-| **Celebrating** | Wide smile                   | Tiny spark marks     | State-confirmed milestone only                    |
-| **Concerned**   | Soft frown, inward brows     | —                    | Weak topic / consecutive misses                   |
-| **Paused**      | Neutral, attentive           | —                    | User focused (typing/reading) — **breathing off** |
-
+| Mood | Face | Prop | When |
+|------|------|------|------|
+| **Idle** | Soft smile, open eyes | — | Ambient; breathing loop |
+| **Thinking** | Flat mouth, slight brow lift | Small thought circle | Ranking / packing / analyzing |
+| **Encouraging** | Warm smile, lifted brows | — | Nudge when stuck |
+| **Celebrating** | Wide smile | Tiny spark marks | State-confirmed milestone only |
+| **Concerned** | Soft frown, inward brows | — | Weak topic / consecutive misses |
+| **Paused** | Neutral, attentive | — | User focused (typing/reading) — **breathing off** |
 
 **Animation:**
-
 - Idle breathing: subtle scale/translate; **must pause** while `userFocused`
 - Mood changes: instant layer swap (or ≤200ms calm ease) — no morphing that wobbles identity
 - Celebrating: short pop (bounce easing) only after confirmed score
 
 **Construction (Phase 1 decision — locked):**
-
 - **SVG layer tree** in `apps/web/components/mockups/warren.tsx` (later `@ibpe/ui`)
 - Layers: `body` (cardigan + shirt) → `head` → `hair` → `glasses` → `eyes` → `brows-{mood}` → `mouth-{mood}` → `prop-{mood}`
 - Only eyes/brows/mouth/prop swap per mood; body/head/glasses/hair stay fixed
@@ -363,24 +314,19 @@ Use sparingly. Most elevation comes from **borders** and **paper texture**, not 
 - Lottie reserved as future upgrade if motion needs exceed CSS
 
 **Placement:**
-
 - Compact bust (64–88px) beside asides in prep flows
 - Inline with `bracket` annotations
 - Larger (96–120px) only on welcome / milestone moments
 
 **Contrast with interviewer cast:**
-
-
-|         | Warren                 | Interviewers                      |
-| ------- | ---------------------- | --------------------------------- |
-| Art     | Hand SVG, one identity | DiceBear seeded                   |
-| Role    | Coach / meta           | In-scene professionals            |
-| Emotion | Full mood set          | listening / speaking / evaluating |
-| Attire  | Cardigan coach         | Firm-coded personas               |
-
+| | Warren | Interviewers |
+|--|--------|----------------|
+| Art | Hand SVG, one identity | DiceBear seeded |
+| Role | Coach / meta | In-scene professionals |
+| Emotion | Full mood set | listening / speaking / evaluating |
+| Attire | Cardigan coach | Firm-coded personas |
 
 **Anti-patterns (reject in review):**
-
 - Bootstrap / Heroicon / “user circle” placeholders
 - DiceBear or any seeded avatar for Warren
 - Photoreal or 3D head
@@ -390,28 +336,24 @@ Use sparingly. Most elevation comes from **borders** and **paper texture**, not 
 Concept sheets (art direction): `/mockups/warren/warren-portrait-idle.png`, `warren-expression-sheet.png`, `warren-silhouette-scale.png`.
 
 **Open polish (direction approved; craft still iterating):**
-
 - Match concept sheets more closely: fuller cheek volume, clearer white side-hair mass, thicker round frames, softer cardigan folds
 - Keep silhouette stable across moods while improving line quality
 - Ship SVG first; consider a single hero PNG only if SVG cannot hit the sheet fidelity at 96px
 - Do **not** regress to DiceBear / stock avatars while polishing
 
-
-
 ### Interviewer Cast — 3-5 Fixed Named Personas
+
 
 **Role:** Mock interview mode only. Each interviewer has a distinct personality/background (e.g. "Morgan — VP at Goldman Sachs," "Alex — PE Associate at KKR").
 
 **Identity:** Fixed named personas, **never procedurally regenerated per session**. User sees the same interviewer face/name if they repeat the same mock type.
 
 **Construction method:** **DiceBear-style modular/seeded avatar system**
-
 - Library: `@dicebear/core` + `@dicebear/styles` (e.g. `adventurer`, `lorelei`, `notionists`)
 - **Fixed seeds** per interviewer (e.g. `seed: "morgan-vp-gs"`)
 - **Deterministic** — same seed = same avatar every time, no wobble
 
 **Behavioral states (deliberately simpler than Warren):**
-
 - **Listening** — neutral, attentive pose
 - **Speaking** — subtle mouth/eye animation or static "speaking" pose
 - **Evaluating** — brief pause before feedback reveal
@@ -419,17 +361,12 @@ Concept sheets (art direction): `/mockups/warren/warren-portrait-idle.png`, `war
 Warren carries the emotional depth of the product; interviewers stay **visually distinct but behaviorally restrained**. They are **professional personas**, not cartoon sidekicks.
 
 **Placement:**
-
 - **Top of mock interview screen** (interviewer card: avatar + name + title + firm)
 - Static or subtle looping animation (not distracting)
 
 ---
 
-
-
 ## 7. Hand-Drawn / Paper System
-
-
 
 ### rough.js — Core Rendering Engine
 
@@ -438,7 +375,6 @@ Warren carries the emotional depth of the product; interviewers stay **visually 
 **Primitives:** line, rectangle, ellipse, circle, polygon, arc, curve, path
 
 **SVG generator pattern:**
-
 ```javascript
 import rough from 'roughjs';
 const rc = rough.svg(svgElement);
@@ -456,7 +392,6 @@ svgElement.appendChild(node);
 Every rough.js element **must use a locked/fixed seed** and be **memoized** (React.useMemo, or cached during SSR) so re-renders don't cause the linework to visibly shift or wobble between renders. The hand-drawn look must feel **stable, not glitchy**.
 
 **Fill styles available:**
-
 - `hachure` (default, parallel hatching)
 - `solid` (filled but with rough edges)
 - `zigzag`, `cross-hatch`, `dots`, `dashed`, `zigzag-line`
@@ -471,19 +406,16 @@ Use `hachure` or `cross-hatch` for shaded areas (drill card backgrounds, emphasi
 
 **Strict semantic map — the same mark must mean the same thing everywhere in the app:**
 
-
-| Mark               | Meaning                                                        | Example usage                                                               |
-| ------------------ | -------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| **Circle**         | Results and numbers (scores, key stats)                        | Final score reveal, milestone count                                         |
-| **Underline**      | A specific phrase within feedback text worth noticing          | "Your DCF assumption was strong"                                            |
-| **Highlight**      | The strong/correct part of the user's own answer during review | User wrote "WACC = rD(1-T)(D/V) + rE(E/V)" — highlight this during feedback |
-| **Strike-through** | A wrong assumption, or a completed study-plan item             | "~~You forgot tax shield~~" or checked-off drill                            |
-| **Box**            | A self-contained unit (formula, definition, callout)           | Formula card, concept definition box                                        |
-| **Bracket**        | Warren's aside commentary next to a block of content           | Sidebar note from Warren                                                    |
-
+| Mark | Meaning | Example usage |
+|------|---------|---------------|
+| **Circle** | Results and numbers (scores, key stats) | Final score reveal, milestone count |
+| **Underline** | A specific phrase within feedback text worth noticing | "Your DCF assumption was strong" |
+| **Highlight** | The strong/correct part of the user's own answer during review | User wrote "WACC = rD(1-T)(D/V) + rE(E/V)" — highlight this during feedback |
+| **Strike-through** | A wrong assumption, or a completed study-plan item | "~~You forgot tax shield~~" or checked-off drill |
+| **Box** | A self-contained unit (formula, definition, callout) | Formula card, concept definition box |
+| **Bracket** | Warren's aside commentary next to a block of content | Sidebar note from Warren |
 
 **API usage pattern:**
-
 ```javascript
 import { annotate, annotationGroup } from 'rough-notation';
 
@@ -499,39 +431,32 @@ annotation.show(); // Triggers draw animation
 ```
 
 **Animation sequencing:**
-
 ```javascript
 const group = annotationGroup([annotation1, annotation2, annotation3]);
 group.show(); // Animates in order
 ```
 
 **When to animate:**
-
 - **On feedback reveal** (after answer is scored, not on submit tap)
 - **On milestone unlock** (celebration moment)
-- **On hover/focus** for interactive controls and heatmap cells → prefer `box` (hand-drawn outline), **not glow/ring**
+- **On hover/focus** for interactive controls and heatmap cells → prefer **`box`** (hand-drawn outline) in **`--lime`**, **not glow/ring** and not black ink stroke
 
 **When NOT to animate:**
-
 - On page load (instant final state, or brief delay before animating key callouts)
 - On list items scrolling in (too expensive, dilutes impact)
 
-`prefers-reduced-motion` **handling (binding constraint):**
+**`prefers-reduced-motion` handling (binding constraint):**
 rough-notation already respects this via `animate: false` config. Ensure all annotation calls check media query:
-
 ```javascript
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 annotate(element, { type: 'circle', animate: !prefersReducedMotion });
 ```
-
-
 
 ### Torn-Paper Edges — SVG Filters
 
 **Effect:** `feTurbulence` + `feDisplacementMap` for organic, torn-paper edge distortion
 
 **Implementation:**
-
 ```svg
 <svg style="position: absolute; width: 0; height: 0;">
   <defs>
@@ -579,7 +504,6 @@ annotate(element, { type: 'circle', animate: !prefersReducedMotion });
 ```
 
 **CSS application:**
-
 ```css
 .drill-card {
   filter: url(#torn-paper-static);
@@ -591,12 +515,11 @@ annotate(element, { type: 'circle', animate: !prefersReducedMotion });
 ```
 
 **Binding constraint (performance):**
-
 - **Bake the effect into static pre-rendered assets** for routine, repeated cards (list items, drill cards). Use a **single shared filter with a fixed seed** applied via CSS.
 - **Reserve the live, dynamically recalculated filter** (`torn-paper-hero` with animated baseFrequency) for **one or two hero moments only** (e.g. final score reveal modal).
 - **Recalculating this live across a scrolling list is a real mobile performance risk.** Test on low-end Android before applying broadly.
 
-`prefers-reduced-motion` **handling:**
+**`prefers-reduced-motion` handling:**
 Disable animated turbulence, fall back to static filter or no filter.
 
 ### Handwriting Text Streaming — Vivus.js Path Draw
@@ -604,23 +527,19 @@ Disable animated turbulence, fall back to static filter or no filter.
 **Library:** `vivus` (npm: `vivus`, dependency-free, uses stroke-dashoffset)
 
 **Use case:** Reserved for **rare, ceremonial, short phrases only**:
-
 - Warren's key one-liners ("Great work!" after milestone)
 - Milestone callout headline ("10-day streak!")
 - Final score reveal headline ("You scored 87%")
 
 **Never applied to:**
-
 - Routine per-question feedback text (too expensive per character, dilutes impact)
 - Body text, labels, or UI controls
 
 **Pattern:**
-
 1. Convert handwriting typeface text to **SVG path outlines** (Illustrator / Figma / online converter)
 2. Ensure paths have `stroke` and `fill: none` (Vivus animates strokes only)
 3. Embed SVG inline or load via `<object>`/`<img>` (inline preferred for scripting)
 4. Initialize Vivus:
-
 ```javascript
 import Vivus from 'vivus';
 
@@ -634,12 +553,10 @@ new Vivus('svg-element-id', {
 **Fallback for routine feedback:**
 Simple fade/slide-up paired with a rough-notation underline. Much cheaper, still on-brand.
 
-`prefers-reduced-motion` **handling:**
+**`prefers-reduced-motion` handling:**
 Skip Vivus animation, show final state instantly.
 
 ---
-
-
 
 ## 8. Animation Logic — Three Easing "Voices"
 
@@ -654,14 +571,11 @@ Applied consistently, **never mixed within the same element type**.
 **Duration:** 280ms (--duration-panel)
 
 **Example:**
-
 ```css
 .drill-card-enter {
   animation: slideUp 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 ```
-
-
 
 ### 2. Bouncy Spring
 
@@ -672,14 +586,11 @@ Applied consistently, **never mixed within the same element type**.
 **Duration:** 400ms (--duration-milestone for big celebrations, --duration-control for smaller)
 
 **Example:**
-
 ```css
 .warren-celebrate {
   animation: bounce 400ms cubic-bezier(0.68, -0.55, 0.27, 1.55);
 }
 ```
-
-
 
 ### 3. Calm Linear/Ease-Out
 
@@ -692,72 +603,62 @@ Applied consistently, **never mixed within the same element type**.
 **Binding constraint:** Numbers **never bounce**, regardless of how positive the change is. Trust reads through precision.
 
 **Example:**
-
 ```css
 .score-number {
   transition: transform 200ms ease-out;
 }
 ```
 
-
-
 ### Animation Rules (Binding Constraints)
 
 1. **Reactions are state-confirmed, never optimistic.** Warren, confetti, and glow effects fire **only after a result is actually confirmed** (e.g. after an answer is scored), never on tap/submit itself.
+
 2. **Expensive effects are budgeted to meaningful moments:**
-  - rough.js redraws → only on state change, memoized otherwise
-  - Live paper filters → 1-2 hero moments max
-  - Handwriting draw-ons → rare ceremonial phrases only
-  - Ambient glow → reserved for specific cells/moments, not always-on
+   - rough.js redraws → only on state change, memoized otherwise
+   - Live paper filters → 1-2 hero moments max
+   - Handwriting draw-ons → rare ceremonial phrases only
+   - Ambient glow → reserved for specific cells/moments, not always-on
+
 3. **Heatmap / control hover:**
-  - Primary affordance = **rough-notation** `box` drawn around the active cell or button
-  - Glow reserved only for the **1 weakest-overlap callout** (static), never as hover chrome
-  - Never always-on glow across a full grid
+   - Primary affordance = **rough-notation `box`** drawn around the active cell or button
+   - Stroke color = **`--lime`** (line hover accent)
+   - Glow reserved only for the **1 weakest-overlap callout** (static), never as hover chrome
+   - Never always-on glow across a full grid
+
 4. **Celebration mechanism varies by context:**
-  - **Hand-drawn paper-burst** (rough.js polygons scattering) for most milestones
-  - **Warren reacting himself** (pose/animation) as alternative payoff
-  - **Never one global confetti effect for everything** — varies by moment
-5. `prefers-reduced-motion` **is a hard requirement:**
-  - Draw-on, bounce, and paper-texture animations collapse to **instant, final-state appearance**
-  - rough-notation already handles this via `animate: false`
-  - Check media query for Vivus, Warren animations, all transitions
+   - **Hand-drawn paper-burst** (rough.js polygons scattering) for most milestones
+   - **Warren reacting himself** (pose/animation) as alternative payoff
+   - **Never one global confetti effect for everything** — varies by moment
+
+5. **`prefers-reduced-motion` is a hard requirement:**
+   - Draw-on, bounce, and paper-texture animations collapse to **instant, final-state appearance**
+   - rough-notation already handles this via `animate: false`
+   - Check media query for Vivus, Warren animations, all transitions
 
 ---
 
-
-
 ## 9. Asset / Library Stack
-
-
 
 ### Core Libraries (Required)
 
-
-| Library            | Version | Role                      | Notes                                            |
-| ------------------ | ------- | ------------------------- | ------------------------------------------------ |
-| `roughjs`          | ^4.6.6  | Hand-drawn SVG primitives | All rough.js calls use fixed seeds + memoization |
-| `rough-notation`   | ^0.5.1  | Annotation marks          | Semantic map enforced (see §7)                   |
-| `vivus`            | ^0.4.6  | SVG path stroke animation | Rare ceremonial text only                        |
-| `@dicebear/core`   | ^10.3.0 | Avatar generation         | Fixed seeds for interviewer cast                 |
-| `@dicebear/styles` | ^10.3.0 | Avatar style definitions  | Suggest `adventurer`, `lorelei`, or `notionists` |
-
-
-
+| Library | Version | Role | Notes |
+|---------|---------|------|-------|
+| `roughjs` | ^4.6.6 | Hand-drawn SVG primitives | All rough.js calls use fixed seeds + memoization |
+| `rough-notation` | ^0.5.1 | Annotation marks | Semantic map enforced (see §7) |
+| `vivus` | ^0.4.6 | SVG path stroke animation | Rare ceremonial text only |
+| `@dicebear/core` | ^10.3.0 | Avatar generation | Fixed seeds for interviewer cast |
+| `@dicebear/styles` | ^10.3.0 | Avatar style definitions | Suggest `adventurer`, `lorelei`, or `notionists` |
 
 ### Supporting Libraries (Optional, To Be Confirmed in Phase 1)
 
-
-| Library                           | Role                                         | Notes                                                               |
-| --------------------------------- | -------------------------------------------- | ------------------------------------------------------------------- |
-| `mermaid`                         | Declarative concept diagrams                 | Primary host inside `DiagramCanvas` for statement links, WACC, etc. |
-| Custom finance diagram components | EV bridge, sources & uses, paper LBO         | When Mermaid is too weak; still versioned defs in contracts         |
-| `d3` or `visx`                    | Charts beyond heat matrices                  | Accuracy-over-time, optional; prefer rough.js overlay aesthetic     |
-| `framer-motion` / `motion`        | React animation orchestration                | Already in `@ibpe/ui` (`motion: ^12.23.12`) — Warren, panels        |
-| AI SDK (`ai` + Gemini)            | Session brief, retrieval reasons, follow-ups | Corpus-grounded only; citations required                            |
-| Lottie (`lottie-web`)             | Warren (if AE export)                        | Fallback if SVG layer-swap insufficient                             |
-
-
-
+| Library | Role | Notes |
+|---------|------|-------|
+| `mermaid` | Declarative concept diagrams | Primary host inside `DiagramCanvas` for statement links, WACC, etc. |
+| Custom finance diagram components | EV bridge, sources & uses, paper LBO | When Mermaid is too weak; still versioned defs in contracts |
+| `d3` or `visx` | Charts beyond heat matrices | Accuracy-over-time, optional; prefer rough.js overlay aesthetic |
+| `framer-motion` / `motion` | React animation orchestration | Already in `@ibpe/ui` (`motion: ^12.23.12`) — Warren, panels |
+| AI SDK (`ai` + Gemini) | Session brief, retrieval reasons, follow-ups | Corpus-grounded only; citations required |
+| Lottie (`lottie-web`) | Warren (if AE export) | Fallback if SVG layer-swap insufficient |
 
 ### Fonts (Already Loaded)
 
@@ -776,8 +677,6 @@ Applied consistently, **never mixed within the same element type**.
 5. **SVG filters** — defined once in root SVG `<defs>`, referenced via CSS `filter: url(#id)`
 
 ---
-
-
 
 ## 10. Required Screens / Flows (Revised — Concord Product Shape)
 
@@ -808,12 +707,9 @@ Dashboard (heat snapshot + weak topics + next session "why")
 
 ---
 
-
-
 ### 10.1 Onboarding
 
 **Screens:**
-
 1. Welcome (Warren intro — product promise: company rooms + concept labs)
 2. Path select: **Company prep** / **Learn (modules)** / Both
 3. Track + role (IB / PE / Both; Analyst / Associate / …)
@@ -822,7 +718,6 @@ Dashboard (heat snapshot + weak topics + next session "why")
 6. Optional focus prompt seed ("Superday — accounting + paper LBO")
 
 **Visual opportunities:**
-
 - Warren entrance (bouncy spring) + handwriting one-liner ("Let's build your prep studio")
 - Firm multi-select as paper chips with rough.js borders (not a plain checkbox list)
 - Selected-firm **preview heat strip** (aggregate intensity bars from Glassdoor signals) — first taste of Mode A signature visual
@@ -832,14 +727,11 @@ Dashboard (heat snapshot + weak topics + next session "why")
 
 ---
 
-
-
 ### 10.2 Dashboard / Home
 
 **Asymmetric editorial composition** (not a card grid). Mode toggle: Company prep ↔ Learn.
 
 **Sections:**
-
 1. Target-company switcher (persisted multi-select)
 2. **Topic-heat snapshot** for selected set (click → full heat compare)
 3. Weak-topic spotlight (heat ∩ weakness) with **explainable "why"**
@@ -849,7 +741,6 @@ Dashboard (heat snapshot + weak topics + next session "why")
 7. Shortcuts: company room, heat compare, **Learn catalog**, module roadmap, simulator
 
 **Visual opportunities:**
-
 - **Heat snapshot** — mini firm×topic matrix (`TopicHeatmap`); glow on 1 weakest cell; hatch = user weakness
 - **"Why this session" callout** — rough-notation `bracket` + Warren aside ("High Goldman LBO heat + your low mastery")
 - Streak number — rough-notation `circle` + soft amber (calm number motion)
@@ -860,14 +751,11 @@ Dashboard (heat snapshot + weak topics + next session "why")
 
 ---
 
-
-
 ### 10.3 Mode A — Company Prep Room (`/companies/[firm]`)
 
 **Flagship surface.** Hero firm identity; topic heat above the fold.
 
 **Sections:**
-
 1. Firm hero (name, track, role filter)
 2. **Dominant topic-heat panel** (this firm) + weakness overlay toggle
 3. CTAs: **Start pseudo-RAG** / Adaptive firm session
@@ -876,7 +764,6 @@ Dashboard (heat snapshot + weak topics + next session "why")
 6. Firm-style resource rail (curated primers)
 
 **Visual opportunities:**
-
 - Full-width heat matrix as the **signature visual** (numeric intensity + hatch for weak; sample-size caption)
 - Click cell → concept lab + scoped RAG start (annotated "focus from heat")
 - Firm-over-index concept strip — rough.js boxes around top 3 concepts
@@ -886,19 +773,15 @@ Dashboard (heat snapshot + weak topics + next session "why")
 
 ---
 
-
-
 ### 10.4 Mode A — Multi-Firm Heat Compare (`/prep/heat`)
 
 **Sections:**
-
 1. Selected firm chips (add/remove)
 2. Aligned topic×firm intensity matrix (compare mode)
 3. Aggregate "shared heat" vs "firm-unique" callouts
 4. Click cell → scoped pseudo-RAG / concept lab
 
 **Visual opportunities:**
-
 - Compare-mode heatmap (existing `compareMode` prop) with rough.js cell borders
 - Shared-heat topics get soft sage underline annotation; firm-unique get bracket callouts
 - Confidence / sparsity warning for low-N PE firms (pattern + mono caption — not color alone)
@@ -907,14 +790,11 @@ Dashboard (heat snapshot + weak topics + next session "why")
 
 ---
 
-
-
 ### 10.5 Mode A — Pseudo-RAG Prep Session (`/prep/rag`) — AI-Grounded Flagship
 
 **Not open chat.** Corpus retrieval pack frozen at session start.
 
 **Screens / beats:**
-
 1. Session brief (target firms + optional focus prompt) — Gemini may rewrite brief **with citations**
 2. Pack preview: ranked Q/A cards each showing **why retrieved** (heat hit / weak topic / semantic match / source id)
 3. Interactive study loop (signature layered reveal — see §10.7)
@@ -922,7 +802,6 @@ Dashboard (heat snapshot + weak topics + next session "why")
 5. Session close: mastery update + refreshed heat∩weakness recommendations
 
 **Visual opportunities:**
-
 - Citation cards (`PseudoRagCitationCard`) with rough.js borders; provenance chips (GitHub / validated / synthesised — never Glassdoor-as-answer)
 - "Why retrieved" reasons as rough-notation `underline` on the matching phrase
 - Pack freeze indicator — rough-notation `box` around pack membership count
@@ -934,8 +813,6 @@ Dashboard (heat snapshot + weak topics + next session "why")
 **AI rules (binding):** Gemini may rewrite brief, explain retrieval, generate follow-ups — always cite pack items; refuse uncited firm-specific claims.
 
 ---
-
-
 
 ### 10.6 Mode B — Learning Modules (`/learn`, `/learn/[module]`)
 
@@ -949,14 +826,11 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
                      Firm-heat bridge / Apply at [Firm]
 ```
 
-
-
 #### 10.6.1 Module catalog (`/learn`)
 
 **Sections:** track filters (IB / PE / Behavioural / Verticals); module cards with progress %; recommended next module (prereqs + weak topics + firm heat).
 
 **Visual opportunities:**
-
 - Module cards — paper texture + rough.js border; progress as calm numeric % (circled when complete)
 - Domain chips (Accounting, Valuation, DCF, M&A, LBO, Markets, Behavioural, …)
 - Recommended module — Warren `bracket` with explainable why (prereq ready + heat∩weakness)
@@ -966,7 +840,6 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 #### 10.6.2 Module hub (`/learn/[module]`)
 
 **Sections:**
-
 1. Module hero (title, estimated time, mastery)
 2. **Module roadmap** — ordered checkpoints: lessons → concept labs → drills → quiz
 3. Lesson list (structured content + lab notes)
@@ -977,7 +850,6 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 8. CTA: Start module session / Continue / Apply at [Firm]
 
 **Visual opportunities:**
-
 - Hand-drawn **module roadmap path** (rough.js): current = lime circle; done = strike-through / crossed-off; locked = dashed
 - Lesson open state — progressive notes with `box` on formulae; Warren pitfall `bracket`
 - Mini heat strip for module topics × user’s target firms
@@ -989,14 +861,11 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 
 ---
 
-
-
 ### 10.7 Mode B — Concept Lab (`/concepts/[slug]`)
 
 **Atomic deep-dive inside modules** (also reachable from company rooms / search). Diagram-first, not text dump.
 
 **Sections:**
-
 1. Concept hero (title, domain, parent module crumb, mastery label)
 2. **Interactive diagram canvas** (Mermaid / finance diagram host) — first-class teaching medium
 3. Progressive lab notes (prerequisites → core → advanced → apply-at-firm)
@@ -1006,7 +875,6 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 7. "Where this shows up" firm bridges (Glassdoor heat relevance)
 
 **Visual opportunities:**
-
 - **DiagramCanvas** as hero visual — step-highlight nodes; rough.js frame; reduced-motion → table/text fallback
 - Parent-module roadmap mini-path (where this concept sits)
 - Prerequisite graph mini-map (nodes = concepts; edges = depends-on)
@@ -1020,8 +888,6 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 
 ---
 
-
-
 ### 10.8 Signature Question Study (Layered Reveal)
 
 **Product-defining interaction** for both modes (adaptive study, RAG turns, concept drills).
@@ -1029,7 +895,6 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 **Before reveal:** large question typography; topic/difficulty; Mode A company context (firm chip, occurrence count, stage); thinking timer; confidence select; optional hint; weak-topic indicator.
 
 **Layered reveal order (not a generic accordion):**
-
 1. Direct answer
 2. Interview-ready explanation
 3. Step-by-step walkthrough
@@ -1044,7 +909,6 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 12. CTAs: "Practise more on this weak topic" / "See how [Firm] asks this"
 
 **Visual opportunities:**
-
 - Each layer settles in with settling ease; annotations fire **after** layer confirmed visible
 - Strong phrases — `highlight` (sage); pitfalls — `underline` (coral); formulae — `box`; Warren tip — `bracket`
 - Diagram slot expands inline (never new tab)
@@ -1055,14 +919,11 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 
 ---
 
-
-
 ### 10.9 Adaptive / Weak-Topic Drills & Concept Drills
 
 **Modes:** adaptive weak-topic; company adaptive (firm heat ∩ weakness); module/concept drill; timed / spaced review.
 
 **Visual opportunities:**
-
 - Session header shows explainable ranking ("low mastery + high GS frequency + due for review") — bracket annotation
 - Mid-session peek: diagram + parent module + heat context without leaving focus
 - Drill summary: accuracy metrics (calm numbers), XP paper-burst, recommended next **module checkpoint**
@@ -1071,14 +932,11 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 
 ---
 
-
-
 ### 10.10 Study Plan / Learning Roadmap
 
 **Not a bare to-do list.** Mixes Mode A company work and Mode B **module lessons/labs** with interview-date urgency.
 
 **Sections:**
-
 1. Interview countdown + weekly goals
 2. Daily assignments: company drills + **Learn module checkpoints** + concept labs + **diagram checkpoints**
 3. Prerequisite-aware module ordering
@@ -1086,7 +944,6 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 5. Mock interview slots
 
 **Visual opportunities:**
-
 - Roadmap timeline (rough.js path) mixing firm chips, **module nodes**, and concept nodes
 - Completed items — `crossed-off` / strike-through
 - Diagram checkpoints — small diagram thumbnails in plan cells
@@ -1097,8 +954,6 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 
 ---
 
-
-
 ### 10.11 Interview Simulator (Firm-Templated)
 
 **Setup:** firm + role → IB or PE stage template (Why banking / Accounting / Paper LBO / …).
@@ -1108,7 +963,6 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 **After:** readiness report biased to weaker stages; links into Concept lab + resources; heat∩weakness refresh.
 
 **Visual opportunities:**
-
 - Interviewer card in context (listening/speaking/evaluating)
 - Stage progress as rough.js path checkpoints
 - Diagram prompt panel reuses DiagramCanvas
@@ -1119,14 +973,11 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 
 ---
 
-
-
 ### 10.12 Notes, Bookmarks, Collections
 
 **Screens:** note editor on question/concept; bookmark lists; custom collections; search saved items.
 
 **Visual opportunities:**
-
 - Notes on paper-textured surface; rough.js border; optional Warren bracket prompts ("Capture your own wording")
 - Bookmarks with provenance + firm chips
 - Collection covers — static torn-paper (baked), not live filter
@@ -1135,12 +986,9 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 
 ---
 
-
-
 ### 10.13 Progress / Analytics
 
 **Sections:**
-
 1. Firm readiness (Mode A) for each target
 2. **Learn module progress** + concept mastery map (Mode B) with weaker topics highlighted
 3. **Heat ∩ weakness matrix** (full target set)
@@ -1150,7 +998,6 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 7. Diagram checkpoint completion
 
 **Visual opportunities:**
-
 - Dual-encoding heat∩weakness matrix (colour = firm heat, hatch = weakness)
 - Mastery map as concept graph or matrix — glow 1–3 weakest only
 - Accuracy line via rough.js linearPath (fixed seed)
@@ -1160,45 +1007,38 @@ Learn catalog → Module hub → Lesson → Concept lab (diagram) → Drill / fl
 
 ---
 
-
-
 ### 10.14 Profile / Settings
 
 Target firms, role, interview date, notifications, theme, account. Utilitarian — no dashboard charts. Firm switcher here mirrors dashboard persistence.
 
 ---
 
-
-
 ## 11. Visual Opportunity Map (Revised)
 
 Every place a heatmap, diagram, roadmap, or AI-citation moment becomes a signature visual — with named data.
 
-
-| Screen             | Visual                         | Data                                                      | Encoding                                                   |
-| ------------------ | ------------------------------ | --------------------------------------------------------- | ---------------------------------------------------------- |
-| **Onboarding**     | Firm preview heat strip        | Aggregate topic intensity for selected firms              | Heat scale bars + N caption                                |
-| **Dashboard**      | Topic-heat snapshot            | Firm×topic intensity for target set                       | Matrix; glow 1 weakest; hatch = weakness                   |
-| **Dashboard**      | "Why this session"             | heatScore + weaknessScore + due flag + explanation string | Warren `bracket` + underline on reason phrases             |
-| **Company room**   | Dominant topic heat            | Per-firm topic intensity, sample size N                   | Full matrix; click → scoped RAG                            |
-| **Heat compare**   | Multi-firm matrix              | Aligned intensities across 2–N firms                      | Compare mode; shared vs unique callouts                    |
-| **Pseudo-RAG**     | Citation / why-retrieved cards | reasons[], citations[], heat/weak/sim scores              | Rough borders; underline on match phrase; provenance chips |
-| **Learn catalog**  | Module progress cards          | module progress %, domain, lesson/diagram counts          | Paper cards; circled % when complete                       |
-| **Module hub**     | Module roadmap path            | Ordered checkpoints (lesson/lab/drill/quiz) + completion  | Rough.js path; circle current; strike done                 |
-| **Module hub**     | Firm heat strip                | Module topics × target firm intensities                   | Mini heat bars + N caption                                 |
-| **Concept lab**    | Interactive diagram            | Versioned Mermaid / finance diagram defs + a11y fallback  | DiagramCanvas; step-highlight; rough frame                 |
-| **Concept lab**    | Parent-module mini-path        | Position of concept inside module roadmap                 | Rough.js mini checkpoints                                  |
-| **Question study** | Layered reveal + diagram slot  | Layer payloads, diagram id, provenance labels             | Sequential settle; highlight/underline/box/bracket         |
-| **Question study** | Resource rail                  | Internal/external links with publisher + why              | Labelled list, not bare URLs                               |
-| **Study plan**     | Mixed Mode A/B roadmap         | Assignments × modules × interview date × heat∩weakness    | Timeline path; module + diagram checkpoint thumbs          |
-| **Simulator**      | Stage path + score hero        | Stage scores, overall readiness                           | Checkpoints; torn-paper-hero; circled score                |
-| **Progress**       | Heat ∩ weakness matrix         | Full target firm×topic + weak flags                       | Dual encoding; glow ≤3 cells                               |
-| **Progress**       | Mastery / accuracy over time   | date → mastery or accuracy                                | Rough.js line; calm ease-out                               |
-| **Progress**       | Study frequency calendar       | date → activity 0–4                                       | Heat cells; circle current week                            |
-
+| Screen | Visual | Data | Encoding |
+|--------|--------|------|----------|
+| **Onboarding** | Firm preview heat strip | Aggregate topic intensity for selected firms | Heat scale bars + N caption |
+| **Dashboard** | Topic-heat snapshot | Firm×topic intensity for target set | Matrix; glow 1 weakest; hatch = weakness |
+| **Dashboard** | "Why this session" | heatScore + weaknessScore + due flag + explanation string | Warren `bracket` + underline on reason phrases |
+| **Company room** | Dominant topic heat | Per-firm topic intensity, sample size N | Full matrix; click → scoped RAG |
+| **Heat compare** | Multi-firm matrix | Aligned intensities across 2–N firms | Compare mode; shared vs unique callouts |
+| **Pseudo-RAG** | Citation / why-retrieved cards | reasons[], citations[], heat/weak/sim scores | Rough borders; underline on match phrase; provenance chips |
+| **Learn catalog** | Module progress cards | module progress %, domain, lesson/diagram counts | Paper cards; circled % when complete |
+| **Module hub** | Module roadmap path | Ordered checkpoints (lesson/lab/drill/quiz) + completion | Rough.js path; circle current; strike done |
+| **Module hub** | Firm heat strip | Module topics × target firm intensities | Mini heat bars + N caption |
+| **Concept lab** | Interactive diagram | Versioned Mermaid / finance diagram defs + a11y fallback | DiagramCanvas; step-highlight; rough frame |
+| **Concept lab** | Parent-module mini-path | Position of concept inside module roadmap | Rough.js mini checkpoints |
+| **Question study** | Layered reveal + diagram slot | Layer payloads, diagram id, provenance labels | Sequential settle; highlight/underline/box/bracket |
+| **Question study** | Resource rail | Internal/external links with publisher + why | Labelled list, not bare URLs |
+| **Study plan** | Mixed Mode A/B roadmap | Assignments × modules × interview date × heat∩weakness | Timeline path; module + diagram checkpoint thumbs |
+| **Simulator** | Stage path + score hero | Stage scores, overall readiness | Checkpoints; torn-paper-hero; circled score |
+| **Progress** | Heat ∩ weakness matrix | Full target firm×topic + weak flags | Dual encoding; glow ≤3 cells |
+| **Progress** | Mastery / accuracy over time | date → mastery or accuracy | Rough.js line; calm ease-out |
+| **Progress** | Study frequency calendar | date → activity 0–4 | Heat cells; circle current week |
 
 **AI surface moments (must stay grounded):**
-
 - Session brief rewrite (RAG) — show citations
 - Retrieval reason blurbs — cite pack item
 - Follow-up questions after reveal — cite concept/pack
@@ -1207,11 +1047,7 @@ Every place a heatmap, diagram, roadmap, or AI-citation moment becomes a signatu
 
 ---
 
-
-
 ## 12. High-Risk Components — Implementation Paths
-
-
 
 ### 12.1 Warren (Coach Character)
 
@@ -1220,31 +1056,31 @@ Every place a heatmap, diagram, roadmap, or AI-citation moment becomes a signatu
 **Resolved implementation paths (ranked by feasibility):**
 
 1. **SVG-based illustration with layer swapping (RECOMMENDED)**
-  - Designed in Figma/Illustrator as layered SVG (base body + swappable expression/pose layers)
-  - Export as React component with state-driven layer visibility
-  - Animation via CSS transitions or `framer-motion` for pose/expression changes
-  - Breathing loop: CSS keyframe animation (subtle translate + scale)
-  - **Pros:** Scalable, low file size, easy to version-control
-  - **Cons:** Manual animation work, no complex skeletal rigging
+   - Designed in Figma/Illustrator as layered SVG (base body + swappable expression/pose layers)
+   - Export as React component with state-driven layer visibility
+   - Animation via CSS transitions or `framer-motion` for pose/expression changes
+   - Breathing loop: CSS keyframe animation (subtle translate + scale)
+   - **Pros:** Scalable, low file size, easy to version-control
+   - **Cons:** Manual animation work, no complex skeletal rigging
+
 2. **Lottie JSON (After Effects export)**
-  - Designed/animated in After Effects, exported via Bodymovin plugin
-  - Rendered via `lottie-web` in React
-  - State-driven playback (play specific frame ranges per emotion)
-  - **Pros:** Professional animation quality, complex motion possible
-  - **Cons:** Larger file size (~50-100KB per animation), less flexible for state changes
+   - Designed/animated in After Effects, exported via Bodymovin plugin
+   - Rendered via `lottie-web` in React
+   - State-driven playback (play specific frame ranges per emotion)
+   - **Pros:** Professional animation quality, complex motion possible
+   - **Cons:** Larger file size (~50-100KB per animation), less flexible for state changes
+
 3. **Sprite sheet**
-  - Traditional frame-based animation (PNG/WebP sprite sheet)
-  - CSS steps() animation or canvas rendering
-  - **Pros:** Simple, predictable
-  - **Cons:** Large file size (even with WebP), not scalable (raster), lower quality on retina
+   - Traditional frame-based animation (PNG/WebP sprite sheet)
+   - CSS steps() animation or canvas rendering
+   - **Pros:** Simple, predictable
+   - **Cons:** Large file size (even with WebP), not scalable (raster), lower quality on retina
 
 **Phase 1 decision:** **SVG layer-swap** locked (see §6 character brief + concept sheets under `/mockups/warren/`). Runtime component: `apps/web/components/mockups/warren.tsx`. Lottie only if later motion needs exceed CSS.
 
 **Key constraint:** Warren must **pause breathing loop during user focus states** (typing, reading). Implement via React state: `isUserFocused` → pause CSS animation.
 
 ---
-
-
 
 ### 12.2 Interviewer Cast (DiceBear Avatars)
 
@@ -1255,7 +1091,6 @@ Every place a heatmap, diagram, roadmap, or AI-citation moment becomes a signatu
 **Library:** `@dicebear/core` + `@dicebear/styles` (npm, current version 10.3.0)
 
 **Example integration:**
-
 ```javascript
 import { createAvatar } from '@dicebear/core';
 import { adventurer } from '@dicebear/styles';
@@ -1285,7 +1120,6 @@ function InterviewerAvatar({ interviewerId }) {
 **Style recommendation:** `adventurer`, `lorelei`, or `notionists` (professional, not cartoonish)
 
 **Behavioral states:** "Listening" / "Speaking" / "Evaluating"
-
 - Implement as **CSS class toggles** (e.g. add slight scale or opacity shift)
 - OR swap to different DiceBear options (e.g. change `mouth` option between states if style supports it)
 - Keep it **subtle** — interviewers are professional personas, not animated sidekicks
@@ -1293,8 +1127,6 @@ function InterviewerAvatar({ interviewerId }) {
 **Binding constraint:** **Fixed seeds per interviewer.** Never randomize seed per session. Same interviewer = same face every time.
 
 ---
-
-
 
 ### 12.3 Hand-Drawn / Paper Aesthetic (rough.js + rough-notation + SVG filters)
 
@@ -1309,7 +1141,6 @@ function InterviewerAvatar({ interviewerId }) {
 **Critical rule:** **Every rough.js call uses a fixed seed + memoization.**
 
 **React pattern:**
-
 ```javascript
 import { useMemo, useRef, useEffect } from 'react';
 import rough from 'roughjs';
@@ -1351,7 +1182,6 @@ function RoughCard({ children }) {
 **Library:** `rough-notation` (npm, 3.8kB gzipped)
 
 **React pattern:**
-
 ```javascript
 import { useEffect, useRef } from 'react';
 import { annotate } from 'rough-notation';
@@ -1408,7 +1238,6 @@ export function SvgFilters() {
 ```
 
 **CSS usage:**
-
 ```css
 .drill-card {
   filter: url(#torn-paper-static);
@@ -1423,8 +1252,6 @@ export function SvgFilters() {
 
 ---
 
-
-
 ### 12.4 Handwriting Text Streaming (Vivus.js)
 
 **Risk:** Converting text to SVG paths, animating stroke-dashoffset, ensuring it's worth the cost.
@@ -1432,11 +1259,11 @@ export function SvgFilters() {
 **Resolved implementation path:**
 
 1. **Convert handwriting typeface text to SVG paths:**
-  - Use Figma/Illustrator "Create Outlines" or online converter (e.g. `font-to-svg`)
-  - Ensure paths have `stroke` and `fill: none`
-  - Export as SVG, embed inline in React component
-2. **Animate with Vivus.js:**
+   - Use Figma/Illustrator "Create Outlines" or online converter (e.g. `font-to-svg`)
+   - Ensure paths have `stroke` and `fill: none`
+   - Export as SVG, embed inline in React component
 
+2. **Animate with Vivus.js:**
 ```javascript
 import { useEffect, useRef } from 'react';
 import Vivus from 'vivus';
@@ -1467,7 +1294,6 @@ function HandwrittenHeadline({ text }) {
 ```
 
 **Binding constraint:** Use **only for rare, ceremonial phrases** (3-8 words max):
-
 - Warren's key one-liners ("Great work!")
 - Milestone headlines ("10-day streak!")
 - Final score reveal ("You scored 87%!")
@@ -1477,8 +1303,6 @@ function HandwrittenHeadline({ text }) {
 **Fallback for routine feedback:** Simple fade/slide-up + rough-notation underline.
 
 ---
-
-
 
 ### 12.5 Heatmaps & Data Visualizations
 
@@ -1493,13 +1317,11 @@ function HandwrittenHeadline({ text }) {
 **Current implementation:** HTML table with Tailwind classes, heat scale backgrounds (`--heat-0` to `--heat-4`)
 
 **Enhancement plan for Phase 2:**
-
 1. Add rough.js border to each cell (memoized, fixed seed per cell)
 2. Add optional glow to weakest 1-3 cells (CSS `box-shadow`, triggered via data prop)
 3. Add diagonal hatch pattern for weak topics (CSS `background-image` or rough.js overlay)
 
 **Example:**
-
 ```tsx
 function TopicHeatmapCell({ cell, isWeakest }) {
   const svgRef = useRef(null);
@@ -1533,7 +1355,6 @@ function TopicHeatmapCell({ cell, isWeakest }) {
 **Library:** `rough.js` for hand-drawn line, or `visx` + rough.js hybrid
 
 **Pattern:**
-
 ```javascript
 import rough from 'roughjs';
 
@@ -1573,34 +1394,47 @@ function AccuracyChart({ data }) {
 
 ---
 
-
-
 ## 13. Guardrails — Binding Constraints (Summary)
 
 These are **not suggestions** — they are **hard rules** that every implementation, mockup, and PR must satisfy.
 
 1. **Pastel hue is never the sole signal.** Every color-coded state pairs with icon, shape, or pattern (accessibility).
+
 2. **Numbers never bounce.** All numeric and financial data updates use calm linear/ease-out, never bouncy spring (trust through precision).
+
 3. **Every rough.js element uses a fixed seed + memoization** so re-renders don't cause visible wobble (stability).
+
 4. **rough-notation semantic map is enforced.** Circle = results/numbers, underline = key phrases, highlight = correct parts of user's answer, strike-through = wrong/completed, box = self-contained unit, bracket = Warren's aside. Code review must check.
+
 5. **Torn-paper filters: static for lists, hero for 1-2 moments max.** Recalculating live filter across scrolling list = mobile performance risk.
+
 6. **Handwriting text streaming (Vivus.js) = rare ceremonial phrases only** (3-8 words). Never routine feedback, body text, or UI labels.
+
 7. **Warren pauses breathing loop during user focus states** (typing, reading). Never competes for attention during concentration.
+
 8. **Reactions are state-confirmed, never optimistic.** Celebrations fire only after result is confirmed (answer scored), not on tap/submit.
+
 9. **Heatmap glow: 1-3 cells max, not always-on across full grid** (performance).
-10. `prefers-reduced-motion` **is a hard requirement.** Draw-on, bounce, and paper-texture animations collapse to instant final-state appearance.
+
+10. **`prefers-reduced-motion` is a hard requirement.** Draw-on, bounce, and paper-texture animations collapse to instant final-state appearance.
+
 11. **Interviewer cast uses fixed seeds.** Same interviewer = same face every time (deterministic).
+
 12. **Warren idle animation resumes at transitions and reward moments**, not during user interaction.
+
 13. **Glassdoor never supplies answer text.** Heat/occurrence signals only. Teaching answers come from GitHub corpus + validated enrichment.
+
 14. **AI outputs must cite corpus/pack items.** No unconstrained web chat; no uncited firm claims; never attribute Gemini to Glassdoor or to a GitHub path that did not contain the text.
+
 15. **Mode A empty firm set is blocked.** Do not silently default to “all firms.”
+
 16. **Diagrams are first-class teaching media.** Concept labs and layered reveals embed interactive JS diagrams (with a11y/table fallback) — not PNG screenshots as the primary experience.
+
 17. **Study plan mixes Mode A + Mode B** with interview-date urgency, **Learn module checkpoints**, and diagram checkpoints — not a generic drill checklist.
+
 18. **Learning modules are first-class.** Mode B is not orphaned concept pages alone — catalog → module hub (lessons → concept labs → drills → quiz) with firm-heat bridges.
 
 ---
-
-
 
 ## 14. Testing & Validation Checklist (Phase 2+)
 
@@ -1617,8 +1451,6 @@ Before any implementation is considered complete:
 
 ---
 
-
-
 ## 15. Next Steps — Phase 1 Approval Gate
 
 **DO NOT PROCEED PAST THIS GATE WITHOUT APPROVAL.**
@@ -1626,8 +1458,7 @@ Before any implementation is considered complete:
 Once this DESIGN.md is approved:
 
 **Phase 1 — Full-Journey Mockups** (not isolated component demos):
-
-1. **Mode A company journey** — company room heat → multi-firm compare → RAG pack (citations + why-retrieved) → layered question study with diagram peek + AI follow-up chips
+1. **Mode A company journey** — company room heat → multi-firm compare → pseudo-RAG pack (citations + why-retrieved) → layered question study with diagram peek + AI follow-up chips
 2. **Mode B Learn journey** — module catalog → module hub roadmap → lesson → concept lab diagram → module drill/quiz → “Apply at [Firm]” bridge into Mode A
 3. **Plan → simulator journey** — interview-date study plan (company + **module** + diagram checkpoints) → firm-templated mock → score reveal + annotated feedback → recommended modules/labs
 
