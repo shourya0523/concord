@@ -1,7 +1,7 @@
 # Programme status
 
 **Phase:** Design Phase 1 rework + Phase 2 build complete — production deployed
-**Base:** `main` @ `29b729b` (merge of `local/design-phase2-rework-c5e3`)
+**Base:** `main` @ `8f61986` (tip of `local/design-phase2-rework-c5e3`)
 **Branch:** `local/design-phase2-rework-c5e3` — merged to `main`
 **Updated:** 2026-07-31
 
