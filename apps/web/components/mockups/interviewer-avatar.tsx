@@ -26,6 +26,18 @@ export const INTERVIEWERS = {
     title: "Analyst",
     firm: "J.P. Morgan",
   },
+  "taylor-associate-blackstone": {
+    seed: "taylor-associate-blackstone",
+    name: "Taylor Quinn",
+    title: "PE Associate",
+    firm: "Blackstone",
+  },
+  "casey-md-evercore": {
+    seed: "casey-md-evercore",
+    name: "Casey Landau",
+    title: "Managing Director",
+    firm: "Evercore",
+  },
 } as const
 
 export type InterviewerId = keyof typeof INTERVIEWERS

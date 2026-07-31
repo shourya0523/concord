@@ -84,8 +84,10 @@ type Phase = "setup" | "starting" | "running" | "reveal"
 /** Deterministic fixed-cast mapping (DESIGN.md §6 — same firm, same face). */
 function interviewerForFirm(firmName: string): InterviewerId {
   const name = firmName.toLowerCase()
+  if (/(blackstone|carlyle)/.test(name)) return "taylor-associate-blackstone"
+  if (/(evercore|lazard|centerview|pjt|moelis)/.test(name)) return "casey-md-evercore"
   if (
-    /(kkr|blackstone|carlyle|apollo|tpg|advent|permira|cvc|bain capital|eqt|vista|thoma bravo|silver lake|warburg)/.test(
+    /(kkr|apollo|tpg|advent|permira|cvc|bain capital|eqt|vista|thoma bravo|silver lake|warburg)/.test(
       name,
     )
   ) {

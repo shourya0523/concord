@@ -6,8 +6,8 @@ import { cn } from "@ibpe/ui/lib/utils"
 import { prefersReducedMotion } from "@/lib/mockups/motion"
 
 type Props = {
-  /** Short ceremonial phrase only (3–8 words). */
-  phrase: "Great work!" | "You scored 87%!" | "10-day streak!" | "Let's build your prep"
+  /** Short ceremonial phrase only (3–8 words) — never routine text. */
+  phrase: string
   className?: string
   play?: boolean
 }
