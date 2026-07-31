@@ -1,8 +1,8 @@
 # Programme status
 
-**Phase:** Design Phase 1 rework + Phase 2 build complete — production deployed
-**Base:** `main` @ `8f61986` (tip of `local/design-phase2-rework-c5e3`)
-**Branch:** `local/design-phase2-rework-c5e3` — merged to `main`
+**Phase:** Design Phase 2 gap-close — integrated on PR branch
+**Base:** `main` @ `3ccd6f2`
+**Branch:** `local/design-frontend-continue-bb32` (PR #34) — absorbs #33 + WS polish
 **Updated:** 2026-07-31
 
 ## Waves
@@ -14,6 +14,7 @@
 | Wave 2 | Complete on main (#19–#22) — product live |
 | Wave 3 | Integrate PR #25 — QA + infra merged; search GET + AppShell `<main>` fixed |
 | Design Phase 1 | Complete — Mode A, Mode B, plan/simulator, and paper workspace deployed |
+| Design Phase 2 gap-close | In PR #34 — items 1–6 shipped; verify/deploy pending merge |
 
 ## Design Phase 1 (2026-07-31)
 
