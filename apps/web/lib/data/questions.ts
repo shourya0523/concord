@@ -305,11 +305,14 @@ async function getPublishedStudyPayload(options: {
 
   // Layers must not repeat: the direct answer often prefixes the expanded
   // explanation — strip it so the interview-ready layer adds new info.
+  // Corpus concise answers are sometimes truncated with an ellipsis, so
+  // compare on the stem (ellipsis removed), not the literal string.
   const concise = row.concise_answer.trim();
   const expanded = row.expanded_explanation.trim();
+  const conciseStem = concise.replace(/(?:\.\.\.|…)+[\s…]*$/u, "").trimEnd();
   const expandedBeyondDirect =
-    concise.length > 0 && expanded.startsWith(concise)
-      ? expanded.slice(concise.length).trim()
+    conciseStem.length > 0 && expanded.startsWith(conciseStem)
+      ? expanded.slice(conciseStem.length).trim()
       : expanded;
   // No synthetic walkthrough: sentence-splitting the explanation duplicates
   // earlier layers. Real structured layers come from the json fields below
