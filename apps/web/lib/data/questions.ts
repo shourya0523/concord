@@ -311,13 +311,16 @@ async function getPublishedStudyPayload(options: {
     concise.length > 0 && expanded.startsWith(concise)
       ? expanded.slice(concise.length).trim()
       : expanded;
-  const stepSource = expandedBeyondDirect || expanded;
-  const stepByStep = stepSource
-    .split(/\n{2,}|(?<=\.)\s+(?=[A-Z])/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .filter((part) => part !== concise)
-    .slice(0, 8);
+  // No content beyond the direct answer → no walkthrough layer (honest),
+  // rather than re-splitting the same sentences into fake steps.
+  const stepByStep = expandedBeyondDirect
+    ? expandedBeyondDirect
+        .split(/\n{2,}|(?<=\.)\s+(?=[A-Z])/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .filter((part) => part !== concise)
+        .slice(0, 8)
+    : [];
 
   return {
     answer_id: row.id,

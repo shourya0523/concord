@@ -49,7 +49,7 @@ authenticated smoke still requires a test user/session.
 
 - Backend: untagged occurrences (`v_firm_topic_heat` returned only `untagged`) fixed via migration 034 — `keyword_rules_v1` tagging of 3,492 occurrences + canonical questions; heat views rewritten; applied to prod Neon.
 - Backend: migration 035 seeds the three-statement diagram + learning resources.
-- Backend: firm id mismatch (mock `firm_gs` vs DB `firm_goldman-sachs`) fixed with `/api/firms` catalog (43 firms + occurrence volumes) and `/api/firms/[firmId]/signals`.
+- Backend: firm id mismatch (mock `firm_gs` vs DB `firm_goldman-sachs`) fixed with `/api/firms` catalog (42 firms + occurrence volumes) and `/api/firms/[firmId]/signals`.
 - Backend: hardcoded weak topics now mastery-derived; mock RAG fallback now reads the published corpus; default targets no longer fabricated.
 - Surfaces: all DESIGN.md §10 screens built — onboarding wizard, dashboard, `/companies` index + room, heat compare insights, RAG pack preview, study layered reveal with inline mermaid, learn catalog + module roadmap, concepts index + lab, plan composer + catch-up, simulator cast + score reveal, progress, settings, landing.
 - Surfaces: real backend wiring throughout; paper design system (black/grey chrome, cream document, pastel semantics, rough-notation semantic map).
