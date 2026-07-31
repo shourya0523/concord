@@ -45,6 +45,7 @@ Prefer [Cloud Agents Secrets](https://cursor.com/dashboard/cloud-agents) with th
 - **Scrapers / batch enrich** run on **workers** / Cloud Agents (`apps/worker`, `python main.py`, `ibpe`) — never as long-running work inside Vercel serverless **request** timeouts.
 - Keep `HTTPS_PROXY`, Glassdoor credentials, Capsolver keys, and cookie / `storage_state` files (`data/glassdoor_state.json`, `data/glassdoor_session.json`) as **server/worker secrets only**. Do **not** put them in Vercel **public** env or any `NEXT_PUBLIC_*` variable.
 - Product env (Neon Postgres, **Neon Auth**, Blob, `CRON_SECRET`) is separate — inventory in `docs/agent-run/env-inventory.md`. See ADR 0006.
+- **Production smoke (Wave 3):** `BASE_URL=https://concord-umber.vercel.app bash scripts/prod_smoke.sh` — record results in `reports/deployment-report.md`. Worker import health: see `docs/deployment/workers.md` (no Glassdoor crawl in GitHub Actions by default).
 
 **Cloudflare / captcha (supported approach — ADR 0006):** Automated Selenium/Google OAuth often still hits Cloudflare on Indeed (`secure.indeed.com`) from **datacenter IPs**. We **do not** rely on BFF + residential proxy for normal dataset updates.
 

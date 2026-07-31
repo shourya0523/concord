@@ -8,6 +8,8 @@
 |------|--------|-------------|---------|
 | `001_init.sql` | **SQLite** | Optional mirror; `src/ibpe_corpus/storage/db.py` already creates the same tables via SQLAlchemy `METADATA.create_all` | Teaching corpus jobs / local SQLite file |
 | `010_neon_*.sql` onward | **Neon Postgres** | `psql "$DATABASE_URL" -f …` or package scripts | Product app, published views, Wave 2+ |
+| `033_rag_embeddings.sql` | **Neon + pgvector** | Real RAG document embeddings | Search / prep packs |
+
 
 Do **not** apply Neon migrations to the SQLite corpus DB. Do **not** apply `001_init.sql` to Neon (uses `PRAGMA` / SQLite types).
 

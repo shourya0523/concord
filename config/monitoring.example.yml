@@ -1,22 +1,33 @@
-# Monitoring wiring stub (Workstream J — Wave 1)
-# Copy ideas into real provider configs in Wave 3; do not commit secrets.
+# Monitoring wiring stub (Workstream J — Wave 3)
+# Copy ideas into real provider configs; do not commit secrets.
 
 product:
   platform: vercel
+  production_url: https://concord-umber.vercel.app
   runtime_logs: true
+  smoke_script: scripts/prod_smoke.sh
   error_tracker:
-    provider: sentry  # or equivalent
+    provider: sentry  # or equivalent — NOT provisioned yet
     env:
       - SENTRY_DSN          # server-only
       # never NEXT_PUBLIC_ for scrape-related data
-  healthcheck_path: /api/health  # backend Wave 2
+  healthcheck_path: /api/health
+  # Live probe (2026-07-30): ok=true, auth=stub, database=unavailable until Neon env set
 
 workers:
   schedule_workflow: .github/workflows/worker-schedule.yml
+  dockerfile: apps/worker/Dockerfile
+  health_command: >
+    python -c "from pathlib import Path; import ibpe_corpus; assert Path('scrapers').is_dir(); assert Path('main.py').is_file(); print('worker_health_ok')"
   success_signal: exit_code_zero
+  unattended_glassdoor_in_actions: false
   alerts:
     - scrape_block_rate
     - enrich_job_failure
+
+backups:
+  neon_pitr: pending_neon_provision
+  blob_raw_artefacts: pending_token_verify
 
 secrets_hygiene:
   forbid_public_prefixes:
@@ -26,3 +37,5 @@ secrets_hygiene:
     - GEMINI_API_KEY
     - BLOB_READ_WRITE_TOKEN
     - DATABASE_URL
+    - NEON_AUTH_COOKIE_SECRET
+    - SENTRY_DSN

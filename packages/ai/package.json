@@ -8,8 +8,12 @@
     ".": "./src/index.ts"
   },
   "peerDependencies": {
-    "ai": "^6.0.0",
+    "ai": "^7.0.44",
     "zod": "^3.23.0"
   },
-  "description": "Stub: AI SDK / Gateway helpers for Gemini enrichment (coordinate with answers workstream)"
+  "description": "AI SDK / Gateway helpers for Gemini enrichment + real RAG embeddings",
+  "dependencies": {
+    "@ai-sdk/google": "^4.0.29",
+    "ai": "^7.0.44"
+  }
 }

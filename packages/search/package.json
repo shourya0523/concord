@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Hybrid search, firm topic heat, and pseudo-RAG pack builder (Wave 2)",
+  "description": "Hybrid search, firm topic heat, and real RAG (embedding) packs",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -11,6 +11,7 @@
     "./heat": "./src/heat.ts",
     "./search": "./src/search.ts",
     "./pack": "./src/pack.ts",
+    "./rag": "./src/rag.ts",
     "./facets": "./src/facets.ts",
     "./corpus": "./src/corpus.ts"
   },
@@ -20,7 +21,9 @@
     "demo": "tsx scripts/demo.ts"
   },
   "dependencies": {
-    "@ibpe/contracts": "*"
+    "@ai-sdk/google": "^4.0.29",
+    "@ibpe/contracts": "*",
+    "ai": "^7.0.44"
   },
   "peerDependencies": {
     "zod": "^3.23.0"

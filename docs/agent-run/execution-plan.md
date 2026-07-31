@@ -22,25 +22,21 @@
 | `ibpe-answers` | `local/ws-answers-a9ff` | Gemini enrich job skeleton + validators; provenance labels |
 | `ibpe-infra` | `local/ws-infra-a9ff` | CI green for monorepo stubs; vercel.json scaffold; env inventory |
 
-## Wave 2 (after foundation gate)
+## Wave 2 (after foundation gate) — DONE on main
 
-- `ibpe-frontend` — company rooms + concept labs
-- `ibpe-backend` — APIs + Neon Auth
-- `ibpe-search` — hybrid search + pseudo-RAG retrieval
+- [x] `ibpe-frontend` — company rooms + concept labs (#19)
+- [x] `ibpe-backend` — APIs + Neon Auth (#20)
+- [x] `ibpe-search` — hybrid search + pseudo-RAG retrieval (#21)
+- [x] Integrate Wave 2 PR (#22)
 
-## Wave 3
+## Wave 3 — DONE (integrate on `local/orchestrator-wave3-d1de`)
 
-- `ibpe-qa` — `/verification` critical paths
-- `ibpe-infra` — preview → prod promote
+- [x] `ibpe-qa` — product + release gates; reports + `scripts/qa_product_smoke.sh`
+- [x] `ibpe-infra` — prod smoke; monitoring/backups docs; worker health
+- [x] Orchestrator integrate + GET `/api/search` coerce + AppShell `<main>`
 
 ## Integration cadence
 
 After Wave 1 returns: merge architecture → database → design-system → infra first; rebase data/answers/glassdoor; open integration PR to main; then Wave 2.
 
-
-## Wave 2 status (2026-07-30)
-
-- [x] Wave 1 on main (#15)
-- [x] ADR 0006 on main (#16)
-- [ ] Parallel spawn: frontend, backend, search
-- [ ] Integrate Wave 2 PR
+After Wave 2 on main: spawn Wave 3 QA + infra in parallel; merge infra docs carefully with QA reports; do not block on Glassdoor credentials.

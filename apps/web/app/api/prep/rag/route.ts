@@ -12,7 +12,7 @@ import { buildPrepRagPack } from "@/lib/data/prep";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** POST /api/prep/rag — pseudo-RAG pack over curated corpus + heat. */
+/** POST /api/prep/rag — real RAG pack (embeddings + heat) with lexical fallback. */
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));

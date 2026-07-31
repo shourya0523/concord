@@ -17,6 +17,7 @@ import {
 } from "@/lib/mock-data";
 import { loadBankQuestions } from "./bank-fallback";
 import { getFirmTopicHeat } from "./firms";
+import { buildRealPrepRagPack } from "./rag";
 
 function staticTeachingDocuments(): TeachingDocument[] {
   const conceptDocs: TeachingDocument[] = CONCEPTS.map((concept) => ({
@@ -201,22 +202,19 @@ export async function buildPrepRagPack(
     input.query?.trim() ||
     `Prepare me for ${input.firm_ids.join(", ")} technical interviews`;
   const heatResponse = await getMultiFirmHeat(input.firm_ids);
-  const publishedDocs = await loadPublishedTeachingDocuments();
-  const documents = [...publishedDocs, ...staticTeachingDocuments()];
 
-  const result = buildPseudoRagPack({
+  const real = await buildRealPrepRagPack({
     query,
     firm_ids: input.firm_ids,
     weak_topics: input.weak_topics,
     limit: input.limit,
-    documents,
     heat: heatResponse.topics,
   });
 
   return {
-    pack: result.pack,
-    explanations: result.metadata.explanations,
-    hits: result.hits.map((hit) => ({
+    pack: real.pack,
+    explanations: real.explanations,
+    hits: real.hits.map((hit) => ({
       id: hit.id,
       title: hit.title,
       snippet: hit.snippet,
@@ -226,13 +224,11 @@ export async function buildPrepRagPack(
       concept_ids: hit.concept_ids,
       metadata: hit.metadata,
     })),
-    source: publishedDocs.length ? "published" : "stub",
+    source: real.source,
     notes: [
-      ...result.metadata.notes,
+      ...real.notes,
       heatResponse.note,
-      publishedDocs.length
-        ? "Teaching docs include published validated answers."
-        : "Teaching docs use static concept/resource seeds until published answers are available.",
+      `RAG backend: ${real.backend}`,
     ].filter((note): note is string => Boolean(note)),
   };
 }

@@ -1,24 +1,23 @@
 /**
- * Stub AI helpers for IB/PE Gemini enrichment (Workstream H).
+ * AI helpers for IB/PE Gemini enrichment + real RAG embeddings.
  *
- * Prefer AI Gateway model strings. Structured enrich schema mirrors
- * Python `EnrichmentProposal` — keep in sync when expanding.
- *
- * Usage (when `ai` is installed in the app):
- *
- * ```ts
- * import { generateText, Output } from "ai";
- * import { EnrichmentProposalSchema, DEFAULT_ENRICH_MODEL } from "@ibpe/ai";
- *
- * const { output } = await generateText({
- *   model: DEFAULT_ENRICH_MODEL,
- *   output: Output.object({ schema: EnrichmentProposalSchema }),
- *   prompt: "...",
- * });
- * // output.provenance === "gemini_synthesised"
- * ```
+ * Embeddings use `@ai-sdk/google` with `GEMINI_API_KEY` /
+ * `GOOGLE_GENERATIVE_AI_API_KEY`. Prefer AI Gateway model strings on Vercel.
  */
 import { z } from "zod";
+
+export {
+  DEFAULT_EMBEDDING_DIMS,
+  DEFAULT_EMBEDDING_MODEL,
+  DEFAULT_RAG_GENERATE_MODEL,
+  cosineSimilarity,
+  embedText,
+  embedTexts,
+  embeddingModel,
+  googleApiKey,
+  isEmbeddingConfigured,
+  toPgVectorLiteral,
+} from "./embeddings.js";
 
 /** Newest stable flash-class Gemini via AI Gateway (fetch models before bumping). */
 export const DEFAULT_ENRICH_MODEL = "google/gemini-2.5-flash";
@@ -88,7 +87,6 @@ export const EnrichmentProposalSchema = z.object({
   diagram_drafts: z.array(DiagramDraftSchema).default([]),
   resource_drafts: z.array(ResourceDraftSchema).default([]),
   confidence: z.number().min(0).max(1).default(0.5),
-  /** Hard-coded product rule — never glassdoor / github_source. */
   provenance: z.literal("gemini_synthesised").default("gemini_synthesised"),
   model_version: z.string(),
   prompt_version: z.string(),

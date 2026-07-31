@@ -10,9 +10,11 @@
 
 ## Prerequisites
 
-1. Vercel CLI authenticated: `vercel login` then `vercel whoami`
+1. Vercel CLI authenticated: `vercel login` then `vercel whoami` (or `VERCEL_TOKEN` in CI / Cloud Agents)
 2. Team selected: `vercel teams ls` / `vercel teams switch`
 3. Next.js app present under `apps/web` with `package.json` `build` script
+
+**Wave 3 note (2026-07-30):** production is already live at https://concord-umber.vercel.app. Agent runs without `VERCEL_TOKEN` can still smoke that public URL (`scripts/prod_smoke.sh`) but cannot `vercel env ls` / `promote` / re-link. Team alias `concord-shourya0523s-projects.vercel.app` may require Vercel Deployment Protection SSO.
 
 ## Link (monorepo)
 
@@ -92,6 +94,14 @@ Record URLs in `reports/deployment-report.md`.
 
 Pin CLI version in CI (`npm install -g vercel@X.Y.Z`); use `--yes` and prefer `vercel build` + `vercel deploy --prebuilt` for gated promote.
 
-## Crons (planned — Wave 2+)
+## Crons (planned)
 
 Short Vercel Cron handlers may **enqueue** worker jobs only (auth with `CRON_SECRET`). They must not run `python main.py batch` or browser scrapes. Example path (not wired yet): `/api/cron/enqueue-scrape`.
+
+## Production smoke
+
+```bash
+BASE_URL=https://concord-umber.vercel.app bash scripts/prod_smoke.sh
+```
+
+Record results in `reports/deployment-report.md`.

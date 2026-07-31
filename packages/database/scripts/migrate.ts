@@ -25,6 +25,7 @@ const FILES = [
   "030_neon_rls.sql",
   "031_neon_auth_user_id.sql",
   "032_learning_flows.sql",
+  "033_rag_embeddings.sql",
 ] as const;
 
 function splitSql(sqlText: string): string[] {
