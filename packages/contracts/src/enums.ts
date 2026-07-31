@@ -120,6 +120,7 @@ export const PracticeSessionModeEnum = z.enum([
   "concept",
   "adaptive_weak",
   "pseudo_rag",
+  "simulator",
 ]);
 export type PracticeSessionMode = z.infer<typeof PracticeSessionModeEnum>;
 
