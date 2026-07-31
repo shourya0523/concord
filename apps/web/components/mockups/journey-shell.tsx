@@ -8,51 +8,51 @@ import { MockupSvgFilters } from "@/components/mockups/svg-filters"
 import { MockupThemeLock } from "@/components/mockups/mockup-theme-lock"
 
 /**
- * Settled palette (DESIGN.md §3): black/charcoal chrome · cream paper · black ink · pastel data.
- * Dark sidebar vs cream document — no light-on-light.
+ * Settled palette: BLACK · GREY · cream · pastel accents.
+ * Chrome is true neutral black/grey (chroma 0) — never warm brown charcoal.
  */
 export const MOCKUP_LIGHT_VARS = {
-  "--paper": "oklch(0.96 0.018 88)",
-  "--ink": "oklch(0.18 0.012 55)",
-  "--graphite": "oklch(0.42 0.012 55)",
-  "--stone": "oklch(0.86 0.014 85)",
-  "--chrome": "oklch(0.18 0.01 55)",
-  "--chrome-hover": "oklch(0.26 0.01 55)",
-  "--chrome-border": "oklch(0.28 0.01 55)",
-  "--chrome-text": "oklch(0.92 0.01 88)",
-  "--chrome-muted": "oklch(0.62 0.01 70)",
-  "--success": "oklch(0.82 0.08 145)",
-  "--error": "oklch(0.78 0.12 25)",
-  "--streak": "oklch(0.84 0.11 75)",
-  "--milestone": "oklch(0.80 0.10 290)",
-  "--lime": "oklch(0.82 0.08 145)",
-  "--lime-foreground": "oklch(0.25 0.04 148)",
-  "--background": "oklch(0.22 0.01 55)",
-  "--foreground": "oklch(0.18 0.012 55)",
-  "--card": "oklch(0.975 0.014 88)",
-  "--card-foreground": "oklch(0.18 0.012 55)",
-  "--popover": "oklch(0.975 0.014 88)",
-  "--popover-foreground": "oklch(0.18 0.012 55)",
-  "--primary": "oklch(0.18 0.012 55)",
-  "--primary-foreground": "oklch(0.975 0.014 88)",
-  "--secondary": "oklch(0.92 0.016 88)",
-  "--secondary-foreground": "oklch(0.18 0.012 55)",
-  "--muted": "oklch(0.92 0.016 88)",
-  "--muted-foreground": "oklch(0.42 0.012 55)",
-  "--accent": "oklch(0.92 0.016 88)",
-  "--accent-foreground": "oklch(0.18 0.012 55)",
-  "--border": "oklch(0.86 0.014 85)",
-  "--input": "oklch(0.86 0.014 85)",
-  "--ring": "oklch(0.18 0.012 55)",
-  "--sidebar": "oklch(0.16 0.01 55)",
-  "--sidebar-foreground": "oklch(0.92 0.01 88)",
-  "--sidebar-primary": "oklch(0.975 0.014 88)",
-  "--sidebar-primary-foreground": "oklch(0.16 0.01 55)",
-  "--sidebar-accent": "oklch(0.26 0.01 55)",
-  "--sidebar-accent-foreground": "oklch(0.92 0.01 88)",
-  "--sidebar-border": "oklch(0.28 0.01 55)",
-  color: "oklch(0.18 0.012 55)",
-  background: "oklch(0.22 0.01 55)",
+  "--paper": "#f7f1e4",
+  "--ink": "#111111",
+  "--graphite": "#555555",
+  "--stone": "#d4cec0",
+  "--chrome": "#111111",
+  "--chrome-hover": "#2a2a2a",
+  "--chrome-border": "#333333",
+  "--chrome-text": "#e8e8e8",
+  "--chrome-muted": "#888888",
+  "--success": "#8fbc8f",
+  "--error": "#e8b4b8",
+  "--streak": "#f0d78c",
+  "--milestone": "#c4b5e0",
+  "--lime": "#8fbc8f",
+  "--lime-foreground": "#1a1a1a",
+  "--background": "#1a1a1a",
+  "--foreground": "#111111",
+  "--card": "#f7f1e4",
+  "--card-foreground": "#111111",
+  "--popover": "#f7f1e4",
+  "--popover-foreground": "#111111",
+  "--primary": "#111111",
+  "--primary-foreground": "#f7f1e4",
+  "--secondary": "#ebe4d4",
+  "--secondary-foreground": "#111111",
+  "--muted": "#ebe4d4",
+  "--muted-foreground": "#555555",
+  "--accent": "#ebe4d4",
+  "--accent-foreground": "#111111",
+  "--border": "#cfc7b6",
+  "--input": "#cfc7b6",
+  "--ring": "#111111",
+  "--sidebar": "#000000",
+  "--sidebar-foreground": "#e8e8e8",
+  "--sidebar-primary": "#f7f1e4",
+  "--sidebar-primary-foreground": "#000000",
+  "--sidebar-accent": "#2a2a2a",
+  "--sidebar-accent-foreground": "#e8e8e8",
+  "--sidebar-border": "#333333",
+  color: "#111111",
+  background: "#1a1a1a",
 } as CSSProperties
 
 export type SidebarPage = {
@@ -84,23 +84,23 @@ export function JourneyShell({
     <div
       className="mockup-surface flex min-h-screen font-sans"
       style={MOCKUP_LIGHT_VARS}
-      data-mockup-theme="ink-cream"
+      data-mockup-theme="black-grey-cream"
     >
       <MockupThemeLock />
       <MockupSvgFilters />
 
-      {/* Sidebar — near-black chrome */}
-      <aside className="hidden w-[220px] shrink-0 flex-col border-r border-[oklch(0.28_0.01_55)] bg-[oklch(0.16_0.01_55)] px-2 py-3 text-[oklch(0.92_0.01_88)] md:flex">
+      {/* Sidebar — true black */}
+      <aside className="hidden w-[220px] shrink-0 flex-col border-r border-[#333] bg-black px-2 py-3 text-[#e8e8e8] md:flex">
         <Link
           href="/mockups"
-          className="mb-3 rounded-md px-2 py-1.5 text-sm font-medium text-[oklch(0.92_0.01_88)] hover:bg-[oklch(0.26_0.01_55)]"
+          className="mb-3 rounded-md px-2 py-1.5 text-sm font-medium text-[#e8e8e8] hover:bg-[#2a2a2a]"
         >
           Concord
         </Link>
         <nav className="flex flex-1 flex-col gap-4 overflow-y-auto" aria-label="Workspace">
           {sections.map((section) => (
             <div key={section.title}>
-              <p className="px-2 pb-1 text-[11px] font-medium text-[oklch(0.55_0.01_70)]">
+              <p className="px-2 pb-1 text-[11px] font-medium text-[#777]">
                 {section.title}
               </p>
               <ul className="space-y-0.5">
@@ -108,8 +108,8 @@ export function JourneyShell({
                   const className = cn(
                     "block w-full rounded-md px-2 py-1 text-left text-sm",
                     page.active
-                      ? "bg-[oklch(0.26_0.01_55)] font-medium text-[oklch(0.975_0.014_88)]"
-                      : "text-[oklch(0.68_0.01_70)] hover:bg-[oklch(0.22_0.01_55)] hover:text-[oklch(0.92_0.01_88)]",
+                      ? "bg-[#2a2a2a] font-medium text-white"
+                      : "text-[#aaa] hover:bg-[#1a1a1a] hover:text-[#e8e8e8]",
                   )
                   if (page.href) {
                     return (
@@ -132,15 +132,12 @@ export function JourneyShell({
             </div>
           ))}
         </nav>
-        <p className="mt-auto px-2 pt-4 text-[10px] text-[oklch(0.5_0.01_70)]">
-          Black · grey · cream
-        </p>
+        <p className="mt-auto px-2 pt-4 text-[10px] text-[#666]">Black · grey · cream</p>
       </aside>
 
-      {/* Workspace chrome (dark grey) + cream document */}
-      <div className="flex min-w-0 flex-1 flex-col bg-[oklch(0.22_0.01_55)]">
-        {/* Mobile top nav — dark chrome */}
-        <div className="flex gap-1 overflow-x-auto border-b border-[oklch(0.28_0.01_55)] bg-[oklch(0.16_0.01_55)] px-3 py-2 md:hidden">
+      {/* Workspace — neutral grey; cream document on top */}
+      <div className="flex min-w-0 flex-1 flex-col bg-[#1a1a1a]">
+        <div className="flex gap-1 overflow-x-auto border-b border-[#333] bg-black px-3 py-2 md:hidden">
           {sections.flatMap((s) =>
             s.pages.map((page) =>
               page.href ? (
@@ -150,8 +147,8 @@ export function JourneyShell({
                   className={cn(
                     "shrink-0 rounded-md px-2 py-1 text-xs",
                     page.active
-                      ? "bg-[oklch(0.26_0.01_55)] font-medium text-[oklch(0.975_0.014_88)]"
-                      : "text-[oklch(0.68_0.01_70)]",
+                      ? "bg-[#2a2a2a] font-medium text-white"
+                      : "text-[#aaa]",
                   )}
                 >
                   {page.label}
@@ -164,8 +161,8 @@ export function JourneyShell({
                   className={cn(
                     "shrink-0 rounded-md px-2 py-1 text-xs",
                     page.active
-                      ? "bg-[oklch(0.26_0.01_55)] font-medium text-[oklch(0.975_0.014_88)]"
-                      : "text-[oklch(0.68_0.01_70)]",
+                      ? "bg-[#2a2a2a] font-medium text-white"
+                      : "text-[#aaa]",
                   )}
                 >
                   {page.label}
@@ -176,14 +173,14 @@ export function JourneyShell({
         </div>
 
         <main className="mx-auto w-full max-w-[720px] flex-1 px-6 py-10 md:px-12 md:py-14">
-          <article className="rounded-sm border border-[oklch(0.18_0.012_55_/0.2)] bg-[oklch(0.975_0.014_88)] px-6 py-8 shadow-[4px_4px_0_0_rgba(0,0,0,0.25)] md:px-10 md:py-10">
+          <article className="rounded-sm border border-black/20 bg-[#f7f1e4] px-6 py-8 shadow-[4px_4px_0_0_rgba(0,0,0,0.35)] md:px-10 md:py-10">
             {breadcrumb ? (
-              <p className="mb-2 text-xs text-muted-foreground">{breadcrumb}</p>
+              <p className="mb-2 text-xs text-[#555]">{breadcrumb}</p>
             ) : null}
-            <h1 className="font-sans text-[32px] font-semibold leading-tight tracking-tight text-foreground md:text-[40px]">
+            <h1 className="font-sans text-[32px] font-semibold leading-tight tracking-tight text-[#111] md:text-[40px]">
               {pageTitle}
             </h1>
-            <div className="mt-8">{children}</div>
+            <div className="mt-8 text-[#111]">{children}</div>
           </article>
         </main>
       </div>
@@ -191,7 +188,7 @@ export function JourneyShell({
   )
 }
 
-/** Cream callout — soft wash on cream page, ink border. */
+/** Cream callout — grey wash, black border. */
 export function NotionCallout({
   children,
   warren,
@@ -200,7 +197,7 @@ export function NotionCallout({
   warren?: ReactNode
 }) {
   return (
-    <div className="flex gap-3 rounded-sm border border-[oklch(0.18_0.012_55_/0.18)] bg-[oklch(0.94_0.016_88)] px-3 py-3 text-sm leading-relaxed text-foreground">
+    <div className="flex gap-3 rounded-sm border border-black/15 bg-[#ebe4d4] px-3 py-3 text-sm leading-relaxed text-[#111]">
       {warren ? <div className="shrink-0 pt-0.5">{warren}</div> : null}
       <div className="min-w-0 pt-1">{children}</div>
     </div>
