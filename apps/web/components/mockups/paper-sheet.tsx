@@ -17,7 +17,7 @@ type PaperSheetProps = {
 }
 
 /**
- * Paper insert inside Notion document: rough border + optional torn edge chrome.
+ * Cream paper insert: rough border + optional torn edge chrome.
  */
 export function PaperSheet({
   seedKey,
@@ -35,12 +35,12 @@ export function PaperSheet({
         <>
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-2 top-0 z-20 h-2 bg-[oklch(0.99_0.004_85)]"
+            className="pointer-events-none absolute inset-x-2 top-0 z-20 h-2 bg-[oklch(0.975_0.014_88)]"
             style={{ filter }}
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-2 bottom-0 z-20 h-2 bg-[oklch(0.99_0.004_85)]"
+            className="pointer-events-none absolute inset-x-2 bottom-0 z-20 h-2 bg-[oklch(0.975_0.014_88)]"
             style={{ filter }}
           />
         </>
@@ -48,7 +48,7 @@ export function PaperSheet({
       <RoughFrame
         seedKey={seedKey}
         padding={padding}
-        className="bg-[oklch(0.99_0.004_85)] shadow-[0_1px_0_oklch(0.9_0.005_80)]"
+        className="bg-[oklch(0.975_0.014_88)]"
       >
         {children}
       </RoughFrame>

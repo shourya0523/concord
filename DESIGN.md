@@ -55,7 +55,7 @@ This is a **monorepo** containing:
 - **Duolingo's reward-driven gamification energy** as the emotional engine (streaks, XP, celebrations) — but restrained into a **pastel palette** rather than saturated primaries, so it reads **premium and calm** rather than toy-like
 
 **Layout resting rules (Notion base):**
-1. Sidebar = workspace navigation (Company / Learn / Plan + step pages). Main = **paper-white document** on a grey workspace chrome.
+1. Sidebar = workspace navigation (Company / Learn / Plan + step pages). Main = **cream document** on **dark charcoal** workspace chrome (never light-on-light).
 2. One page title. Breadcrumb optional and quiet. No stacked marketing headers.
 3. Warren lives in a **paper callout block**, not a competing hero column.
 4. Lists and databases = simple bordered rows. **Paper sheets** (rough frame + torn edge chrome) wrap study cards, packs, and score moments — not the whole app shell.
@@ -67,11 +67,11 @@ This is a **monorepo** containing:
 - Glow remains reserved for rare data callouts (e.g. single weakest heat cell), never for button chrome.
 
 **Paper / torn pages:**
-- Resting chrome = Notion greys + white page.
-- **Paper UI** returns inside content: off-white sheet, rough.js border, optional **torn edge strips** (filter on decorative edges only — never on body text).
+- Resting chrome = **black / charcoal sidebar** against a **cream document**.
+- **Paper UI** inside content: cream sheet, rough.js border, optional **torn edge strips** (filter on decorative edges only — never on body text).
 - Static torn filter for sheets; animated hero torn only on score / milestone reveals.
 
-**Monochrome:** Greyscale resting UI (sidebar grey, ink text, stone borders). Heat / semantic pastels stay data-only. Current warm-neutral greys are acceptable; avoid green cast on chrome.
+**Settled palette:** Black · grey · cream, with **pastel accents** only for heat / rewards / semantics. Do **not** run light-grey chrome behind a white page (light-on-light) — the cream page must sit on dark grey so foreground reads.
 
 This is a **banking interview prep platform** — trust reads through precision, not energy. Numbers stay visually calm. No bounce on financial figures. Hand-drawn aesthetic adds **warmth and approachability** to a high-stakes domain without compromising **editorial rigor**.
 
@@ -79,31 +79,29 @@ This is a **banking interview prep platform** — trust reads through precision,
 
 ## 3. Color System
 
-### Base — Monochrome Editorial Discipline
+### Settled base — Black / Grey / Cream
 
-~80% of the interface uses true monochrome (Notion's discipline):
-
-```css
-/* Light mode */
---paper: oklch(0.975 0.012 92);    /* Warm off-white background */
---ink: oklch(0.18 0.014 55);        /* Near-black text */
---graphite: oklch(0.42 0.016 60);   /* Secondary text */
---stone: oklch(0.91 0.014 88);      /* Borders/dividers */
-
-/* Dark mode */
---paper: oklch(0.16 0.012 55);
---ink: oklch(0.94 0.01 92);
---graphite: oklch(0.68 0.015 80);
---stone: oklch(0.26 0.012 60);
-```
-
-**One functional accent color** reserved strictly for primary actions/links:
+Contrast model: **dark chrome · cream paper · black ink · pastel data**.
 
 ```css
---lime: oklch(0.86 0.21 128);             /* Light mode */
---lime-foreground: oklch(0.2 0.04 130);   
---lime: oklch(0.88 0.22 128);             /* Dark mode */
+/* Chrome (sidebar / workspace shell) */
+--chrome: oklch(0.18 0.01 55);       /* Near-black */
+--chrome-hover: oklch(0.26 0.01 55);
+--chrome-border: oklch(0.28 0.01 55);
+--chrome-text: oklch(0.92 0.01 88);  /* Cream-tint type on dark */
+--chrome-muted: oklch(0.62 0.01 70);
+
+/* Document (page / cards) */
+--paper: oklch(0.96 0.018 88);       /* Cream */
+--card: oklch(0.975 0.014 88);       /* Slightly lighter cream */
+--ink: oklch(0.18 0.012 55);         /* Near-black text on cream */
+--graphite: oklch(0.42 0.012 55);    /* Secondary text */
+--stone: oklch(0.86 0.014 85);       /* Borders on cream */
 ```
+
+Primary actions on cream use **ink black** fill with cream label (not lime blobs).
+
+Pastel accents (heat, success, error, streak, milestone) stay data/reward-only — see below. They never paint the shell.
 
 ### Semantic Pastel System
 

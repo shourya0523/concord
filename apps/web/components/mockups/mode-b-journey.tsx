@@ -187,26 +187,26 @@ export function ModeBJourney() {
               fallback={
                 <svg viewBox="0 0 520 140" className="h-auto w-full max-w-lg" role="img">
                   <title>Sources and uses</title>
-                  <rect x="8" y="40" width="90" height="36" rx="4" fill="oklch(0.95 0.003 80)" stroke="var(--ink)" />
+                  <rect x="8" y="40" width="90" height="36" rx="4" fill="oklch(0.94 0.016 88)" stroke="var(--ink)" />
                   <text x="53" y="62" textAnchor="middle" style={{ fontSize: 12 }} fill="var(--ink)">
                     Equity
                   </text>
-                  <rect x="8" y="88" width="90" height="36" rx="4" fill="oklch(0.95 0.003 80)" stroke="var(--ink)" />
+                  <rect x="8" y="88" width="90" height="36" rx="4" fill="oklch(0.94 0.016 88)" stroke="var(--ink)" />
                   <text x="53" y="110" textAnchor="middle" style={{ fontSize: 12 }} fill="var(--ink)">
                     Debt
                   </text>
                   <path d="M98 58 H150 M98 106 H150" stroke="var(--ink)" strokeWidth="1.2" />
-                  <rect x="150" y="64" width="100" height="36" rx="4" fill="oklch(1 0 0)" stroke="var(--ink)" />
+                  <rect x="150" y="64" width="100" height="36" rx="4" fill="oklch(0.975 0.014 88)" stroke="var(--ink)" />
                   <text x="200" y="86" textAnchor="middle" style={{ fontSize: 12 }} fill="var(--ink)">
                     HoldCo
                   </text>
                   <path d="M250 82 H300" stroke="var(--ink)" strokeWidth="1.2" />
-                  <rect x="300" y="64" width="100" height="36" rx="4" fill="oklch(1 0 0)" stroke="var(--ink)" />
+                  <rect x="300" y="64" width="100" height="36" rx="4" fill="oklch(0.975 0.014 88)" stroke="var(--ink)" />
                   <text x="350" y="86" textAnchor="middle" style={{ fontSize: 12 }} fill="var(--ink)">
                     Target
                   </text>
                   <path d="M400 82 H450" stroke="var(--ink)" strokeWidth="1.2" />
-                  <rect x="450" y="64" width="60" height="36" rx="4" fill="oklch(0.95 0.003 80)" stroke="var(--ink)" />
+                  <rect x="450" y="64" width="60" height="36" rx="4" fill="oklch(0.94 0.016 88)" stroke="var(--ink)" />
                   <text x="480" y="86" textAnchor="middle" style={{ fontSize: 11 }} fill="var(--ink)">
                     Uses
                   </text>

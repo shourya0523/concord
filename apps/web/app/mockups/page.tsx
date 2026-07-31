@@ -41,7 +41,7 @@ export default function MockupsIndexPage() {
       ]}
     >
       <p className="mb-6 text-sm text-muted-foreground">
-        Open a page from the sidebar. Layout resting state follows Notion: sidebar + document.
+        Open a page from the sidebar. Dark chrome · cream document · pastel accents on data.
       </p>
       <ul className="divide-y divide-border rounded-md border border-border">
         {PAGES.map((p) => (
