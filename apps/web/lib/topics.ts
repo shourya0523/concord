@@ -1,7 +1,7 @@
 /**
  * Topic taxonomy shared by UI + data layer.
- * Slugs match migrations/034_occurrence_topic_backfill.sql and
- * packages/search/src/topics.ts (keyword_rules_v1).
+ * Slugs match occurrence topic backfill migrations and
+ * packages/search/src/topics.ts (keyword_rules_v2).
  */
 
 export const TOPIC_LABELS: Record<string, string> = {
@@ -15,6 +15,10 @@ export const TOPIC_LABELS: Record<string, string> = {
   investment_thesis: "Investment thesis",
   due_diligence: "Due diligence",
   restructuring: "Restructuring",
+  credit: "Credit",
+  industry_coverage: "Industry / coverage",
+  markets: "Markets / macro",
+  brainteasers: "Brainteasers",
   returns: "Returns",
   value_creation: "Value creation",
   behavioral: "Behavioural",
@@ -28,12 +32,16 @@ export const TOPIC_ORDER = [
   "enterprise_value",
   "merger_models",
   "lbo",
+  "credit",
   "capital_structure",
   "returns",
   "investment_thesis",
   "due_diligence",
+  "industry_coverage",
+  "markets",
   "value_creation",
   "restructuring",
+  "brainteasers",
   "behavioral",
   "untagged",
 ] as const

@@ -25,6 +25,33 @@ describe("topic inference + intensity", () => {
     assert.equal(inferTopic("Tell me about yourself"), "behavioral");
   });
 
+  it("maps high-precision IB/PE keyword rules v2", () => {
+    const cases: Array<[string, string]> = [
+      ["Build a paper LBO with an entry multiple and debt paydown", "lbo"],
+      ["How do you calculate terminal value using Gordon growth?", "valuation"],
+      ["Bridge enterprise value to equity value including net debt", "enterprise_value"],
+      ["How does goodwill impairment flow through the statements?", "accounting"],
+      ["What happens when accounts receivable increases?", "working_capital"],
+      ["Walk me through an accretion dilution merger model", "merger_models"],
+      ["How would you think about debt capacity and covenants?", "credit"],
+      ["What industry coverage group and sector trends interest you?", "industry_coverage"],
+      ["What are current interest rates and market conditions doing?", "markets"],
+      ["How many tennis balls fit in a 747?", "brainteasers"],
+      ["What quality of earnings work would you do in diligence?", "due_diligence"],
+      ["How would you create value through margin expansion?", "value_creation"],
+    ];
+
+    for (const [text, topic] of cases) {
+      assert.equal(inferTopic(text), topic);
+    }
+  });
+
+  it("keeps ambiguous fit wording out of technical topics", () => {
+    assert.equal(inferTopic("Walk me through your resume"), "behavioral");
+    assert.equal(inferTopic("Why do you want to work at our firm?"), "behavioral");
+    assert.equal(inferTopic("Why this company?"), "untagged");
+  });
+
   it("mirrors SQL intensity curve", () => {
     assert.equal(intensityFromCount(0), 0);
     assert.ok(intensityFromCount(1) > 0);
