@@ -25,7 +25,7 @@ export default function PlanSimMockupPage() {
         {
           part: "Torn-paper hero",
           technique:
-            "feTurbulence animated filter (#torn-paper-hero) only on final score card — not on list cards.",
+            "feTurbulence (#torn-paper-hero) on score-card edges only so headline + score stay sharp — never on list cards.",
         },
         {
           part: "Handwriting headline",
