@@ -13,7 +13,6 @@ export type WarrenMood =
 
 type WarrenProps = {
   mood?: WarrenMood
-  /** Pause breathing during user focus (typing/reading). */
   userFocused?: boolean
   aside?: string
   className?: string
@@ -21,8 +20,8 @@ type WarrenProps = {
 }
 
 /**
- * Warren — fixed-identity prep coach (DESIGN.md).
- * Distinct mentor: glasses, soft hair, collar — not a blank smiley.
+ * Warren — fixed coach identity (DESIGN.md).
+ * Older mentor: balding crown, round glasses, navy jacket — readable at 72px.
  */
 export function Warren({
   mood = "idle",
@@ -35,17 +34,28 @@ export function Warren({
   const effective: WarrenMood = userFocused ? "paused" : mood
   const breathe = !userFocused && effective === "idle" && !reduced
 
-  const browY = effective === "concerned" ? 30 : effective === "celebrating" ? 28 : 32
+  const brow =
+    effective === "concerned"
+      ? "M31 36 Q38 33 45 36"
+      : effective === "celebrating"
+        ? "M31 34 Q38 31 45 34"
+        : "M31 35 Q38 33 45 35"
+  const brow2 =
+    effective === "concerned"
+      ? "M51 36 Q58 33 65 36"
+      : effective === "celebrating"
+        ? "M51 34 Q58 31 65 34"
+        : "M51 35 Q58 33 65 35"
   const mouth =
     effective === "celebrating"
-      ? "M38 58 Q48 66 58 58"
+      ? "M40 58 Q48 64 56 58"
       : effective === "concerned"
         ? "M40 60 Q48 56 56 60"
         : effective === "thinking"
-          ? "M40 59 H56"
+          ? "M42 59 H54"
           : effective === "encouraging"
-            ? "M38 58 Q48 64 58 58"
-            : "M40 60 Q48 62 56 60"
+            ? "M40 58 Q48 63 56 58"
+            : "M41 59 Q48 61 55 59"
 
   return (
     <aside
@@ -67,63 +77,64 @@ export function Warren({
       >
         <svg viewBox="0 0 96 96" width={size} height={size} role="img">
           <title>Warren</title>
-          {/* shoulders / collar */}
+          {/* jacket */}
           <path
-            d="M18 88 C 28 70, 68 70, 78 88"
-            fill="oklch(0.32 0.02 250)"
+            d="M20 90 C 28 68, 68 68, 76 90 Z"
+            fill="oklch(0.28 0.03 250)"
             stroke="var(--ink)"
             strokeWidth="1.5"
           />
+          {/* shirt */}
           <path
-            d="M40 78 L48 88 L56 78"
-            fill="oklch(0.97 0.01 90)"
+            d="M42 78 L48 90 L54 78 Z"
+            fill="oklch(0.97 0.005 90)"
             stroke="var(--ink)"
             strokeWidth="1.2"
           />
+          {/* neck */}
+          <rect x="44" y="68" width="8" height="12" fill="oklch(0.90 0.03 70)" stroke="var(--ink)" strokeWidth="1" />
           {/* head */}
           <ellipse
             cx="48"
-            cy="44"
-            rx="26"
-            ry="28"
-            fill="oklch(0.93 0.02 75)"
+            cy="46"
+            rx="24"
+            ry="26"
+            fill="oklch(0.90 0.03 70)"
             stroke="var(--ink)"
             strokeWidth="1.75"
           />
-          {/* hair */}
+          {/* balding crown highlight */}
+          <ellipse cx="48" cy="28" rx="14" ry="8" fill="oklch(0.94 0.02 70)" />
+          {/* side hair */}
           <path
-            d="M24 40 C 26 18, 70 16, 72 40 C 62 28, 34 28, 24 40"
-            fill="oklch(0.45 0.03 60)"
-            stroke="var(--ink)"
-            strokeWidth="1.4"
+            d="M24 48 C 22 34, 30 24, 38 22"
+            fill="none"
+            stroke="oklch(0.55 0.03 60)"
+            strokeWidth="5"
+            strokeLinecap="round"
           />
-          {/* glasses */}
-          <circle cx="38" cy="44" r="8" fill="none" stroke="var(--ink)" strokeWidth="1.6" />
-          <circle cx="58" cy="44" r="8" fill="none" stroke="var(--ink)" strokeWidth="1.6" />
-          <path d="M46 44 H50" stroke="var(--ink)" strokeWidth="1.6" />
-          <path d="M30 42 H22" stroke="var(--ink)" strokeWidth="1.4" strokeLinecap="round" />
-          <path d="M66 42 H74" stroke="var(--ink)" strokeWidth="1.4" strokeLinecap="round" />
+          <path
+            d="M72 48 C 74 34, 66 24, 58 22"
+            fill="none"
+            stroke="oklch(0.55 0.03 60)"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+          {/* round glasses */}
+          <circle cx="38" cy="46" r="9" fill="oklch(0.97 0.01 90 / 0.35)" stroke="var(--ink)" strokeWidth="1.7" />
+          <circle cx="58" cy="46" r="9" fill="oklch(0.97 0.01 90 / 0.35)" stroke="var(--ink)" strokeWidth="1.7" />
+          <path d="M47 46 H49" stroke="var(--ink)" strokeWidth="1.6" />
+          <path d="M29 45 H22" stroke="var(--ink)" strokeWidth="1.4" strokeLinecap="round" />
+          <path d="M67 45 H74" stroke="var(--ink)" strokeWidth="1.4" strokeLinecap="round" />
           {/* eyes */}
-          <circle cx="38" cy="44" r="2.2" fill="var(--ink)" />
-          <circle cx="58" cy="44" r="2.2" fill="var(--ink)" />
+          <circle cx="38" cy="46" r="2" fill="var(--ink)" />
+          <circle cx="58" cy="46" r="2" fill="var(--ink)" />
           {/* brows */}
-          <path
-            d={`M30 ${browY} Q38 ${browY - 3} 46 ${browY}`}
-            fill="none"
-            stroke="var(--ink)"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          />
-          <path
-            d={`M50 ${browY} Q58 ${browY - 3} 66 ${browY}`}
-            fill="none"
-            stroke="var(--ink)"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          />
+          <path d={brow} fill="none" stroke="var(--ink)" strokeWidth="1.6" strokeLinecap="round" />
+          <path d={brow2} fill="none" stroke="var(--ink)" strokeWidth="1.6" strokeLinecap="round" />
           {/* nose */}
           <path
-            d="M48 46 L46 52 L50 52"
+            d="M48 48 L46 54 L50 54"
             fill="none"
             stroke="var(--ink)"
             strokeWidth="1.3"
@@ -134,15 +145,15 @@ export function Warren({
           <path d={mouth} fill="none" stroke="var(--ink)" strokeWidth="1.7" strokeLinecap="round" />
           {effective === "thinking" ? (
             <>
-              <circle cx="78" cy="22" r="5" fill="none" stroke="var(--graphite)" strokeWidth="1.4" />
-              <circle cx="86" cy="14" r="3" fill="none" stroke="var(--graphite)" strokeWidth="1.2" />
+              <circle cx="78" cy="24" r="5" fill="none" stroke="var(--graphite)" strokeWidth="1.4" />
+              <circle cx="86" cy="16" r="3" fill="none" stroke="var(--graphite)" strokeWidth="1.2" />
             </>
           ) : null}
           {effective === "celebrating" ? (
             <path
-              d="M20 18 L24 10 M28 20 L32 12 M72 18 L76 10"
+              d="M18 20 L22 12 M28 22 L32 14 M70 20 L74 12"
               fill="none"
-              stroke="var(--lime)"
+              stroke="oklch(0.55 0.12 75)"
               strokeWidth="2"
               strokeLinecap="round"
             />

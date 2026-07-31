@@ -15,32 +15,32 @@ const JOURNEYS = [
 
 /** Full light token set — wins even if html still has .dark from system theme. */
 export const MOCKUP_LIGHT_VARS = {
-  "--paper": "oklch(0.985 0.004 85)",
-  "--ink": "oklch(0.18 0.014 55)",
-  "--graphite": "oklch(0.42 0.016 60)",
-  "--stone": "oklch(0.91 0.01 85)",
+  /* Near-neutral paper — chroma near zero so it never reads green */
+  "--paper": "oklch(0.985 0.002 80)",
+  "--ink": "oklch(0.17 0.01 55)",
+  "--graphite": "oklch(0.42 0.01 55)",
+  "--stone": "oklch(0.92 0.005 80)",
   "--lime": "oklch(0.86 0.18 128)",
   "--lime-foreground": "oklch(0.2 0.04 130)",
-  "--background": "oklch(0.985 0.004 85)",
-  "--foreground": "oklch(0.18 0.014 55)",
-  "--card": "oklch(0.995 0.002 85)",
-  "--card-foreground": "oklch(0.18 0.014 55)",
-  "--popover": "oklch(0.995 0.002 85)",
-  "--popover-foreground": "oklch(0.18 0.014 55)",
-  "--primary": "oklch(0.22 0.02 55)",
-  "--primary-foreground": "oklch(0.98 0.004 85)",
-  "--secondary": "oklch(0.94 0.008 85)",
-  "--secondary-foreground": "oklch(0.18 0.014 55)",
-  "--muted": "oklch(0.955 0.006 85)",
-  "--muted-foreground": "oklch(0.40 0.02 60)",
-  "--accent": "oklch(0.94 0.01 85)",
-  "--accent-foreground": "oklch(0.18 0.014 55)",
-  "--border": "oklch(0.86 0.008 80)",
-  "--input": "oklch(0.86 0.008 80)",
-  "--ring": "oklch(0.22 0.02 55)",
-  color: "oklch(0.18 0.014 55)",
-  background:
-    "radial-gradient(120% 80% at 100% 0%, oklch(0.97 0.006 85), transparent 55%), oklch(0.985 0.004 85)",
+  "--background": "oklch(0.985 0.002 80)",
+  "--foreground": "oklch(0.17 0.01 55)",
+  "--card": "oklch(0.995 0.001 80)",
+  "--card-foreground": "oklch(0.17 0.01 55)",
+  "--popover": "oklch(0.995 0.001 80)",
+  "--popover-foreground": "oklch(0.17 0.01 55)",
+  "--primary": "oklch(0.2 0.015 55)",
+  "--primary-foreground": "oklch(0.99 0.001 80)",
+  "--secondary": "oklch(0.945 0.004 80)",
+  "--secondary-foreground": "oklch(0.17 0.01 55)",
+  "--muted": "oklch(0.96 0.003 80)",
+  "--muted-foreground": "oklch(0.38 0.015 55)",
+  "--accent": "oklch(0.945 0.004 80)",
+  "--accent-foreground": "oklch(0.17 0.01 55)",
+  "--border": "oklch(0.86 0.006 75)",
+  "--input": "oklch(0.86 0.006 75)",
+  "--ring": "oklch(0.2 0.015 55)",
+  color: "oklch(0.17 0.01 55)",
+  background: "oklch(0.985 0.002 80)",
 } as CSSProperties
 
 export function JourneyShell({
@@ -66,7 +66,7 @@ export function JourneyShell({
             <p className="font-sans text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
               Concord · {eyebrow}
             </p>
-            <h1 className="font-display mt-1 text-3xl leading-tight tracking-tight text-foreground md:text-4xl">
+            <h1 className="font-display mt-1 max-w-lg text-2xl leading-tight tracking-tight text-foreground md:text-3xl">
               {title}
             </h1>
           </div>
