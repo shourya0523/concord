@@ -12,9 +12,13 @@
   "scripts": {
     "migrate": "tsx scripts/migrate.ts",
     "seed:bank": "tsx scripts/seed-bank.ts",
+    "publish:teaching": "tsx scripts/publish-teaching.ts",
+    "embed:rag": "tsx scripts/embed-rag.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.29",
+    "@ibpe/ai": "^0.0.1",
     "@neondatabase/serverless": "^1.0.2",
     "drizzle-orm": "^0.44.2",
     "ws": "^8.18.2"

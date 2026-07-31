@@ -104,7 +104,7 @@ export type PackItemExplanation = {
 };
 
 export type PseudoRagPackMetadata = {
-  backend: "in_memory_hybrid";
+  backend: "in_memory_hybrid" | "real_rag_embeddings";
   /** Why items were included — weak-topic and heat explanations. */
   explanations: PackItemExplanation[];
   heat_topics_used: string[];

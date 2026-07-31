@@ -1,8 +1,8 @@
 /**
- * @ibpe/search — hybrid search, topic heat, pseudo-RAG packs.
+ * @ibpe/search — hybrid search, firm topic heat, and real RAG packs.
  *
- * Default backend is deterministic in-memory over bank/exports.
- * Neon FTS / pg_trgm / pgvector can replace rank primitives later.
+ * Default pack path is embedding-backed real RAG when vectors are supplied.
+ * Lexical in-memory hybrid remains available as fallback.
  */
 export {
   loadTeachingCorpusFromSeed,
@@ -25,6 +25,12 @@ export {
   rerankForPack,
   freezePack,
 } from "./pack.js";
+export { buildRealRagPack, retrieveWithEmbeddings } from "./rag.js";
+export type {
+  EmbeddedDocument,
+  RealRagOptions,
+  BuildRealRagPackInput,
+} from "./rag.js";
 export { recommendForTargets } from "./recommend.js";
 export type { Recommendation } from "./recommend.js";
 export { rankDocuments, scoreDocument } from "./rank.js";

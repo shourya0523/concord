@@ -7,14 +7,16 @@ import {
   parseOrError,
   respondTyped,
 } from "@/lib/api/http";
-import { listQuestions } from "@/lib/data/questions";
+import { hybridSearch } from "@/lib/data/rag";
+import { getMultiFirmHeat } from "@/lib/data/prep";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
- * GET/POST /api/search — thin proxy until ibpe-search hybrid lands.
- * Uses published/bank list as a substring stand-in (no long scrapes).
+ * GET/POST /api/search — real RAG hybrid when embeddings indexed;
+ * lexical @ibpe/search fallback otherwise.
  */
 export async function GET(request: Request) {
   try {
@@ -23,7 +25,6 @@ export async function GET(request: Request) {
     const offsetRaw = url.searchParams.get("offset");
     const raw = {
       q: url.searchParams.get("q") ?? "",
-      // Query strings are text — coerce before Zod number fields.
       limit: limitRaw != null && limitRaw !== "" ? Number(limitRaw) : 20,
       offset: offsetRaw != null && offsetRaw !== "" ? Number(offsetRaw) : 0,
       tracks: url.searchParams.getAll("track"),
@@ -45,35 +46,30 @@ export async function POST(request: Request) {
 }
 
 async function runSearch(raw: unknown) {
-  const started = Date.now();
   const parsed = parseOrError(SearchRequestSchema, raw);
   if (!parsed.ok) return parsed.response;
 
   const req = parsed.data;
-  const listed = await listQuestions({
+  const heat =
+    req.firm_ids.length > 0
+      ? (await getMultiFirmHeat(req.firm_ids)).topics
+      : [];
+
+  const result = await hybridSearch({
     q: req.q,
-    track: req.tracks?.[0],
+    firm_ids: req.firm_ids,
+    tracks: req.tracks.map(String),
     limit: req.limit,
     offset: req.offset,
+    heat,
+    weak_topics: req.topics,
   });
 
-  const response = {
-    query: req,
-    hits: listed.items.map((q, i) => ({
-      id: q.id,
-      kind: "canonical_question" as const,
-      title: q.canonical_wording.slice(0, 160),
-      snippet: q.canonical_wording,
-      score: Math.max(0, 1 - i * 0.01),
-      provenance: undefined,
-      firm_ids: req.firm_ids ?? [],
-      concept_ids: [],
-      metadata: { topic: q.topic, domain: q.domain },
-    })),
-    total: listed.total,
-    next_cursor: null,
-    took_ms: Date.now() - started,
-  };
-
-  return respondTyped(SearchResponseSchema, response);
+  return respondTyped(SearchResponseSchema, {
+    query: result.query,
+    hits: result.hits,
+    total: result.total,
+    next_cursor: result.next_cursor,
+    took_ms: result.took_ms,
+  });
 }
