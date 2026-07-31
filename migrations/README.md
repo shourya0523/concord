@@ -18,6 +18,7 @@ SQLite corpus (ibpe_corpus)          Neon product (ADR 0001)
 db.py METADATA.create_all            020_neon_published.sql
                                      030_neon_rls.sql
                                      031_neon_auth_user_id.sql
+                                     032_learning_flows.sql
 ```
 
 Corpus table names stay stable for Python (`interview_occurrences`, `source_artefacts`, …). Neon uses the §17 product names (`question_occurrences`, `source_artifacts`, …) with a documented mapping in `packages/database/README.md`.
@@ -30,6 +31,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/010_neon_platform.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/020_neon_published.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/030_neon_rls.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/031_neon_auth_user_id.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/032_learning_flows.sql
 ```
 
 Or from the package:
@@ -58,3 +60,7 @@ Uses legacy bank `id` (SHA1 of `company|position|question`) as the primary idemp
 ## 031
 
 `031_neon_auth_user_id.sql` — rename legacy `clerk_user_id` → `neon_auth_user_id` when upgrading older Wave 1 DBs (ADR 0006). Fresh 010/030 already use Neon Auth column names.
+
+## 032
+
+`032_learning_flows.sql` — adds canonical learning modules/checkpoints/prerequisites/module-concept links, app target company sets, module progress, and collection items; widens `app.study_sessions.mode` to include `simulator`; adds RLS and published module views; seeds five illustrative modules.

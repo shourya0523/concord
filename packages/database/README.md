@@ -30,7 +30,7 @@ Scripts load `.env.local` / `.env` via `dotenv` (Next does not auto-load for `ts
 ```bash
 cd packages/database
 npm install
-npm run migrate                 # apply 010 → 020 → 030
+npm run migrate                 # apply Neon migrations 010+
 npm run seed:bank               # default ../../data/question_bank.json
 npm run seed:bank -- --path /abs/path/question_bank.json --limit 100
 npm run seed:bank -- --dry-run

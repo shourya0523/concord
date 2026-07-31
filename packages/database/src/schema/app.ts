@@ -2,6 +2,7 @@ import {
   doublePrecision,
   integer,
   jsonb,
+  primaryKey,
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
@@ -19,6 +20,13 @@ export const userProfiles = appSchema.table("user_profiles", {
   displayName: text("display_name"),
   targetTrack: text("target_track"),
   preferencesJson: jsonb("preferences_json").notNull().default({}),
+});
+
+export const targetCompanySets = appSchema.table("target_company_sets", {
+  userId: text("user_id").primaryKey(),
+  firmIds: jsonb("firm_ids").notNull().default([]),
+  primaryFirmId: text("primary_firm_id"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const bookmarks = appSchema.table("bookmarks", {
@@ -42,6 +50,16 @@ export const collections = appSchema.table("collections", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull(),
   name: text("name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const collectionItems = appSchema.table("collection_items", {
+  id: text("id").primaryKey(),
+  collectionId: text("collection_id").notNull(),
+  questionId: text("question_id"),
+  conceptId: text("concept_id"),
+  moduleId: text("module_id"),
+  position: integer("position").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -70,6 +88,18 @@ export const masteryRecords = appSchema.table("mastery_records", {
   mastery: doublePrecision("mastery").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const moduleProgress = appSchema.table(
+  "module_progress",
+  {
+    userId: text("user_id").notNull(),
+    moduleId: text("module_id").notNull(),
+    completedCheckpointIds: jsonb("completed_checkpoint_ids").notNull().default([]),
+    percent: doublePrecision("percent").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.moduleId] })],
+);
 
 export const studySessions = appSchema.table("study_sessions", {
   id: text("id").primaryKey(),

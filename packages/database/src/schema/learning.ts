@@ -1,6 +1,7 @@
 import {
   boolean,
   doublePrecision,
+  integer,
   jsonb,
   primaryKey,
   text,
@@ -38,6 +39,56 @@ export const conceptFirmWeights = canonicalSchema.table(
     method: text("method").notNull().default("editorial"),
   },
   (t) => [primaryKey({ columns: [t.conceptId, t.firmId] })],
+);
+
+export const learningModules = canonicalSchema.table("learning_modules", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  summary: text("summary"),
+  track: text("track"),
+  domain: text("domain"),
+  estimatedMinutes: integer("estimated_minutes"),
+  metadataJson: jsonb("metadata_json").notNull().default({}),
+  publishable: boolean("publishable").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const learningModuleCheckpoints = canonicalSchema.table(
+  "learning_module_checkpoints",
+  {
+    id: text("id").primaryKey(),
+    moduleId: text("module_id").notNull(),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    position: integer("position").notNull().default(0),
+    conceptId: text("concept_id"),
+    diagramId: text("diagram_id"),
+    questionIds: jsonb("question_ids").notNull().default([]),
+    bodyMarkdown: text("body_markdown"),
+    metadataJson: jsonb("metadata_json").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+);
+
+export const learningModulePrerequisites = canonicalSchema.table(
+  "learning_module_prerequisites",
+  {
+    moduleId: text("module_id").notNull(),
+    prerequisiteModuleId: text("prerequisite_module_id").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.moduleId, t.prerequisiteModuleId] })],
+);
+
+export const learningModuleConcepts = canonicalSchema.table(
+  "learning_module_concepts",
+  {
+    moduleId: text("module_id").notNull(),
+    conceptId: text("concept_id").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.moduleId, t.conceptId] })],
 );
 
 export const diagrams = canonicalSchema.table("diagrams", {
