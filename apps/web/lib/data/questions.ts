@@ -1,7 +1,12 @@
 /**
  * Questions list/detail — prefer published.v_questions; else bank fallback.
  */
-import { CanonicalQuestionSchema, type CanonicalQuestion } from "@ibpe/contracts";
+import {
+  CanonicalQuestionSchema,
+  QuestionStudyPayloadSchema,
+  type CanonicalQuestion,
+  type QuestionStudyPayload,
+} from "@ibpe/contracts";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import {
   getBankQuestion,
@@ -152,6 +157,89 @@ function emptyStudy(): NonNullable<QuestionDetailResponse["study"]> {
   };
 }
 
+function mapAnswerProvenance(
+  value: string | null | undefined,
+): QuestionStudyPayload["layers"]["provenance"]["answer_provenance"] {
+  switch (value) {
+    case "source_provided":
+    case "corpus_matched":
+    case "synthesised_unvalidated":
+    case "synthesised_validated":
+    case "needs_review":
+    case "rejected":
+      return value;
+    case "github_source":
+    case "static_seed":
+    case "editorial":
+      return "corpus_matched";
+    case "gemini_synthesised":
+      return "synthesised_unvalidated";
+    default:
+      return "needs_review";
+  }
+}
+
+function toStudyPayload(options: {
+  question: CanonicalQuestion;
+  study: NonNullable<QuestionDetailResponse["study"]>;
+}): QuestionStudyPayload {
+  const diagram = options.study.diagram_refs[0] ?? null;
+  return QuestionStudyPayloadSchema.parse({
+    question_id: options.question.id,
+    answer_id: options.study.answer_id,
+    canonical_question_id: options.question.id,
+    question_text: options.question.canonical_wording,
+    topic: options.question.topic,
+    difficulty: options.question.difficulty,
+    firm_context: null,
+    layers: {
+      direct_answer: options.study.direct_answer ?? "",
+      interview_ready: options.study.interview_ready_explanation ?? "",
+      walkthrough: options.study.step_by_step.join("\n\n"),
+      diagram_ref: diagram,
+      formulae: options.study.formulae.map((expression, index) => ({
+        label: `Formula ${index + 1}`,
+        expression,
+      })),
+      assumptions: options.study.assumptions,
+      common_mistakes: options.study.common_mistakes,
+      follow_ups: options.study.follow_ups.map((question) => ({
+        question,
+        source_ids: [],
+        concept_ids: [],
+      })),
+      related_concept_ids: options.study.related_concepts.map((c) => c.id),
+      resources: options.study.resources,
+      provenance: {
+        answer_provenance: mapAnswerProvenance(
+          options.study.validation?.provenance_type,
+        ),
+        source_ids: options.study.answer_id ? [options.study.answer_id] : [],
+        citations: options.study.sources
+          .filter((source) => source.provenance !== "glassdoor_occurrence")
+          .map((source, index) => ({
+            source_id: `src_${index}`,
+            label: source.label,
+            provenance:
+              source.provenance === "github_source" ||
+              source.provenance === "static_seed" ||
+              source.provenance === "gemini_synthesised" ||
+              source.provenance === "editorial"
+                ? source.provenance
+                : undefined,
+          })),
+      },
+      validation: {
+        status: options.study.answer_id ? "pass_with_assumptions" : "not_run",
+        confidence: options.study.validation?.confidence ?? null,
+        issues: [],
+      },
+    },
+    mastery: null,
+    weak_topic_ids: [],
+  });
+}
+
 async function getPublishedStudyPayload(options: {
   questionId: string;
   conceptIds: string[];
@@ -241,10 +329,19 @@ export async function getQuestion(
   if (!isDatabaseConfigured()) {
     const hit = await getBankQuestion(id);
     if (!hit) return null;
+    const study = options?.includeStudy ? emptyStudy() : undefined;
     return {
       question: hit.question,
       bank_signals: [hit.bank],
-      ...(options?.includeStudy ? { study: emptyStudy() } : {}),
+      ...(study
+        ? {
+            study,
+            study_payload: toStudyPayload({
+              question: hit.question,
+              study,
+            }),
+          }
+        : {}),
       source: "bank_fallback",
     };
   }
@@ -262,27 +359,37 @@ export async function getQuestion(
   if (rows[0]) {
     const question = rowToCanonical(rows[0]);
     const conceptIds = question.topic ? [question.topic] : [];
+    if (!options?.includeStudy) {
+      return { question, bank_signals: [], source: "published" };
+    }
+    const study = await getPublishedStudyPayload({
+      questionId: id,
+      conceptIds,
+    });
     return {
       question,
       bank_signals: [],
-      ...(options?.includeStudy
-        ? {
-            study: await getPublishedStudyPayload({
-              questionId: id,
-              conceptIds,
-            }),
-          }
-        : {}),
+      study,
+      study_payload: toStudyPayload({ question, study }),
       source: "published",
     };
   }
 
   const hit = await getBankQuestion(id);
   if (!hit) return null;
+  const study = options?.includeStudy ? emptyStudy() : undefined;
   return {
     question: hit.question,
     bank_signals: [hit.bank],
-    ...(options?.includeStudy ? { study: emptyStudy() } : {}),
+    ...(study
+      ? {
+          study,
+          study_payload: toStudyPayload({
+            question: hit.question,
+            study,
+          }),
+        }
+      : {}),
     source: "bank_fallback",
   };
 }

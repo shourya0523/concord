@@ -1,21 +1,20 @@
 import { randomUUID } from "node:crypto";
+import { StudyPlanSchema, type StudyPlan } from "@ibpe/contracts";
 import type {
-  LocalStudyPlan,
   StudyPlanResponse,
   UpdateStudyPlanRequest,
 } from "@/lib/api/schemas";
-import { LocalStudyPlanSchema } from "@/lib/api/schemas";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
 import { listStubLearningModules } from "./learning";
 import { ensureAppUserQuery } from "./users";
 
-const stubPlans = new Map<string, LocalStudyPlan>();
+const stubPlans = new Map<string, StudyPlan>();
 
-function defaultStudyPlan(userId: string): LocalStudyPlan {
+function defaultStudyPlan(userId: string): StudyPlan {
   const now = new Date().toISOString();
   const firstModule = listStubLearningModules()[0];
-  return LocalStudyPlanSchema.parse({
+  return StudyPlanSchema.parse({
     id: `plan_${userId}`,
     user_id: userId,
     title: "Interview study plan",
@@ -34,10 +33,10 @@ function defaultStudyPlan(userId: string): LocalStudyPlan {
 function inputToPlan(
   userId: string,
   input: UpdateStudyPlanRequest,
-  existing?: LocalStudyPlan | null,
-): LocalStudyPlan {
+  existing?: StudyPlan | null,
+): StudyPlan {
   const now = new Date().toISOString();
-  return LocalStudyPlanSchema.parse({
+  return StudyPlanSchema.parse({
     id: existing?.id ?? `plan_${randomUUID().replace(/-/g, "").slice(0, 24)}`,
     user_id: userId,
     title: input.title,
@@ -90,7 +89,7 @@ export async function getStudyPlan(userId: string): Promise<StudyPlanResponse> {
         note: "No saved study plan yet.",
       };
     }
-    const parsed = LocalStudyPlanSchema.safeParse({
+    const parsed = StudyPlanSchema.safeParse({
       ...row.plan_json,
       id: row.id,
       user_id: userId,
@@ -105,7 +104,7 @@ export async function getStudyPlan(userId: string): Promise<StudyPlanResponse> {
     return {
       plan: defaultStudyPlan(userId),
       source: "stub",
-      note: "Saved study plan failed local schema validation.",
+      note: "Saved study plan failed schema validation.",
     };
   } catch (err) {
     console.warn("[study-plan] DB read failed; using stub plan", err);

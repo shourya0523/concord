@@ -1,25 +1,48 @@
 import { randomUUID } from "node:crypto";
-import type {
-  Bookmark,
-  BookmarkListResponse,
-  Collection,
-  CollectionListResponse,
-  CreateBookmarkRequest,
-  CreateCollectionRequest,
-} from "@/lib/api/schemas";
 import {
   BookmarkSchema,
+  CollectionItemSchema,
   CollectionSchema,
+  type Bookmark,
+  type CollectionItem,
+} from "@ibpe/contracts";
+import type {
+  BookmarkListResponse,
+  CollectionListResponse,
+  CollectionWithItems,
+  CreateBookmarkRequest,
+  CreateCollectionRequest,
 } from "@/lib/api/schemas";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
 import { ensureAppUserQuery } from "./users";
 
 const stubBookmarks = new Map<string, Bookmark[]>();
-const stubCollections = new Map<string, Collection[]>();
+const stubCollections = new Map<string, CollectionWithItems[]>();
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function collectionItemColumns(entityKind: string, entityId: string) {
+  return {
+    questionId: entityKind === "question" ? entityId : null,
+    conceptId: entityKind === "concept" ? entityId : null,
+    moduleId: entityKind === "module" ? entityId : null,
+  };
+}
+
+function rowToEntity(
+  row: {
+    question_id: string | null;
+    concept_id: string | null;
+    module_id?: string | null;
+  },
+): { entity_kind: "question" | "concept" | "module"; entity_id: string } | null {
+  if (row.question_id) return { entity_kind: "question", entity_id: row.question_id };
+  if (row.concept_id) return { entity_kind: "concept", entity_id: row.concept_id };
+  if (row.module_id) return { entity_kind: "module", entity_id: row.module_id };
+  return null;
 }
 
 export async function listBookmarks(
@@ -48,15 +71,24 @@ export async function listBookmarks(
       concept_id: string | null;
       created_at: string;
     }>;
-    const items = rows.map((row) =>
-      BookmarkSchema.parse({
-        id: row.id,
-        user_id: userId,
-        item_type: row.question_id ? "question" : "concept",
-        item_id: row.question_id ?? row.concept_id ?? "unknown",
-        created_at: new Date(row.created_at).toISOString(),
-      }),
-    );
+    const items = rows
+      .map((row) => {
+        const entity = rowToEntity(row);
+        if (!entity) return null;
+        const created = new Date(row.created_at).toISOString();
+        return BookmarkSchema.parse({
+          id: row.id,
+          user_id: userId,
+          entity_kind: entity.entity_kind,
+          entity_id: entity.entity_id,
+          firm_ids: [],
+          tags: [],
+          note: null,
+          created_at: created,
+          updated_at: created,
+        });
+      })
+      .filter((item): item is Bookmark => Boolean(item));
     return { items, source: "published" };
   } catch (err) {
     console.warn("[bookmarks] DB read failed; using stub bookmarks", err);
@@ -69,12 +101,17 @@ export async function createBookmark(options: {
   email?: string | null;
   input: CreateBookmarkRequest;
 }): Promise<BookmarkListResponse> {
+  const now = nowIso();
   const item = BookmarkSchema.parse({
     id: `bm_${randomUUID().replace(/-/g, "").slice(0, 24)}`,
     user_id: options.userId,
-    item_type: options.input.item_type,
-    item_id: options.input.item_id,
-    created_at: nowIso(),
+    entity_kind: options.input.entity_kind,
+    entity_id: options.input.entity_id,
+    firm_ids: options.input.firm_ids,
+    tags: options.input.tags,
+    note: options.input.note ?? null,
+    created_at: now,
+    updated_at: now,
   });
 
   if (!isDatabaseConfigured()) {
@@ -87,13 +124,13 @@ export async function createBookmark(options: {
     };
   }
 
-  if (item.item_type !== "question" && item.item_type !== "concept") {
+  if (item.entity_kind !== "question" && item.entity_kind !== "concept") {
     const items = [item, ...(stubBookmarks.get(options.userId) ?? [])];
     stubBookmarks.set(options.userId, items);
     return {
       items,
       source: "stub",
-      note: "Current DB bookmark table supports question/concept only; saved in memory.",
+      note: "app.bookmarks currently supports question/concept only; saved in memory.",
     };
   }
 
@@ -106,8 +143,8 @@ export async function createBookmark(options: {
         VALUES (
           ${item.id},
           (SELECT id FROM app.users WHERE neon_auth_user_id = ${options.userId} LIMIT 1),
-          ${item.item_type === "question" ? item.item_id : null},
-          ${item.item_type === "concept" ? item.item_id : null}
+          ${item.entity_kind === "question" ? item.entity_id : null},
+          ${item.entity_kind === "concept" ? item.entity_id : null}
         )
       `,
     ]);
@@ -122,6 +159,45 @@ export async function createBookmark(options: {
       note: "DB bookmark write failed — saved bookmark in memory.",
     };
   }
+}
+
+async function loadCollectionItems(
+  userId: string,
+  collectionId: string,
+): Promise<CollectionItem[]> {
+  const sql = requireSql();
+  const results = await withRlsUserId(sql, userId, (s) => [
+    s`
+      SELECT id, collection_id, question_id, concept_id, module_id, position, created_at
+      FROM app.collection_items
+      WHERE collection_id = ${collectionId}
+      ORDER BY position ASC, created_at ASC
+    `,
+  ]);
+  const rows = (results[0] ?? []) as Array<{
+    id: string;
+    collection_id: string;
+    question_id: string | null;
+    concept_id: string | null;
+    module_id: string | null;
+    position: number;
+    created_at: string;
+  }>;
+  return rows
+    .map((row) => {
+      const entity = rowToEntity(row);
+      if (!entity) return null;
+      return CollectionItemSchema.parse({
+        id: row.id,
+        collection_id: row.collection_id,
+        entity_kind: entity.entity_kind,
+        entity_id: entity.entity_id,
+        position: Number(row.position) || 0,
+        note: null,
+        created_at: new Date(row.created_at).toISOString(),
+      });
+    })
+    .filter((item): item is CollectionItem => Boolean(item));
 }
 
 export async function listCollections(
@@ -149,20 +225,24 @@ export async function listCollections(
       name: string;
       created_at: string;
     }>;
-    const items = rows.map((row) =>
-      CollectionSchema.parse({
-        id: row.id,
-        user_id: userId,
-        name: row.name,
-        items: [],
-        created_at: new Date(row.created_at).toISOString(),
-      }),
-    );
-    return {
-      items,
-      source: "published",
-      note: "Collection items await a DB collection_items table; list returns containers.",
-    };
+    const items: CollectionWithItems[] = [];
+    for (const row of rows) {
+      const created = new Date(row.created_at).toISOString();
+      const collectionItems = await loadCollectionItems(userId, row.id);
+      items.push({
+        ...CollectionSchema.parse({
+          id: row.id,
+          user_id: userId,
+          title: row.name,
+          description: null,
+          cover_asset_id: null,
+          created_at: created,
+          updated_at: created,
+        }),
+        items: collectionItems,
+      });
+    }
+    return { items, source: "published" };
   } catch (err) {
     console.warn("[collections] DB read failed; using stub collections", err);
     return { items: stubCollections.get(userId) ?? [], source: "stub" };
@@ -174,22 +254,37 @@ export async function createCollection(options: {
   email?: string | null;
   input: CreateCollectionRequest;
 }): Promise<CollectionListResponse> {
-  const item = CollectionSchema.parse({
-    id: `col_${randomUUID().replace(/-/g, "").slice(0, 24)}`,
-    user_id: options.userId,
-    name: options.input.name,
-    items: options.input.items.map((collectionItem) => ({
-      ...collectionItem,
-      added_at: nowIso(),
-    })),
-    created_at: nowIso(),
-  });
+  const now = nowIso();
+  const collectionId = `col_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
+  const items = options.input.items.map((item, index) =>
+    CollectionItemSchema.parse({
+      id: `ci_${randomUUID().replace(/-/g, "").slice(0, 24)}`,
+      collection_id: collectionId,
+      entity_kind: item.entity_kind,
+      entity_id: item.entity_id,
+      position: item.position ?? index,
+      note: item.note ?? null,
+      created_at: now,
+    }),
+  );
+  const collection: CollectionWithItems = {
+    ...CollectionSchema.parse({
+      id: collectionId,
+      user_id: options.userId,
+      title: options.input.title,
+      description: options.input.description ?? null,
+      cover_asset_id: null,
+      created_at: now,
+      updated_at: now,
+    }),
+    items,
+  };
 
   if (!isDatabaseConfigured()) {
-    const items = [item, ...(stubCollections.get(options.userId) ?? [])];
-    stubCollections.set(options.userId, items);
+    const listed = [collection, ...(stubCollections.get(options.userId) ?? [])];
+    stubCollections.set(options.userId, listed);
     return {
-      items,
+      items: listed,
       source: "stub",
       note: "DATABASE_URL unset — saved collection in memory.",
     };
@@ -197,31 +292,52 @@ export async function createCollection(options: {
 
   try {
     const sql = requireSql();
+    const itemInserts = items
+      .filter((item) =>
+        ["question", "concept", "module"].includes(item.entity_kind),
+      )
+      .map((item) => {
+        const cols = collectionItemColumns(item.entity_kind, item.entity_id);
+        return {
+          id: item.id,
+          ...cols,
+          position: item.position,
+        };
+      });
+
     await withRlsUserId(sql, options.userId, (s) => [
       ensureAppUserQuery(s, options.userId, options.email),
       s`
         INSERT INTO app.collections (id, user_id, name)
         VALUES (
-          ${item.id},
+          ${collection.id},
           (SELECT id FROM app.users WHERE neon_auth_user_id = ${options.userId} LIMIT 1),
-          ${item.name}
+          ${collection.title}
         )
       `,
+      ...itemInserts.map(
+        (item) => s`
+          INSERT INTO app.collection_items (
+            id, collection_id, question_id, concept_id, module_id, position
+          )
+          VALUES (
+            ${item.id},
+            ${collection.id},
+            ${item.questionId},
+            ${item.conceptId},
+            ${item.moduleId},
+            ${item.position}
+          )
+        `,
+      ),
     ]);
-    const listed = await listCollections(options.userId);
-    return {
-      ...listed,
-      note:
-        item.items.length > 0
-          ? "Collection container saved; DB collection item table is not present yet."
-          : listed.note,
-    };
+    return listCollections(options.userId);
   } catch (err) {
     console.warn("[collections] DB write failed; saving in memory", err);
-    const items = [item, ...(stubCollections.get(options.userId) ?? [])];
-    stubCollections.set(options.userId, items);
+    const listed = [collection, ...(stubCollections.get(options.userId) ?? [])];
+    stubCollections.set(options.userId, listed);
     return {
-      items,
+      items: listed,
       source: "stub",
       note: "DB collection write failed — saved collection in memory.",
     };
