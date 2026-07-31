@@ -1,4 +1,5 @@
 import { jsonError, handleRouteError, respondTyped } from "@/lib/api/http";
+import { getApiUser } from "@/lib/api/auth";
 import { PracticeSessionResponseSchema } from "@/lib/api/schemas";
 import { getPracticeSession } from "@/lib/data/practice";
 
@@ -11,8 +12,10 @@ export async function GET(
   ctx: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getApiUser("view practice sessions");
+    if (!user.ok) return user.response;
     const { id } = await ctx.params;
-    const session = await getPracticeSession(id);
+    const session = await getPracticeSession(id, user.userId);
     if (!session) return jsonError(404, "not_found", `Session not found: ${id}`);
     return respondTyped(PracticeSessionResponseSchema, {
       session,
