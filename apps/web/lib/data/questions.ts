@@ -304,23 +304,18 @@ async function getPublishedStudyPayload(options: {
     : null;
 
   // Layers must not repeat: the direct answer often prefixes the expanded
-  // explanation — strip it so walkthrough steps add new information.
+  // explanation — strip it so the interview-ready layer adds new info.
   const concise = row.concise_answer.trim();
   const expanded = row.expanded_explanation.trim();
   const expandedBeyondDirect =
     concise.length > 0 && expanded.startsWith(concise)
       ? expanded.slice(concise.length).trim()
       : expanded;
-  // No content beyond the direct answer → no walkthrough layer (honest),
-  // rather than re-splitting the same sentences into fake steps.
-  const stepByStep = expandedBeyondDirect
-    ? expandedBeyondDirect
-        .split(/\n{2,}|(?<=\.)\s+(?=[A-Z])/)
-        .map((part) => part.trim())
-        .filter(Boolean)
-        .filter((part) => part !== concise)
-        .slice(0, 8)
-    : [];
+  // No synthetic walkthrough: sentence-splitting the explanation duplicates
+  // earlier layers. Real structured layers come from the json fields below
+  // (formulae / assumptions / mistakes / follow-ups). step_by_step stays
+  // empty until the corpus carries an explicit walkthrough field.
+  const stepByStep: string[] = [];
 
   return {
     answer_id: row.id,
