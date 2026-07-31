@@ -96,7 +96,9 @@ Jobs are restartable with idempotency keys. Prefer `JobEvent` contracts for prog
 Shared Zod package: `@ibpe/contracts` (`packages/contracts`).  
 Python mirror: `src/ibpe_corpus/schemas/models.py`.
 
-Key entities: `BankQuestion`, `CompletedJob`, `CanonicalQuestion`, `InterviewOccurrence`, `Answer`, `Firm`, `Role`, `Attempt`, `Mastery`, `SearchRequest`/`SearchResponse`, `JobEvent`, `ApiError`, `TopicTaxonomy`.
+Key entities: `BankQuestion`, `CompletedJob`, `CanonicalQuestion`, `InterviewOccurrence`, `Answer`, `AnswerLayers`, `QuestionStudyPayload`, `LearningModule`, `LearningModuleCheckpoint`, `ModuleProgress`, `Firm`, `Role`, `TargetCompanySet`, `PracticeSession`, `SimulatorPracticeSession`, `Attempt`, `Mastery`, `StudyPlan`, `Bookmark`, `Collection`, `SearchRequest`/`SearchResponse`, `JobEvent`, `ApiError`, `TopicTaxonomy`.
+
+Product-flow contract addendum: DESIGN §10 modules, layered question study, study-plan module checkpoints, target-company settings, saved items, and firm-templated simulator metadata are now typed in `packages/contracts/src/product.ts`. Glassdoor remains occurrence/heat provenance only; teaching answer payload citations use non-Glassdoor provenance.
 
 ## Runtime choices
 
