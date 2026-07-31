@@ -9,7 +9,7 @@ export default function ModeAMockupPage() {
   return (
     <JourneyShell
       eyebrow="Mode A"
-      title="Company heat → pseudo-RAG → layered study"
+      title="Company prep"
       activeHref="/mockups/mode-a"
       techniques={[
         {

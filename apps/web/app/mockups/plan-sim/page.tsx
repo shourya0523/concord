@@ -9,7 +9,7 @@ export default function PlanSimMockupPage() {
   return (
     <JourneyShell
       eyebrow="Plan · Simulator"
-      title="Study plan → firm mock → score reveal"
+      title="Plan & simulator"
       activeHref="/mockups/plan-sim"
       techniques={[
         {

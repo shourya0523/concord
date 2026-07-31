@@ -9,7 +9,7 @@ export default function ModeBMockupPage() {
   return (
     <JourneyShell
       eyebrow="Mode B · Learn"
-      title="Module catalog → lab diagram → quiz → Apply at Firm"
+      title="Learn"
       activeHref="/mockups/mode-b"
       techniques={[
         {
