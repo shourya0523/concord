@@ -67,6 +67,29 @@ authenticated smoke still requires a test user/session.
 | Local + production smokes | Pass — real tagged heat (e.g. Goldman behavioral n=62 / valuation n=50); signals total 456; concepts with diagrams; module checkpoints with 6 real question ids; pages 200 |
 | Browser E2E | Video recorded |
 
+## Phase 2 gap-close (2026-07-31) — PR #34
+
+Absorbed prior agent branch `local/design-phase2-rework-c5e3` (#33) then parallel WS polish:
+
+| Item | Stream | State |
+|------|--------|-------|
+| 1–3 Saved / study / simulator personas | prior agent | Merged |
+| 4 Dashboard / plan / lab polish | `ibpe-frontend` | Done — readiness pills, CircledNumber streak, urgency bands, prereq mini-maps |
+| 5 RAG AI brief rewrite | `ibpe-search` | Done — Gemini `generateText` with pack-id citation guard + template fallback |
+| 6 Keyword rules v2 | `ibpe-data-quality` | Done — `TOPIC_RULES` expand + `migrations/036_…`; bank tag rate ~36%→46% offline |
+| 7 Verify | orchestrator | Typecheck + build + search/rag-brief tests green; local browser smoke on `/dashboard` `/plan` `/saved` `/concepts` |
+
+### Verification (this branch)
+
+| Check | Result |
+|-------|--------|
+| `@ibpe/web` typecheck | Pass |
+| `@ibpe/web` production build | Pass; includes `/saved` |
+| `@ibpe/search` tests | 8/8 pass |
+| `rag-brief` unit tests | 3/3 pass |
+| Local browser smoke | Pages 200; `/prep/rag` → Neon Auth sign-in (expected) |
+| Migration 036 on Neon | Ship file; full `migrate` runner blocked on legacy 020 view recreate — apply `036` via `psql -f` when promoting |
+
 ## Wave 1 verification
 
 | Check | Result |
