@@ -55,11 +55,23 @@ This is a **monorepo** containing:
 - **Duolingo's reward-driven gamification energy** as the emotional engine (streaks, XP, celebrations) — but restrained into a **pastel palette** rather than saturated primaries, so it reads **premium and calm** rather than toy-like
 
 **Layout resting rules (Notion base):**
-1. Sidebar = workspace navigation (Company / Learn / Plan + step pages). Main = white document.
+1. Sidebar = workspace navigation (Company / Learn / Plan + step pages). Main = **paper-white document** on a grey workspace chrome.
 2. One page title. Breadcrumb optional and quiet. No stacked marketing headers.
-3. Warren lives in a **callout block**, not a competing hero column.
-4. Lists and databases = simple bordered rows. Cards/rough frames only when the interaction needs a paper moment.
+3. Warren lives in a **paper callout block**, not a competing hero column.
+4. Lists and databases = simple bordered rows. **Paper sheets** (rough frame + torn edge chrome) wrap study cards, packs, and score moments — not the whole app shell.
 5. Meta (“hard parts”, Phase labels) stays out of the reading path — sidebar footer at most.
+
+**Interaction (drawing system):**
+- Prefer **rough-notation `box`** (hand-drawn outline) for hover/focus on interactive controls and heatmap cells.
+- **Do not** use glow, soft ring, or drop-shadow as the primary hover affordance.
+- Glow remains reserved for rare data callouts (e.g. single weakest heat cell), never for button chrome.
+
+**Paper / torn pages:**
+- Resting chrome = Notion greys + white page.
+- **Paper UI** returns inside content: off-white sheet, rough.js border, optional **torn edge strips** (filter on decorative edges only — never on body text).
+- Static torn filter for sheets; animated hero torn only on score / milestone reveals.
+
+**Monochrome:** Greyscale resting UI (sidebar grey, ink text, stone borders). Heat / semantic pastels stay data-only. Current warm-neutral greys are acceptable; avoid green cast on chrome.
 
 This is a **banking interview prep platform** — trust reads through precision, not energy. Numbers stay visually calm. No bounce on financial figures. Hand-drawn aesthetic adds **warmth and approachability** to a high-stakes domain without compromising **editorial rigor**.
 
@@ -318,6 +330,12 @@ Use sparingly. Most elevation comes from **borders** and **paper texture**, not 
 
 Concept sheets (art direction): `/mockups/warren/warren-portrait-idle.png`, `warren-expression-sheet.png`, `warren-silhouette-scale.png`.
 
+**Open polish (direction approved; craft still iterating):**
+- Match concept sheets more closely: fuller cheek volume, clearer white side-hair mass, thicker round frames, softer cardigan folds
+- Keep silhouette stable across moods while improving line quality
+- Ship SVG first; consider a single hero PNG only if SVG cannot hit the sheet fidelity at 96px
+- Do **not** regress to DiceBear / stock avatars while polishing
+
 ### Interviewer Cast — 3-5 Fixed Named Personas
 
 
@@ -416,7 +434,7 @@ group.show(); // Animates in order
 **When to animate:**
 - **On feedback reveal** (after answer is scored, not on submit tap)
 - **On milestone unlock** (celebration moment)
-- **On hover/focus** for interactive elements (optional, not default)
+- **On hover/focus** for interactive controls and heatmap cells → prefer **`box`** (hand-drawn outline), **not glow/ring**
 
 **When NOT to animate:**
 - On page load (instant final state, or brief delay before animating key callouts)
@@ -596,10 +614,10 @@ Applied consistently, **never mixed within the same element type**.
    - Handwriting draw-ons → rare ceremonial phrases only
    - Ambient glow → reserved for specific cells/moments, not always-on
 
-3. **Heatmap/data glow:**
-   - Reserved for the **1-3 cells that matter most** (strongest/weakest topic)
-   - OR triggered on **hover/focus**
-   - Never always-on across a full grid
+3. **Heatmap / control hover:**
+   - Primary affordance = **rough-notation `box`** drawn around the active cell or button
+   - Glow reserved only for the **1 weakest-overlap callout** (static), never as hover chrome
+   - Never always-on glow across a full grid
 
 4. **Celebration mechanism varies by context:**
    - **Hand-drawn paper-burst** (rough.js polygons scattering) for most milestones

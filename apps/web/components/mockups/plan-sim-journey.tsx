@@ -8,6 +8,8 @@ import { Annotate } from "@/components/mockups/annotate"
 import { HandwritingHeadline } from "@/components/mockups/handwriting"
 import { InterviewerAvatar } from "@/components/mockups/interviewer-avatar"
 import { JourneyShell, NotionCallout } from "@/components/mockups/journey-shell"
+import { PaperSheet } from "@/components/mockups/paper-sheet"
+import { RoughHover } from "@/components/mockups/rough-hover"
 import { Warren } from "@/components/mockups/warren"
 
 const STEPS = ["plan", "sim", "score", "recs"] as const
@@ -149,32 +151,38 @@ export function PlanSimJourney() {
             interviewerId="morgan-vp-gs"
             state={typing ? "listening" : interviewerState}
           />
-          <p className="text-lg font-medium leading-snug">
-            Walk me through how depreciation flows through the three statements.
-          </p>
-          <textarea
-            className="min-h-36 w-full rounded-md border border-border bg-transparent p-3 text-sm leading-relaxed outline-none focus:border-foreground/30"
-            value={answer}
-            onFocus={() => {
-              setTyping(true)
-              setInterviewerState("listening")
-            }}
-            onBlur={() => setTyping(false)}
-            onChange={(e) => setAnswer(e.target.value)}
-            placeholder="Structure first…"
-          />
-          <Button
-            onClick={() => {
-              setTyping(false)
-              setInterviewerState("evaluating")
-              window.setTimeout(() => {
-                setScored(true)
-                setStep("score")
-              }, prefersDelay())
-            }}
-          >
-            Submit answer
-          </Button>
+          <PaperSheet seedKey="sim-question-sheet">
+            <p className="text-lg font-medium leading-snug">
+              Walk me through how depreciation flows through the three statements.
+            </p>
+            <textarea
+              className="mt-4 min-h-36 w-full rounded-md border border-border bg-transparent p-3 text-sm leading-relaxed outline-none focus:border-foreground/30"
+              value={answer}
+              onFocus={() => {
+                setTyping(true)
+                setInterviewerState("listening")
+              }}
+              onBlur={() => setTyping(false)}
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder="Structure first…"
+            />
+            <div className="mt-3">
+              <RoughHover>
+                <Button
+                  onClick={() => {
+                    setTyping(false)
+                    setInterviewerState("evaluating")
+                    window.setTimeout(() => {
+                      setScored(true)
+                      setStep("score")
+                    }, prefersDelay())
+                  }}
+                >
+                  Submit answer
+                </Button>
+              </RoughHover>
+            </div>
+          </PaperSheet>
           <p className="text-xs text-muted-foreground">
             Warren stays out of the mock — the interviewer owns this surface.
           </p>
@@ -183,26 +191,30 @@ export function PlanSimJourney() {
 
       {step === "score" ? (
         <div className="space-y-6">
-          <HandwritingHeadline phrase="You scored 87%!" play={scored} />
-          <p className="text-5xl font-semibold tracking-tight">
-            <Annotate type="circle" show={scored}>
-              87
-            </Annotate>
-            <span className="text-2xl text-muted-foreground"> / 100</span>
-          </p>
-          <div className="rounded-md border border-border px-3 py-3 text-sm leading-relaxed">
-            Strong{" "}
-            <Annotate type="highlight" show={scored}>
-              cash add-back on the CFS
-            </Annotate>
-            . Watch{" "}
-            <Annotate type="underline" show={scored}>
-              deferred tax wording
-            </Annotate>
-            .
-          </div>
+          <PaperSheet seedKey="sim-score-sheet" hero>
+            <HandwritingHeadline phrase="You scored 87%!" play={scored} />
+            <p className="mt-4 text-5xl font-semibold tracking-tight">
+              <Annotate type="circle" show={scored}>
+                87
+              </Annotate>
+              <span className="text-2xl text-muted-foreground"> / 100</span>
+            </p>
+            <p className="mt-4 text-sm leading-relaxed">
+              Strong{" "}
+              <Annotate type="highlight" show={scored}>
+                cash add-back on the CFS
+              </Annotate>
+              . Watch{" "}
+              <Annotate type="underline" show={scored}>
+                deferred tax wording
+              </Annotate>
+              .
+            </p>
+          </PaperSheet>
           <InterviewerAvatar interviewerId="morgan-vp-gs" state="evaluating" />
-          <Button onClick={() => setStep("recs")}>See next up</Button>
+          <RoughHover>
+            <Button onClick={() => setStep("recs")}>See next up</Button>
+          </RoughHover>
         </div>
       ) : null}
 

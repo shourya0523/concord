@@ -164,7 +164,7 @@ export function JourneyShell({
   )
 }
 
-/** Notion-style callout with Warren. */
+/** Notion-style paper callout with Warren. */
 export function NotionCallout({
   children,
   warren,
@@ -173,7 +173,7 @@ export function NotionCallout({
   warren?: ReactNode
 }) {
   return (
-    <div className="flex gap-3 rounded-md bg-[oklch(0.97_0.003_80)] px-3 py-3 text-sm leading-relaxed text-foreground">
+    <div className="flex gap-3 rounded-sm border border-border/80 bg-[oklch(0.99_0.004_85)] px-3 py-3 text-sm leading-relaxed text-foreground shadow-[0_1px_0_oklch(0.92_0.005_80)]">
       {warren ? <div className="shrink-0 pt-0.5">{warren}</div> : null}
       <div className="min-w-0 pt-1">{children}</div>
     </div>

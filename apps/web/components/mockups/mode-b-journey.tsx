@@ -9,6 +9,8 @@ import { ResourceLinkList } from "@ibpe/ui/components/resource-link-list"
 import { CONCEPTS, DIAGRAM_SOURCES, FIRMS, resourcesForConcept } from "@/lib/mock-data"
 import { Annotate } from "@/components/mockups/annotate"
 import { JourneyShell, NotionCallout } from "@/components/mockups/journey-shell"
+import { PaperSheet } from "@/components/mockups/paper-sheet"
+import { RoughHover } from "@/components/mockups/rough-hover"
 import { Warren } from "@/components/mockups/warren"
 
 const STEPS = ["catalog", "hub", "lab", "quiz", "bridge"] as const
@@ -178,52 +180,55 @@ export function ModeBJourney() {
             </p>
           </NotionCallout>
 
-          <DiagramCanvas
-            title={diagram?.title ?? "Paper LBO sketch"}
-            source={diagram?.mermaid}
-            fallback={
-              <svg viewBox="0 0 520 140" className="h-auto w-full max-w-lg" role="img">
-                <title>Sources and uses</title>
-                <rect x="8" y="40" width="90" height="36" rx="4" fill="oklch(0.95 0.003 80)" stroke="var(--ink)" />
-                <text x="53" y="62" textAnchor="middle" style={{ fontSize: 12 }} fill="var(--ink)">
-                  Equity
-                </text>
-                <rect x="8" y="88" width="90" height="36" rx="4" fill="oklch(0.95 0.003 80)" stroke="var(--ink)" />
-                <text x="53" y="110" textAnchor="middle" style={{ fontSize: 12 }} fill="var(--ink)">
-                  Debt
-                </text>
-                <path d="M98 58 H150 M98 106 H150" stroke="var(--ink)" strokeWidth="1.2" />
-                <rect x="150" y="64" width="100" height="36" rx="4" fill="oklch(1 0 0)" stroke="var(--ink)" />
-                <text x="200" y="86" textAnchor="middle" style={{ fontSize: 12 }} fill="var(--ink)">
-                  HoldCo
-                </text>
-                <path d="M250 82 H300" stroke="var(--ink)" strokeWidth="1.2" />
-                <rect x="300" y="64" width="100" height="36" rx="4" fill="oklch(1 0 0)" stroke="var(--ink)" />
-                <text x="350" y="86" textAnchor="middle" style={{ fontSize: 12 }} fill="var(--ink)">
-                  Target
-                </text>
-                <path d="M400 82 H450" stroke="var(--ink)" strokeWidth="1.2" />
-                <rect x="450" y="64" width="60" height="36" rx="4" fill="oklch(0.95 0.003 80)" stroke="var(--ink)" />
-                <text x="480" y="86" textAnchor="middle" style={{ fontSize: 11 }} fill="var(--ink)">
-                  Uses
-                </text>
-              </svg>
-            }
-          />
-
-          <div>
-            <p className="text-xs font-medium text-muted-foreground">Lab note</p>
-            <p className="mt-1 text-sm leading-relaxed">
-              Keep{" "}
-              <Annotate type="box" show>
-                MOIC = Exit equity / Entry equity
-              </Annotate>{" "}
-              separate from IRR timing.
-            </p>
-          </div>
+          <PaperSheet seedKey="learn-lab-diagram">
+            <DiagramCanvas
+              title={diagram?.title ?? "Paper LBO sketch"}
+              source={diagram?.mermaid}
+              fallback={
+                <svg viewBox="0 0 520 140" className="h-auto w-full max-w-lg" role="img">
+                  <title>Sources and uses</title>
+                  <rect x="8" y="40" width="90" height="36" rx="4" fill="oklch(0.95 0.003 80)" stroke="var(--ink)" />
+                  <text x="53" y="62" textAnchor="middle" style={{ fontSize: 12 }} fill="var(--ink)">
+                    Equity
+                  </text>
+                  <rect x="8" y="88" width="90" height="36" rx="4" fill="oklch(0.95 0.003 80)" stroke="var(--ink)" />
+                  <text x="53" y="110" textAnchor="middle" style={{ fontSize: 12 }} fill="var(--ink)">
+                    Debt
+                  </text>
+                  <path d="M98 58 H150 M98 106 H150" stroke="var(--ink)" strokeWidth="1.2" />
+                  <rect x="150" y="64" width="100" height="36" rx="4" fill="oklch(1 0 0)" stroke="var(--ink)" />
+                  <text x="200" y="86" textAnchor="middle" style={{ fontSize: 12 }} fill="var(--ink)">
+                    HoldCo
+                  </text>
+                  <path d="M250 82 H300" stroke="var(--ink)" strokeWidth="1.2" />
+                  <rect x="300" y="64" width="100" height="36" rx="4" fill="oklch(1 0 0)" stroke="var(--ink)" />
+                  <text x="350" y="86" textAnchor="middle" style={{ fontSize: 12 }} fill="var(--ink)">
+                    Target
+                  </text>
+                  <path d="M400 82 H450" stroke="var(--ink)" strokeWidth="1.2" />
+                  <rect x="450" y="64" width="60" height="36" rx="4" fill="oklch(0.95 0.003 80)" stroke="var(--ink)" />
+                  <text x="480" y="86" textAnchor="middle" style={{ fontSize: 11 }} fill="var(--ink)">
+                    Uses
+                  </text>
+                </svg>
+              }
+            />
+            <div className="mt-4">
+              <p className="text-xs font-medium text-muted-foreground">Lab note</p>
+              <p className="mt-1 text-sm leading-relaxed">
+                Keep{" "}
+                <Annotate type="box" show>
+                  MOIC = Exit equity / Entry equity
+                </Annotate>{" "}
+                separate from IRR timing.
+              </p>
+            </div>
+          </PaperSheet>
 
           <ResourceLinkList resources={resources} title="Resources" />
-          <Button onClick={() => setStep("quiz")}>Module quiz</Button>
+          <RoughHover>
+            <Button onClick={() => setStep("quiz")}>Module quiz</Button>
+          </RoughHover>
         </div>
       ) : null}
 

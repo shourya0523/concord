@@ -103,7 +103,7 @@ function TopicHeatmap({
                         weak &&
                           "bg-[repeating-linear-gradient(-45deg,transparent,transparent_3px,color-mix(in_oklch,var(--weak)_35%,transparent)_3px,color-mix(in_oklch,var(--weak)_35%,transparent)_6px)]",
                         onCellActivate &&
-                          "cursor-pointer hover:ring-2 hover:ring-ring/50 focus-visible:ring-2 focus-visible:ring-ring",
+                          "cursor-pointer focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-foreground/50",
                         !onCellActivate && "cursor-default"
                       )}
                     >

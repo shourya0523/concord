@@ -13,7 +13,6 @@ export type WarrenMood =
 
 type WarrenProps = {
   mood?: WarrenMood
-  /** Pause breathing during user focus (typing/reading). */
   userFocused?: boolean
   aside?: string
   className?: string
@@ -21,9 +20,9 @@ type WarrenProps = {
 }
 
 /**
- * Warren — Concord's fixed coach sprite.
- * Art direction: /public/mockups/warren/*.png + DESIGN.md §6.
- * Construction: stable body/head/glasses; mood swaps brows + mouth + prop only.
+ * Warren — Concord coach sprite (DESIGN.md §6).
+ * Art sheets: /public/mockups/warren/*.png — runtime is layered SVG.
+ * Open polish: closer cheek volume, hair mass, frame weight vs sheets.
  */
 export function Warren({
   mood = "idle",
@@ -69,133 +68,136 @@ export function Warren({
 }
 
 function WarrenSvg({ mood }: { mood: WarrenMood }) {
-  const browIdle = {
-    left: "M30 40 Q38 37 46 40",
-    right: "M50 40 Q58 37 66 40",
-  }
   const brows =
     mood === "concerned"
-      ? { left: "M30 41 Q38 38 46 42", right: "M50 42 Q58 38 66 41" }
+      ? { left: "M28 39 Q37 36 45 40", right: "M51 40 Q59 36 68 39" }
       : mood === "celebrating" || mood === "encouraging"
-        ? { left: "M30 38 Q38 35 46 38", right: "M50 38 Q58 35 66 38" }
+        ? { left: "M28 37 Q37 34 45 37", right: "M51 37 Q59 34 68 37" }
         : mood === "thinking"
-          ? { left: "M30 39 Q38 36 46 39", right: "M50 40 Q58 37 66 39" }
-          : browIdle
+          ? { left: "M28 38 Q37 35 45 38", right: "M51 39 Q59 36 68 38" }
+          : { left: "M28 38.5 Q37 36 45 38.5", right: "M51 38.5 Q59 36 68 38.5" }
 
   const mouth =
     mood === "celebrating"
-      ? "M38 60 Q48 68 58 60"
+      ? "M37 61 Q48 70 59 61"
       : mood === "encouraging"
-        ? "M39 60 Q48 65 57 60"
+        ? "M38 61 Q48 66 58 61"
         : mood === "concerned"
-          ? "M39 62 Q48 58 57 62"
+          ? "M38 63 Q48 59 58 63"
           : mood === "thinking"
-            ? "M40 61 H56"
+            ? "M40 62 H56"
             : mood === "paused"
-              ? "M40 61 Q48 62 56 61"
-              : "M39 60 Q48 63 57 60"
+              ? "M39 62 Q48 63 57 62"
+              : "M38 61 Q48 64 58 61"
 
   return (
     <svg viewBox="0 0 96 96" width="100%" height="100%" role="img">
       <title>Warren</title>
 
-      {/* —— body (fixed) —— */}
       <g id="warren-body">
         <path
-          d="M18 92 C 26 70, 70 70, 78 92 Z"
-          fill="oklch(0.32 0.04 250)"
+          d="M16 94 C 24 68, 72 68, 80 94 Z"
+          fill="oklch(0.30 0.045 250)"
           stroke="var(--ink)"
-          strokeWidth="1.6"
+          strokeWidth="1.7"
           strokeLinejoin="round"
         />
+        {/* cardigan fold */}
         <path
-          d="M40 78 L48 92 L56 78 Z"
-          fill="oklch(0.96 0.01 90)"
+          d="M40 78 Q48 86 56 78"
+          fill="none"
+          stroke="oklch(0.22 0.04 250)"
+          strokeWidth="1.2"
+        />
+        <path
+          d="M39 76 L48 94 L57 76 Z"
+          fill="oklch(0.97 0.01 90)"
           stroke="var(--ink)"
-          strokeWidth="1.3"
+          strokeWidth="1.35"
           strokeLinejoin="round"
         />
       </g>
 
-      {/* —— neck —— */}
-      <rect
-        x="43"
-        y="68"
-        width="10"
-        height="12"
-        rx="2"
-        fill="oklch(0.88 0.03 70)"
+      <path
+        d="M42 66 C 42 72, 54 72, 54 66"
+        fill="oklch(0.88 0.035 70)"
         stroke="var(--ink)"
-        strokeWidth="1.1"
+        strokeWidth="1.15"
       />
 
-      {/* —— head (fixed) —— */}
       <g id="warren-head">
         <ellipse
           cx="48"
-          cy="46"
-          rx="25"
-          ry="27"
-          fill="oklch(0.89 0.03 70)"
+          cy="44"
+          rx="27"
+          ry="29"
+          fill="oklch(0.88 0.035 70)"
           stroke="var(--ink)"
-          strokeWidth="1.7"
+          strokeWidth="1.8"
         />
-        {/* balding crown */}
-        <ellipse cx="48" cy="28" rx="15" ry="9" fill="oklch(0.93 0.02 70)" />
+        {/* cheek warmth */}
+        <ellipse cx="30" cy="52" rx="5" ry="3.5" fill="oklch(0.84 0.05 45 / 0.35)" />
+        <ellipse cx="66" cy="52" rx="5" ry="3.5" fill="oklch(0.84 0.05 45 / 0.35)" />
+        {/* bald crown */}
+        <ellipse cx="48" cy="24" rx="16" ry="10" fill="oklch(0.92 0.025 70)" />
       </g>
 
-      {/* —— hair sides (fixed) —— */}
-      <g id="warren-hair" fill="oklch(0.78 0.01 85)" stroke="var(--ink)" strokeWidth="1.2">
-        <path d="M23 52 C 20 40, 26 26, 36 22 C 30 34, 28 44, 26 54 Z" />
-        <path d="M73 52 C 76 40, 70 26, 60 22 C 66 34, 68 44, 70 54 Z" />
+      <g id="warren-hair" fill="oklch(0.86 0.01 90)" stroke="var(--ink)" strokeWidth="1.25">
+        <path d="M21 50 C 18 36, 26 20, 38 18 C 30 32, 26 42, 24 56 Z" />
+        <path d="M75 50 C 78 36, 70 20, 58 18 C 66 32, 70 42, 72 56 Z" />
+        {/* ear tufts */}
+        <path d="M22 54 C 18 56, 18 62, 23 60" fill="oklch(0.86 0.01 90)" />
+        <path d="M74 54 C 78 56, 78 62, 73 60" fill="oklch(0.86 0.01 90)" />
       </g>
 
-      {/* —— glasses on eyes (fixed at UI sizes) —— */}
-      <g id="warren-glasses" fill="none" stroke="var(--ink)" strokeWidth="1.7">
-        <circle cx="37" cy="46" r="9.5" />
-        <circle cx="59" cy="46" r="9.5" />
-        <path d="M46.5 46 H49.5" />
-        <path d="M27.5 45 H21" strokeLinecap="round" />
-        <path d="M68.5 45 H75" strokeLinecap="round" />
+      <g id="warren-glasses" fill="oklch(0.97 0.01 90 / 0.25)" stroke="var(--ink)" strokeWidth="2">
+        <circle cx="36" cy="45" r="10.5" />
+        <circle cx="60" cy="45" r="10.5" />
+        <path d="M46.5 45 H49.5" strokeWidth="1.8" />
+        <path d="M25.5 44 H18" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+        <path d="M70.5 44 H78" strokeWidth="1.6" strokeLinecap="round" fill="none" />
       </g>
 
-      {/* —— eyes (fixed pupils; mood doesn't move eyeballs for stability) —— */}
       <g id="warren-eyes" fill="var(--ink)">
-        <circle cx="37" cy="46" r="2.2" />
-        <circle cx="59" cy="46" r="2.2" />
+        <circle cx="36" cy="45" r="2.4" />
+        <circle cx="60" cy="45" r="2.4" />
+        <circle cx="35.2" cy="44.2" r="0.6" fill="oklch(0.98 0.01 90)" />
+        <circle cx="59.2" cy="44.2" r="0.6" fill="oklch(0.98 0.01 90)" />
       </g>
 
-      {/* —— brows (mood) —— */}
-      <g id={`warren-brows-${mood}`} fill="none" stroke="var(--ink)" strokeWidth="1.7" strokeLinecap="round">
+      <g
+        id={`warren-brows-${mood}`}
+        fill="none"
+        stroke="var(--ink)"
+        strokeWidth="1.85"
+        strokeLinecap="round"
+      >
         <path d={brows.left} />
         <path d={brows.right} />
       </g>
 
-      {/* —— nose (fixed) —— */}
       <path
-        d="M48 48 L45.5 54 L50.5 54"
+        d="M48 47 L45 54 L51 54"
         fill="none"
         stroke="var(--ink)"
-        strokeWidth="1.3"
+        strokeWidth="1.35"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
 
-      {/* —— mouth (mood) —— */}
       <path
         id={`warren-mouth-${mood}`}
         d={mouth}
         fill="none"
         stroke="var(--ink)"
-        strokeWidth="1.8"
+        strokeWidth="1.9"
         strokeLinecap="round"
       />
 
-      {/* —— props (mood) —— */}
       {mood === "thinking" ? (
-        <g id="warren-prop-thinking" fill="none" stroke="var(--graphite)" strokeWidth="1.4">
-          <circle cx="78" cy="22" r="5" />
-          <circle cx="86" cy="14" r="3" />
+        <g id="warren-prop-thinking" fill="none" stroke="var(--graphite)" strokeWidth="1.45">
+          <circle cx="80" cy="20" r="5.5" />
+          <circle cx="88" cy="12" r="3.2" />
         </g>
       ) : null}
       {mood === "celebrating" ? (
@@ -203,12 +205,12 @@ function WarrenSvg({ mood }: { mood: WarrenMood }) {
           id="warren-prop-celebrating"
           fill="none"
           stroke="oklch(0.55 0.12 75)"
-          strokeWidth="2"
+          strokeWidth="2.1"
           strokeLinecap="round"
         >
-          <path d="M16 22 L20 14" />
-          <path d="M26 24 L30 16" />
-          <path d="M70 20 L74 12" />
+          <path d="M14 20 L18 11" />
+          <path d="M24 22 L28 13" />
+          <path d="M72 18 L76 10" />
         </g>
       ) : null}
     </svg>

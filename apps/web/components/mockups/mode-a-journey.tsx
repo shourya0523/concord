@@ -16,6 +16,8 @@ import {
 } from "@/lib/mock-data"
 import { Annotate } from "@/components/mockups/annotate"
 import { JourneyShell, NotionCallout } from "@/components/mockups/journey-shell"
+import { PaperSheet } from "@/components/mockups/paper-sheet"
+import { InkHoverScope, RoughHover } from "@/components/mockups/rough-hover"
 import { Warren } from "@/components/mockups/warren"
 
 const STEPS = ["heat", "pack", "study", "done"] as const
@@ -112,11 +114,12 @@ export function ModeAJourney() {
           </NotionCallout>
 
           <p className="text-sm text-muted-foreground">
-            Colour = firm heat. Hatch = your weak topics. Numbers stay visible.
+            Colour = firm heat. Hatch = your weak topics. Numbers stay visible. Hover draws a box —
+            no glow.
           </p>
 
-          <div className="overflow-x-auto rounded-md border border-border">
-            <div className="p-3">
+          <PaperSheet seedKey="mode-a-heat-sheet">
+            <InkHoverScope>
               <TopicHeatmap
                 firms={firms}
                 topics={topics}
@@ -124,20 +127,21 @@ export function ModeAJourney() {
                 compareMode
                 onCellActivate={(cell) => setFocusTopic(cell.topicLabel)}
               />
-            </div>
-          </div>
-
-          {weakest ? (
-            <p className="text-sm text-muted-foreground">
-              Weakest overlap:{" "}
-              <span className="font-medium text-foreground">
-                {weakest.topicLabel} @ {weakest.firmLabel}
-              </span>
-            </p>
-          ) : null}
+            </InkHoverScope>
+            {weakest ? (
+              <p className="mt-4 text-sm text-muted-foreground">
+                Weakest overlap:{" "}
+                <span className="font-medium text-foreground">
+                  {weakest.topicLabel} @ {weakest.firmLabel}
+                </span>
+              </p>
+            ) : null}
+          </PaperSheet>
 
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button onClick={() => setStep("pack")}>Open pack · {focusTopic ?? "LBO"}</Button>
+            <RoughHover>
+              <Button onClick={() => setStep("pack")}>Open pack · {focusTopic ?? "LBO"}</Button>
+            </RoughHover>
             <Link href="/mockups/mode-b">
               <Button variant="ghost">Related module</Button>
             </Link>
@@ -168,28 +172,32 @@ export function ModeAJourney() {
             </Annotate>
           </p>
 
-          <div className="space-y-2">
-            {RAG_CITATIONS.slice(0, 3).map((item) => (
-              <PseudoRagCitationCard
-                key={item.id}
-                title={item.title}
-                excerpt={item.excerpt}
-                whyRetrieved={item.whyRetrieved}
-                provenance={item.provenance}
-                score={item.score}
-              />
-            ))}
-          </div>
+          <PaperSheet seedKey="mode-a-pack" torn={false}>
+            <div className="space-y-2">
+              {RAG_CITATIONS.slice(0, 3).map((item) => (
+                <PseudoRagCitationCard
+                  key={item.id}
+                  title={item.title}
+                  excerpt={item.excerpt}
+                  whyRetrieved={item.whyRetrieved}
+                  provenance={item.provenance}
+                  score={item.score}
+                />
+              ))}
+            </div>
+          </PaperSheet>
 
-          <Button
-            onClick={() => {
-              setStep("study")
-              setRevealed(0)
-              setScored(false)
-            }}
-          >
-            Start study
-          </Button>
+          <RoughHover>
+            <Button
+              onClick={() => {
+                setStep("study")
+                setRevealed(0)
+                setScored(false)
+              }}
+            >
+              Start study
+            </Button>
+          </RoughHover>
         </div>
       ) : null}
 
@@ -197,7 +205,7 @@ export function ModeAJourney() {
         <div className="space-y-6">
           <p className="text-sm text-muted-foreground">{citation.excerpt}</p>
 
-          <div>
+          <PaperSheet seedKey="mode-a-study-answer">
             <label className="text-xs font-medium text-muted-foreground">Your answer</label>
             <textarea
               className="mt-2 min-h-36 w-full rounded-md border border-border bg-transparent p-3 text-sm leading-relaxed outline-none focus:border-foreground/30"
@@ -207,25 +215,30 @@ export function ModeAJourney() {
               onChange={(e) => setAnswer(e.target.value)}
               placeholder="Lead with structure, then numbers…"
             />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              disabled={scored}
-              onClick={() => {
-                setScored(true)
-                setRevealed(1)
-                setTyping(false)
-              }}
-            >
-              Submit
-            </Button>
-            {scored ? (
-              <Button variant="ghost" onClick={() => setRevealed((v) => Math.min(4, v + 1))}>
-                Reveal next
-              </Button>
-            ) : null}
-          </div>
+            <div className="mt-3">
+              <RoughHover>
+                <Button
+                  disabled={scored}
+                  onClick={() => {
+                    setScored(true)
+                    setRevealed(1)
+                    setTyping(false)
+                  }}
+                >
+                  Submit
+                </Button>
+              </RoughHover>
+              {scored ? (
+                <Button
+                  variant="ghost"
+                  className="ml-2"
+                  onClick={() => setRevealed((v) => Math.min(4, v + 1))}
+                >
+                  Reveal next
+                </Button>
+              ) : null}
+            </div>
+          </PaperSheet>
 
           <NotionCallout
             warren={
