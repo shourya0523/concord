@@ -33,5 +33,6 @@ jobs:
       - name: Node package placeholder checks
         run: bash scripts/ci_node_packages.sh
 
-  # Deploy jobs intentionally omitted in Wave 1 — require VERCEL_* secrets + Next app.
-  # Preview-then-promote flow is documented in docs/deployment/vercel-project-link.md
+  # Deploy jobs intentionally omitted until VERCEL_* secrets exist in Actions.
+  # Preview-then-promote: docs/deployment/vercel-project-link.md
+  # Prod smoke (Wave 3): scripts/prod_smoke.sh → reports/deployment-report.md

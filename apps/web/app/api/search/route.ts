@@ -19,10 +19,13 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
+    const limitRaw = url.searchParams.get("limit");
+    const offsetRaw = url.searchParams.get("offset");
     const raw = {
       q: url.searchParams.get("q") ?? "",
-      limit: url.searchParams.get("limit") ?? "20",
-      offset: url.searchParams.get("offset") ?? "0",
+      // Query strings are text — coerce before Zod number fields.
+      limit: limitRaw != null && limitRaw !== "" ? Number(limitRaw) : 20,
+      offset: offsetRaw != null && offsetRaw !== "" ? Number(offsetRaw) : 0,
       tracks: url.searchParams.getAll("track"),
       firm_ids: url.searchParams.getAll("firm_id"),
     };

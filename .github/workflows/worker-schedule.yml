@@ -1,8 +1,9 @@
-# Worker schedule wiring stub (Workstream J — Wave 1)
+# Worker schedule wiring stub (Workstream J — Wave 3)
 #
 # Long Glassdoor crawls must NOT run on Vercel serverless request timeouts.
 # Enable `schedule:` only after worker host secrets (HTTPS_PROXY, session) exist.
 # Default: manual dispatch so CI stays safe without scrape credentials.
+# Health: see docs/deployment/workers.md (import check / exit codes — no crawl).
 
 name: Worker schedule (stub)
 
@@ -31,5 +32,7 @@ jobs:
           echo "job=${{ inputs.job || 'enqueue-scrape' }}"
           echo "Wire this workflow to a worker host / queue."
           echo "See apps/worker/schedule.example.yml and docs/deployment/workers.md"
+          echo "Health: python import / Dockerfile HEALTHCHECK — never unattended Glassdoor here."
           test -f apps/worker/jobs/enqueue_scrape.sh.example
           test -f docs/deployment/workers.md
+          test -f apps/worker/Dockerfile

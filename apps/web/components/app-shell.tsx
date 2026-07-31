@@ -78,7 +78,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </div>
       </header>
-      <div className="relative z-[1] mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">{children}</div>
+      <main className="relative z-[1] mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">{children}</main>
     </div>
   )
 }
