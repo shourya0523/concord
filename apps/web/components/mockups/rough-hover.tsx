@@ -9,10 +9,10 @@ import { prefersReducedMotion } from "@/lib/mockups/motion"
 type Ann = ReturnType<typeof annotate>
 
 function inkColor(): string {
-  if (typeof window === "undefined") return "#2c2924"
+  if (typeof window === "undefined") return "#111111"
   const raw = getComputedStyle(document.documentElement).getPropertyValue("--ink").trim()
   // rough-notation needs a concrete color; fall back if var unresolved
-  if (!raw || raw.startsWith("oklch") || raw.startsWith("var")) return "#2c2924"
+  if (!raw || raw.startsWith("oklch") || raw.startsWith("var")) return "#111111"
   return raw
 }
 
