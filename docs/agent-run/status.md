@@ -1,8 +1,8 @@
 # Programme status
 
-**Phase:** Design Phase 1 complete — production deployed
-**Base:** `main` @ `7febf6c`
-**Branch:** `main`
+**Phase:** Design Phase 1 rework + Phase 2 build complete — production deployed
+**Base:** `main` @ `29b729b` (merge of `local/design-phase2-rework-c5e3`)
+**Branch:** `local/design-phase2-rework-c5e3` — merged to `main`
 **Updated:** 2026-07-31
 
 ## Waves
@@ -44,6 +44,27 @@ requests to protected routes correctly redirect to Neon Auth, so the legacy
 `scripts/prod_smoke.sh` reports those 307 responses as failures even though the
 auth boundary is operating as configured. Public pages and APIs pass; an
 authenticated smoke still requires a test user/session.
+
+## Phase 2 rework (2026-07-31)
+
+- Backend: untagged occurrences (`v_firm_topic_heat` returned only `untagged`) fixed via migration 034 — `keyword_rules_v1` tagging of 3,492 occurrences + canonical questions; heat views rewritten; applied to prod Neon.
+- Backend: migration 035 seeds the three-statement diagram + learning resources.
+- Backend: firm id mismatch (mock `firm_gs` vs DB `firm_goldman-sachs`) fixed with `/api/firms` catalog (43 firms + occurrence volumes) and `/api/firms/[firmId]/signals`.
+- Backend: hardcoded weak topics now mastery-derived; mock RAG fallback now reads the published corpus; default targets no longer fabricated.
+- Surfaces: all DESIGN.md §10 screens built — onboarding wizard, dashboard, `/companies` index + room, heat compare insights, RAG pack preview, study layered reveal with inline mermaid, learn catalog + module roadmap, concepts index + lab, plan composer + catch-up, simulator cast + score reveal, progress, settings, landing.
+- Surfaces: real backend wiring throughout; paper design system (black/grey chrome, cream document, pastel semantics, rough-notation semantic map).
+- Rendering: `DiagramCanvas` stub replaced with a real dynamic-import mermaid renderer (paper-styled); `(product)/loading.tsx`; proxy `loginUrl` fix.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `@ibpe/web` typecheck | Pass |
+| `@ibpe/web` lint | 0 errors; 41 warnings (same class as baseline) |
+| `@ibpe/web` production build | Pass; 48 routes |
+| Python unit/integration suite | Pass; 114 tests |
+| Local + production smokes | Pass — real tagged heat (e.g. Goldman behavioral n=62 / valuation n=50); signals total 456; concepts with diagrams; module checkpoints with 6 real question ids; pages 200 |
+| Browser E2E | Video recorded |
 
 ## Wave 1 verification
 

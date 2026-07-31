@@ -303,15 +303,27 @@ async function getPublishedStudyPayload(options: {
     ? await getDiagramAssetForConcept(options.conceptIds[0])
     : null;
 
+  // Layers must not repeat: the direct answer often prefixes the expanded
+  // explanation — strip it so walkthrough steps add new information.
+  const concise = row.concise_answer.trim();
+  const expanded = row.expanded_explanation.trim();
+  const expandedBeyondDirect =
+    concise.length > 0 && expanded.startsWith(concise)
+      ? expanded.slice(concise.length).trim()
+      : expanded;
+  const stepSource = expandedBeyondDirect || expanded;
+  const stepByStep = stepSource
+    .split(/\n{2,}|(?<=\.)\s+(?=[A-Z])/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => part !== concise)
+    .slice(0, 8);
+
   return {
     answer_id: row.id,
     direct_answer: row.concise_answer,
-    interview_ready_explanation: row.expanded_explanation,
-    step_by_step: row.expanded_explanation
-      .split(/\n{2,}|(?<=\.)\s+(?=[A-Z])/)
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .slice(0, 8),
+    interview_ready_explanation: expandedBeyondDirect || expanded,
+    step_by_step: stepByStep,
     diagram_refs: diagramsForConcepts(options.conceptIds),
     diagram_asset: diagramAsset
       ? {

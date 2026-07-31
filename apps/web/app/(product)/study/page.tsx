@@ -66,6 +66,7 @@ export default function StudyPage() {
   const [confidence, setConfidence] = React.useState(0.5)
   const [sessionId, setSessionId] = React.useState<string | null>(null)
   const [status, setStatus] = React.useState("Loading published teaching answer…")
+  const [submitted, setSubmitted] = React.useState(false)
   const [bookmarked, setBookmarked] = React.useState(false)
   const [conceptSlug, setConceptSlug] = React.useState<string | null>(null)
   const [firstTarget, setFirstTarget] = React.useState<string | null>(null)
@@ -80,6 +81,8 @@ export default function StudyPage() {
     const study = detail?.study
     if (!study?.direct_answer) return []
     const topic = detail?.question.topic ?? null
+    const direct = study.direct_answer.trim()
+    const interviewReady = (study.interview_ready_explanation ?? "").trim()
     const result: Layer[] = [
       {
         kind: "text",
@@ -87,18 +90,25 @@ export default function StudyPage() {
         body: study.direct_answer,
         annotate: "highlight",
       },
-      {
-        kind: "text",
-        label: "Interview-ready explanation",
-        body: study.interview_ready_explanation ?? study.direct_answer,
-      },
-      ...study.step_by_step.map(
-        (step, stepIndex): Layer => ({
-          kind: "text",
-          label: `Walkthrough · step ${stepIndex + 1}`,
-          body: step,
-        }),
-      ),
+      // Skip the interview-ready layer when it adds nothing beyond the direct answer
+      ...(interviewReady && interviewReady !== direct
+        ? [
+            {
+              kind: "text" as const,
+              label: "Interview-ready explanation",
+              body: study.interview_ready_explanation!,
+            },
+          ]
+        : []),
+      ...study.step_by_step
+        .filter((step) => step.trim() !== direct && step.trim() !== interviewReady)
+        .map(
+          (step, stepIndex): Layer => ({
+            kind: "text",
+            label: `Walkthrough · step ${stepIndex + 1}`,
+            body: step,
+          }),
+        ),
       ...(study.diagram_asset
         ? [
             {
@@ -143,6 +153,7 @@ export default function StudyPage() {
     setStatus("Loading published teaching answer…")
     setRevealed(0)
     setAnswer("")
+    setSubmitted(false)
     setBookmarked(false)
     startedAt.current = Date.now()
     const response = await fetch(`/api/questions/${encodeURIComponent(questionId)}?view=study`)
@@ -237,6 +248,7 @@ export default function StudyPage() {
       setStatus(`Attempt could not be saved (${response.status}).`)
       return
     }
+    setSubmitted(true)
     setRevealed(Math.min(1, layers.length))
     setStatus("Attempt saved. Answer layers unlocked.")
   }
@@ -357,10 +369,10 @@ export default function StudyPage() {
               />
             </label>
             <Button
-              disabled={!answer.trim() || !sessionId || layers.length === 0}
+              disabled={!answer.trim() || !sessionId || layers.length === 0 || submitted}
               onClick={() => void submitAttempt()}
             >
-              Submit and reveal
+              {submitted ? "Attempt saved" : "Submit and reveal"}
             </Button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">{RATING_GUIDE}</p>

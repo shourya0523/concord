@@ -2,7 +2,7 @@
 
 **Wave:** 3 (promote / deployment gate)  
 **Branch:** `local/ws-infra-wave3-d1de`  
-**Updated:** 2026-07-30
+**Updated:** 2026-07-31
 
 ## Plan (preview → production)
 
@@ -55,6 +55,32 @@ Neon Auth configured, it now produces a false-negative overall verdict for
 `/prep/heat`, `/prep/rag`, `/api/mastery`, `/api/notes`,
 `/api/practice/sessions`, and `/api/admin/status`. An authenticated test user
 or auth-aware smoke mode is still needed for those paths.
+
+## Phase 2 rework deployment (2026-07-31)
+
+Deployed via Git push to `main` (commits `75054bc`, `9dcb8a5`, `deb5977`,
+`0b48a85`, `70f82c6`, `29b729b`) through the Vercel Git integration to
+https://concord-umber.vercel.app.
+
+Migrations 034 + 035 applied directly to prod Neon (additive): occurrence
+topic column + question topic backfill (`keyword_rules_v1`; 3,492 occurrences
+tagged), heat view rewrites, three-statement diagram + learning resource
+seeds.
+
+| Check | Result |
+|-------|--------|
+| `@ibpe/web` typecheck | Pass |
+| `@ibpe/web` lint | 0 errors; 41 warnings (same class as baseline) |
+| `@ibpe/web` production build | Pass; 48 routes |
+| Python unit/integration suite | Pass; 114 tests |
+| Local + production smokes | Pass — real tagged heat (e.g. Goldman behavioral n=62 / valuation n=50); signals total 456; concepts with diagrams; module checkpoints with 6 real question ids; pages 200 |
+| Browser E2E | Video recorded |
+
+Remaining knowns:
+
+- Anonymous 307/401 on protected routes is expected Neon Auth behavior.
+- Authenticated E2E still needs a test user.
+- Vercel CLI token still rejected (`User not found`); Git-linked deployment remains operational.
 
 ## Monorepo Vercel config (confirmed Wave 3)
 
