@@ -2,30 +2,39 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { Button } from "@ibpe/ui/components/button"
-import { ConceptLabHeader } from "@ibpe/ui/components/company-concept-headers"
-import { ResourceLinkList } from "@ibpe/ui/components/resource-link-list"
+import { MetadataPill } from "@ibpe/ui/components/editorial"
 
+import { ConceptFirmBridgesIsland } from "@/components/concept-firm-bridges-island"
+import { ConceptModulePeekIsland } from "@/components/concept-module-peek-island"
 import { DiagramIsland } from "@/components/diagram-island"
-import { DIAGRAM_SOURCES, FIRMS } from "@/lib/mock-data"
-import { getConceptDetail, listConcepts, listLearningModules } from "@/lib/data/learning"
+import { PaperSheet, ProvenanceChip, WarrenCallout } from "@/components/paper"
+import {
+  getConceptDetail,
+  listConcepts,
+  listLearningModules,
+  listQuestionsForConcept,
+} from "@/lib/data/learning"
+import { pitfallForTopic } from "@/lib/pitfalls"
+import { topicLabel } from "@/lib/topics"
 
 type Props = {
   params: Promise<{ slug: string }>
 }
 
-export async function generateStaticParams() {
-  const result = await listConcepts()
-  return result.items.map((item) => ({ slug: item.concept.slug }))
-}
+export const dynamic = "force-dynamic"
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
   const result = await getConceptDetail(slug)
   const concept = result?.item.concept
   return {
-    title: concept ? `${concept.title} · Concept lab` : "Concept lab · IBPE",
+    title: concept ? `${concept.title} · Concept lab` : "Concept lab · Concord",
     description: concept?.summary ?? "Concept learning lab",
   }
+}
+
+function truncate(text: string, max = 96): string {
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text
 }
 
 export default async function ConceptLabPage({ params }: Props) {
@@ -36,106 +45,191 @@ export default async function ConceptLabPage({ params }: Props) {
     listLearningModules(),
   ])
   if (!result) notFound()
-  const { concept, resources } = result.item
+  const { concept, topic, diagrams, resources } = result.item
+  const questions = await listQuestionsForConcept(concept.id, 4)
 
-  const diagram = DIAGRAM_SOURCES[slug]
-  const relatedFirms = FIRMS.filter((f) => (concept.firm_relevance[f.id] ?? 0) >= 0.7)
   const parentModule = modules.items.find((module) => module.concept_ids.includes(concept.id))
+  const prerequisites = concept.prerequisites
+    .map((id) => allConcepts.items.find((item) => item.concept.id === id)?.concept)
+    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
+  const diagram = diagrams[0]
+  const firmEntries = Object.entries(concept.firm_relevance)
+    .filter(([, intensity]) => intensity >= 0.5)
+    .map(([firmId, intensity]) => ({ firmId, intensity }))
+    .sort((a, b) => b.intensity - a.intensity)
 
   return (
     <div className="space-y-10">
-      <ConceptLabHeader
-        conceptName={concept.title}
-        domain={concept.domain?.toUpperCase()}
-        masteryLabel={result.source === "published" ? "Published lab" : "Foundation lab"}
-        subtitle={concept.summary}
-        actions={
-          <>
-            <Link href="/study">
-              <Button>Start drill</Button>
-            </Link>
-            {relatedFirms[0] ? (
-              <Link href={`/companies/${relatedFirms[0].slug}`}>
-                <Button variant="outline">Apply at {relatedFirms[0].aliases[0] ?? relatedFirms[0].name}</Button>
-              </Link>
-            ) : null}
-          </>
-        }
-      />
-
-      {diagram ? (
-        <DiagramIsland
-          title={diagram.title}
-          source={diagram.mermaid}
-          a11yFallback={diagram.a11y}
-        />
-      ) : null}
-
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <section className="space-y-4">
-          <h2 className="font-display text-3xl tracking-tight">Lab notes</h2>
+      <header>
+        <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+          <Link href="/learn" className="hover:text-foreground">
+            Learn
+          </Link>
           {parentModule ? (
-            <p className="text-sm">
-              Parent module:{" "}
-              <Link className="underline" href={`/learn/${parentModule.slug}`}>
+            <>
+              {" / "}
+              <Link href={`/learn/${parentModule.slug}`} className="hover:text-foreground">
                 {parentModule.title}
               </Link>
-            </p>
+            </>
           ) : null}
-          <p className="max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
-            Mode B ignores firm heat by default. Optional bridges below show where this concept
-            over-indexes in reported interviews — still directional, not canonical answers.
+          {" / Concept lab"}
+        </p>
+        <h1 className="mt-2 font-display text-4xl leading-[1.05] tracking-tight md:text-6xl">
+          {concept.title}
+        </h1>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <MetadataPill>{(concept.domain ?? "both").toUpperCase()}</MetadataPill>
+          {topic ? <MetadataPill>{topicLabel(topic)}</MetadataPill> : null}
+          <MetadataPill tone="muted">mastery builds after your first drill</MetadataPill>
+        </div>
+        {concept.summary ? (
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            {concept.summary}
           </p>
-          {relatedFirms.length ? (
-            <ul className="flex flex-wrap gap-2">
-              {relatedFirms.map((f) => (
-                <li key={f.id}>
+        ) : null}
+      </header>
+
+      {diagram ? (
+        <PaperSheet seedKey={`concept-diagram-${concept.id}`} torn={false}>
+          <DiagramIsland
+            title={diagram.title}
+            source={diagram.body}
+            a11yFallback={diagram.ref.a11y_fallback ?? concept.summary ?? diagram.title}
+          />
+        </PaperSheet>
+      ) : null}
+
+      <section className="space-y-6">
+        <h2 className="font-display text-3xl tracking-tight">Lab notes</h2>
+        {prerequisites.length > 0 ? (
+          <div>
+            <h3 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+              Prerequisites
+            </h3>
+            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              {prerequisites.map((prerequisite) => (
+                <li key={prerequisite.id}>
                   <Link
-                    href={`/companies/${f.slug}`}
-                    className="rounded-full border border-border px-3 py-1 text-xs hover:border-lime/40"
+                    className="text-sm underline underline-offset-4"
+                    href={`/concepts/${prerequisite.slug}`}
                   >
-                    {f.name} · {((concept.firm_relevance[f.id] ?? 0) * 100).toFixed(0)}% relevance
+                    {prerequisite.title}
                   </Link>
                 </li>
               ))}
             </ul>
-          ) : null}
-          <div className="flex flex-wrap gap-2 pt-2">
-            {allConcepts.items
-              .map((item) => item.concept)
-              .filter((c) => c.id !== concept.id)
-              .slice(0, 6)
-              .map((c) => (
-              <Link
-                key={c.id}
-                href={`/concepts/${c.slug}`}
-                className="text-sm text-foreground underline-offset-4 hover:underline"
-              >
-                {c.title}
-              </Link>
-              ))}
           </div>
+        ) : null}
+        <div>
+          <h3 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+            Core
+          </h3>
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed">{concept.summary}</p>
+          {diagram?.ref.a11y_fallback ? (
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              {diagram.ref.a11y_fallback}
+            </p>
+          ) : null}
+        </div>
+        <div>
+          <h3 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+            Apply at firm
+          </h3>
+          {firmEntries.length > 0 ? (
+            <div className="mt-2">
+              <ConceptFirmBridgesIsland entries={firmEntries} topic={topic} />
+            </div>
+          ) : (
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Firm bridges appear here once occurrence signals are published for this topic —
+              directional heat, never answer text.
+            </p>
+          )}
+        </div>
+      </section>
+
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <section>
+          <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+            Linked questions
+          </h2>
+          {questions.length > 0 ? (
+            <>
+              <ul className="mt-3 space-y-2">
+                {questions.map((question) => (
+                  <li key={question.id} className="flex flex-wrap items-baseline gap-2 text-sm">
+                    <Link
+                      className="underline underline-offset-4"
+                      href={`/study?question=${question.id}`}
+                    >
+                      {truncate(question.canonical_wording)}
+                    </Link>
+                    {question.difficulty ? (
+                      <MetadataPill>{question.difficulty}</MetadataPill>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              <Link className="mt-4 inline-block" href={`/study?question=${questions[0]!.id}`}>
+                <Button>Start drill</Button>
+              </Link>
+            </>
+          ) : (
+            <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+              No published questions for this topic yet — drills appear after the next corpus
+              import.
+            </p>
+          )}
         </section>
-        <ResourceLinkList
-          resources={
-            resources.length
-              ? resources.map((resource) => ({
-                  id: resource.id,
-                  label: resource.label,
-                  href: resource.url,
-                  kind: resource.kind,
-                }))
-              : [
-                  {
-                    id: "browse",
-                    label: "Browse all concepts",
-                    href: "/concepts/leveraged-buyouts",
-                    kind: "internal",
-                  },
-                ]
-          }
-        />
+
+        <aside className="space-y-6">
+          {resources.length > 0 ? (
+            <section>
+              <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+                Resource rail
+              </h2>
+              <ul className="mt-2 divide-y divide-border/80">
+                {resources.map((resource) => (
+                  <li
+                    key={resource.id}
+                    className="flex items-start justify-between gap-3 py-2.5 text-sm"
+                  >
+                    <a
+                      className="font-medium underline underline-offset-4"
+                      href={resource.url}
+                      {...(resource.kind === "external"
+                        ? { target: "_blank", rel: "noreferrer" }
+                        : {})}
+                    >
+                      {resource.label}
+                    </a>
+                    <ProvenanceChip provenance={resource.provenance} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {parentModule ? (
+            <ConceptModulePeekIsland
+              moduleId={parentModule.id}
+              moduleSlug={parentModule.slug}
+              moduleTitle={parentModule.title}
+              checkpoints={[...parentModule.checkpoints]
+                .sort((a, b) => a.position - b.position)
+                .map((checkpoint) => ({
+                  id: checkpoint.id,
+                  title: checkpoint.title,
+                  kind: checkpoint.kind,
+                }))}
+            />
+          ) : null}
+        </aside>
       </div>
+
+      <WarrenCallout mood="thinking" bracket size={48}>
+        {pitfallForTopic(topic)}
+      </WarrenCallout>
     </div>
   )
 }

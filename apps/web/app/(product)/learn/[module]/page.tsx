@@ -1,13 +1,18 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
-import { Button } from "@ibpe/ui/components/button"
 import { MetadataPill } from "@ibpe/ui/components/editorial"
 
-import { NotionCallout } from "@/components/mockups/journey-shell"
-import { PaperSheet } from "@/components/mockups/paper-sheet"
-import { Warren } from "@/components/mockups/warren"
+import { ModuleHeatIsland } from "@/components/module-heat-island"
+import {
+  ModuleMasteryChip,
+  ModuleRoadmapIsland,
+  type RoadmapCheckpoint,
+} from "@/components/module-roadmap-island"
+import { WarrenCallout } from "@/components/paper"
 import { getLearningModule, listConcepts } from "@/lib/data/learning"
+import { pitfallForTopic } from "@/lib/pitfalls"
+import { topicForConceptId } from "@/lib/topics"
 
 type Props = {
   params: Promise<{ module: string }>
@@ -29,108 +34,87 @@ export default async function LearningModulePage({ params }: Props) {
   const [result, concepts] = await Promise.all([getLearningModule(slug), listConcepts()])
   if (!result) notFound()
 
-  const conceptById = new Map(
-    concepts.items.map((item) => [item.concept.id, item.concept]),
+  const conceptSlugById = new Map(
+    concepts.items.map((item) => [item.concept.id, item.concept.slug]),
   )
-  const firstQuestion = result.checkpoints.flatMap((checkpoint) => checkpoint.question_ids)[0]
+  const checkpoints = [...result.checkpoints].sort((a, b) => a.position - b.position)
+
+  const roadmap: RoadmapCheckpoint[] = checkpoints.map((checkpoint) => {
+    let href: string | null = null
+    if (checkpoint.kind === "drill" || checkpoint.kind === "quiz") {
+      href = checkpoint.question_ids[0]
+        ? `/study?question=${checkpoint.question_ids[0]}`
+        : "/study"
+    } else if (checkpoint.concept_id) {
+      const conceptSlug = conceptSlugById.get(checkpoint.concept_id)
+      href = conceptSlug ? `/concepts/${conceptSlug}` : null
+    }
+    return {
+      id: checkpoint.id,
+      kind: checkpoint.kind,
+      title: checkpoint.title,
+      href,
+    }
+  })
+
+  const sessionCheckpoint = checkpoints.find(
+    (checkpoint) =>
+      (checkpoint.kind === "drill" || checkpoint.kind === "quiz") &&
+      checkpoint.question_ids.length > 0,
+  )
+  const sessionHref = sessionCheckpoint
+    ? `/study?question=${sessionCheckpoint.question_ids[0]}`
+    : "/study"
+
+  const moduleTopics = [
+    ...new Set(
+      [
+        ...result.module.concept_ids,
+        ...checkpoints
+          .map((checkpoint) => checkpoint.concept_id)
+          .filter((id): id is string => Boolean(id)),
+      ]
+        .map((conceptId) => topicForConceptId(conceptId))
+        .filter((topic): topic is string => Boolean(topic)),
+    ),
+  ]
+
+  const track = (result.module.track ?? result.module.domain).toUpperCase()
 
   return (
     <div className="space-y-8">
       <header>
-        <p className="text-xs text-muted-foreground">
-          <Link href="/learn" className="hover:underline">
+        <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+          <Link href="/learn" className="hover:text-foreground">
             Learn
           </Link>{" "}
-          / {result.module.domain.toUpperCase()}
+          / {track}
         </p>
-        <h1 className="mt-2 text-4xl font-semibold tracking-tight md:text-5xl">
+        <h1 className="mt-2 font-display text-4xl leading-[1.05] tracking-tight md:text-6xl">
           {result.module.title}
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           {result.module.summary}
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <MetadataPill>{result.module.estimated_minutes} min</MetadataPill>
-          <MetadataPill>{result.checkpoints.length} checkpoints</MetadataPill>
-          <MetadataPill>{result.source}</MetadataPill>
+          <MetadataPill>{checkpoints.length} checkpoints</MetadataPill>
+          <ModuleMasteryChip moduleId={result.module.id} />
+          <MetadataPill tone="muted">{result.source}</MetadataPill>
         </div>
       </header>
 
-      <NotionCallout warren={<Warren mood="thinking" size={48} />}>
-        Move in order: lesson → diagram → drill → quiz. Open the concept lab when a checkpoint
-        needs a visual model.
-      </NotionCallout>
+      <ModuleRoadmapIsland
+        moduleId={result.module.id}
+        checkpoints={roadmap}
+        sessionHref={sessionHref}
+      />
 
-      <PaperSheet seedKey={`roadmap-${result.module.id}`} torn={false}>
-        <h2 className="text-sm font-semibold">Module roadmap</h2>
-        <ol className="mt-5 space-y-1">
-          {result.checkpoints.map((checkpoint, index) => {
-            const concept = checkpoint.concept_id
-              ? conceptById.get(checkpoint.concept_id)
-              : undefined
-            const content = (
-              <>
-                <span
-                  className={`flex size-7 shrink-0 items-center justify-center rounded-full border text-xs ${
-                    index === 0 ? "border-black bg-black text-[#f7f1e4]" : "border-border"
-                  }`}
-                >
-                  {index + 1}
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-xs text-muted-foreground">{checkpoint.kind}</span>
-                  <span className="block text-sm font-medium">{checkpoint.title}</span>
-                </span>
-              </>
-            )
-            return (
-              <li key={checkpoint.id} className="relative flex gap-3 py-3">
-                {index < result.checkpoints.length - 1 ? (
-                  <span
-                    aria-hidden
-                    className="absolute top-10 bottom-[-0.75rem] left-3.5 border-l border-dashed border-border"
-                  />
-                ) : null}
-                {concept ? (
-                  <Link
-                    className="flex w-full gap-3 hover:bg-black/[0.03]"
-                    href={`/concepts/${concept.slug}`}
-                  >
-                    {content}
-                  </Link>
-                ) : checkpoint.kind === "drill" || checkpoint.kind === "quiz" ? (
-                  <Link
-                    className="flex w-full gap-3 hover:bg-black/[0.03]"
-                    href={firstQuestion ? `/study?question=${firstQuestion}` : "/study"}
-                  >
-                    {content}
-                  </Link>
-                ) : (
-                  <div className="flex w-full gap-3">{content}</div>
-                )}
-              </li>
-            )
-          })}
-        </ol>
-      </PaperSheet>
+      <ModuleHeatIsland topics={moduleTopics} />
 
-      <div className="flex flex-wrap gap-2">
-        <Link href={firstQuestion ? `/study?question=${firstQuestion}` : "/study"}>
-          <Button>Start module drill</Button>
-        </Link>
-        {result.module.concept_ids
-          .map((id) => conceptById.get(id))
-          .filter(Boolean)
-          .slice(0, 1)
-          .map((concept) => (
-            <Link key={concept!.id} href={`/concepts/${concept!.slug}`}>
-              <Button variant="outline">Open diagram lab</Button>
-            </Link>
-          ))}
-        <Link href="/prep/heat">
-          <Button variant="ghost">Apply at a firm</Button>
-        </Link>
-      </div>
+      <WarrenCallout mood="thinking" bracket size={48}>
+        {pitfallForTopic(moduleTopics[0] ?? null)}
+      </WarrenCallout>
     </div>
   )
 }

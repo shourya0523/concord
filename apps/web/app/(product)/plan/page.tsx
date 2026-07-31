@@ -9,11 +9,13 @@ export default function StudyPlanPage() {
   return (
     <div className="space-y-8">
       <header>
-        <p className="text-xs text-muted-foreground">Plan / Interview roadmap</p>
-        <h1 className="mt-2 text-4xl font-semibold tracking-tight md:text-5xl">Study plan</h1>
+        <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+          Roadmap
+        </p>
+        <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl">Study plan</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          A prerequisite-aware mix of company practice, module lessons, concept labs, and diagram
-          checkpoints.
+          Company drills, module checkpoints, concept labs, and a mock slot — sequenced against
+          your interview date, in prerequisite order.
         </p>
       </header>
       <StudyPlanIsland />
