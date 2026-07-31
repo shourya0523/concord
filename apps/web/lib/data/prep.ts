@@ -1,109 +1,23 @@
-import {
-  buildPseudoRagPack,
-  buildTopicHeat,
-  type TeachingDocument,
-} from "@ibpe/search";
+import { buildPseudoRagPack, buildTopicHeat } from "@ibpe/search";
 import type { TopicHeat } from "@ibpe/contracts";
 import type {
+  HeatFirmMetaSchema,
   MultiFirmHeatResponse,
   PrepRagRequest,
   PrepRagResponse,
 } from "@/lib/api/schemas";
-import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
-import {
-  CONCEPTS,
-  RESOURCES,
-  TOPIC_HEAT,
-} from "@/lib/mock-data";
+import { z } from "zod";
+import { isDatabaseConfigured } from "@/lib/db/client";
+import { listFirmCatalog } from "./catalog";
 import { loadBankQuestions } from "./bank-fallback";
 import { getFirmTopicHeat } from "./firms";
 import { buildRealPrepRagPack } from "./rag";
 
-function staticTeachingDocuments(): TeachingDocument[] {
-  const conceptDocs: TeachingDocument[] = CONCEPTS.map((concept) => ({
-    id: concept.id,
-    title: concept.title,
-    body: concept.summary ?? concept.title,
-    topic: concept.id.replace(/^concept_/, "topic_"),
-    domain: concept.domain ?? "both",
-    difficulty: null,
-    provenance: "static_seed",
-    concept_ids: [concept.id],
-    firm_ids: Object.keys(concept.firm_relevance),
-    source_label: "Static concept seed",
-  }));
-
-  const resourceDocs: TeachingDocument[] = RESOURCES.map((resource) => ({
-    id: resource.id,
-    title: resource.label,
-    body: `${resource.label}. ${resource.url}`,
-    topic: null,
-    domain: null,
-    difficulty: null,
-    provenance: resource.provenance,
-    concept_ids: resource.concept_ids,
-    firm_ids: resource.firm_ids,
-    source_label: "Curated resource",
-  }));
-
-  return [...conceptDocs, ...resourceDocs];
-}
-
-type PublishedTeachingRow = {
-  id: string;
-  canonical_wording: string;
-  topic: string | null;
-  domain: string | null;
-  difficulty: string | null;
-  concise_answer: string;
-  expanded_explanation: string;
-  provenance_type: string;
-};
-
-async function loadPublishedTeachingDocuments(): Promise<TeachingDocument[]> {
-  if (!isDatabaseConfigured()) return [];
-  try {
-    const sql = requireSql();
-    const rows = (await sql`
-      SELECT
-        q.id,
-        q.canonical_wording,
-        q.topic,
-        q.domain,
-        q.difficulty,
-        a.concise_answer,
-        a.expanded_explanation,
-        a.provenance_type
-      FROM published.v_questions q
-      JOIN published.v_answers a ON a.canonical_question_id = q.id
-      ORDER BY q.updated_at DESC NULLS LAST
-      LIMIT 250
-    `) as PublishedTeachingRow[];
-    return rows
-      .filter((row) => row.provenance_type !== "glassdoor_occurrence")
-      .map((row) => ({
-        id: row.id,
-        title: row.canonical_wording,
-        body: `${row.concise_answer}\n\n${row.expanded_explanation}`,
-        topic: row.topic,
-        domain: row.domain,
-        difficulty: row.difficulty,
-        provenance:
-          row.provenance_type === "source_provided" ||
-          row.provenance_type === "corpus_matched"
-            ? "github_source"
-            : "editorial",
-        concept_ids: row.topic ? [row.topic] : [],
-        firm_ids: [],
-        source_label: "Published answer corpus",
-      }));
-  } catch (err) {
-    console.warn("[prep] published teaching doc read failed", err);
-    return [];
-  }
-}
-
-function aggregateHeat(rows: TopicHeat[], firmIds: string[]): MultiFirmHeatResponse {
+function aggregateHeat(
+  rows: TopicHeat[],
+  firmIds: string[],
+  firms: z.infer<typeof HeatFirmMetaSchema>[],
+): MultiFirmHeatResponse {
   const by_topic: Record<string, number> = {};
   for (const row of rows) {
     if (!firmIds.includes(row.firm_id)) continue;
@@ -111,10 +25,31 @@ function aggregateHeat(rows: TopicHeat[], firmIds: string[]): MultiFirmHeatRespo
   }
   return {
     firm_ids: firmIds,
+    firms,
     topics: rows,
     by_topic,
     source: rows.length ? "published" : "empty",
   };
+}
+
+async function firmMetaFor(
+  firmIds: string[],
+): Promise<z.infer<typeof HeatFirmMetaSchema>[]> {
+  const catalog = await listFirmCatalog();
+  const byKey = new Map(
+    catalog.items.flatMap((firm) => [
+      [firm.id, firm],
+      [firm.slug, firm],
+    ] as const),
+  );
+  return firmIds.map((id) => {
+    const firm = byKey.get(id);
+    return {
+      id: firm?.id ?? id,
+      slug: firm?.slug ?? id.replace(/^firm_/, ""),
+      name: firm?.name ?? id.replace(/^firm_/, "").replace(/-/g, " "),
+    };
+  });
 }
 
 export async function getMultiFirmHeat(
@@ -124,25 +59,17 @@ export async function getMultiFirmHeat(
   if (uniqueFirmIds.length === 0) {
     return {
       firm_ids: [],
+      firms: [],
       topics: [],
       by_topic: {},
       source: "empty",
       note: "No firm_id query parameters supplied.",
     };
   }
+  const firms = await firmMetaFor(uniqueFirmIds);
+  const canonicalIds = firms.map((firm) => firm.id);
 
   async function fallbackHeat(note: string): Promise<MultiFirmHeatResponse> {
-    const mockRows = TOPIC_HEAT.filter((row) =>
-      uniqueFirmIds.includes(row.firm_id),
-    );
-    if (mockRows.length) {
-      return {
-        ...aggregateHeat(mockRows, uniqueFirmIds),
-        source: "stub",
-        note,
-      };
-    }
-
     try {
       const bankRows = (await loadBankQuestions()).map((row) => ({
         id: row.id,
@@ -153,36 +80,38 @@ export async function getMultiFirmHeat(
         date_posted: row.date_posted,
         scraped_at: row.scraped_at,
       }));
-      const heat = buildTopicHeat(bankRows, { firm_ids: uniqueFirmIds });
+      const heat = buildTopicHeat(bankRows, { firm_ids: canonicalIds });
       return {
-        firm_ids: uniqueFirmIds,
+        firm_ids: canonicalIds,
+        firms,
         topics: heat.rows,
         by_topic: heat.by_topic,
         source: heat.rows.length ? "bank_fallback" : "empty",
-        note: "Heat computed from local question_bank signals.",
+        note,
       };
     } catch (err) {
       console.warn("[prep] bank heat failed; returning empty heat", err);
       return {
-        firm_ids: uniqueFirmIds,
+        firm_ids: canonicalIds,
+        firms,
         topics: [],
         by_topic: {},
         source: "empty",
-        note: "No static or bank heat available.",
+        note: "No heat available.",
       };
     }
   }
 
   if (!isDatabaseConfigured()) {
-    return fallbackHeat("DATABASE_URL unset — using static mock heat.");
+    return fallbackHeat("DATABASE_URL unset — heat computed from local question bank.");
   }
 
-  const responses = await Promise.all(uniqueFirmIds.map(getFirmTopicHeat));
+  const responses = await Promise.all(canonicalIds.map(getFirmTopicHeat));
   const rows = responses.flatMap((response) => response.topics);
   if (rows.length === 0) {
-    return fallbackHeat("Published heat empty for firm set — using fallback heat.");
+    return fallbackHeat("Published heat empty for firm set — using local bank heat.");
   }
-  const aggregated = aggregateHeat(rows, uniqueFirmIds);
+  const aggregated = aggregateHeat(rows, canonicalIds, firms);
   return {
     ...aggregated,
     source: responses.some((response) => response.source === "published")

@@ -159,9 +159,20 @@ export type LearningModuleDetailResponse = z.infer<
   typeof LearningModuleDetailResponseSchema
 >;
 
+export const DiagramAssetSchema = z.object({
+  ref: DiagramRefSchema,
+  title: z.string(),
+  /** Mermaid (or interactive-json) definition body. */
+  body: z.string(),
+});
+export type DiagramAsset = z.infer<typeof DiagramAssetSchema>;
+
 export const ConceptWithAssetsSchema = z.object({
   concept: ConceptSchema,
+  /** Topic slug mapped from the concept (heat/drill bridge). */
+  topic: z.string().nullable().default(null),
   diagram_refs: z.array(DiagramRefSchema).default([]),
+  diagrams: z.array(DiagramAssetSchema).default([]),
   resources: z.array(LearningResourceSchema).default([]),
 });
 export type ConceptWithAssets = z.infer<typeof ConceptWithAssetsSchema>;
@@ -222,8 +233,15 @@ export const PrepRagResponseSchema = z.object({
 });
 export type PrepRagResponse = z.infer<typeof PrepRagResponseSchema>;
 
+export const HeatFirmMetaSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+});
+
 export const MultiFirmHeatResponseSchema = z.object({
   firm_ids: z.array(z.string()),
+  firms: z.array(HeatFirmMetaSchema).default([]),
   topics: z.array(TopicHeatSchema),
   by_topic: z.record(z.string(), z.number()).default({}),
   source: DataSourceSchema,

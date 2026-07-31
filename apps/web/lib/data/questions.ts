@@ -13,10 +13,8 @@ import {
   listBankAsCanonical,
 } from "@/lib/data/bank-fallback";
 import type { QuestionDetailResponse, QuestionListResponse } from "@/lib/api/schemas";
-import {
-  diagramsForConcepts,
-  resourcesForConcepts,
-} from "@/lib/data/learning";
+import { diagramsForConcepts } from "@/lib/data/learning";
+import { conceptIdForTopic } from "@/lib/topics";
 
 type PublishedQuestionRow = {
   id: string;
@@ -312,7 +310,7 @@ async function getPublishedStudyPayload(options: {
     common_mistakes: asStringArray(row.common_mistakes_json),
     follow_ups: asStringArray(row.follow_ups_json),
     related_concepts: [],
-    resources: resourcesForConcepts(options.conceptIds),
+    resources: [],
     sources,
     validation: {
       provenance_type: row.provenance_type,
@@ -358,7 +356,8 @@ export async function getQuestion(
 
   if (rows[0]) {
     const question = rowToCanonical(rows[0]);
-    const conceptIds = question.topic ? [question.topic] : [];
+    const conceptId = question.topic ? conceptIdForTopic(question.topic) : null;
+    const conceptIds = conceptId ? [conceptId] : [];
     if (!options?.includeStudy) {
       return { question, bank_signals: [], source: "published" };
     }
