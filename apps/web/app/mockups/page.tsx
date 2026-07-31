@@ -1,56 +1,58 @@
-"use client"
-
 import Link from "next/link"
 
-import { MockupSvgFilters } from "@/components/mockups/svg-filters"
-import { MockupThemeLock } from "@/components/mockups/mockup-theme-lock"
-import { MOCKUP_LIGHT_VARS } from "@/components/mockups/journey-shell"
+import { JourneyShell } from "@/components/mockups/journey-shell"
 
-const JOURNEYS = [
+const PAGES = [
   {
     href: "/mockups/mode-a",
-    title: "Company → RAG → Study",
-    body: "Topic heat → grounded pack → layered reveal with Warren.",
+    title: "Goldman Sachs",
+    body: "Topic heat → session pack → layered study",
   },
   {
     href: "/mockups/mode-b",
-    title: "Learn → Lab → Firm",
-    body: "Module catalog → diagram lab → quiz → Apply at Firm.",
+    title: "Learn",
+    body: "Modules → diagram lab → quiz → apply at firm",
   },
   {
     href: "/mockups/plan-sim",
-    title: "Plan → Simulator → Score",
-    body: "Roadmap → interviewer mock → score reveal.",
+    title: "Study plan",
+    body: "Roadmap → firm mock → score",
   },
 ] as const
 
+export const metadata = {
+  title: "Concord",
+}
+
 export default function MockupsIndexPage() {
   return (
-    <div className="min-h-screen" style={MOCKUP_LIGHT_VARS}>
-      <MockupThemeLock />
-      <MockupSvgFilters />
-      <main className="mx-auto max-w-3xl px-4 py-14 md:px-6">
-        <p className="font-sans text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
-          Concord · Phase 1
-        </p>
-        <h1 className="font-display mt-2 text-5xl tracking-tight text-foreground">Journeys</h1>
-        <p className="mt-4 max-w-md font-sans text-sm leading-relaxed text-muted-foreground">
-          Full flows with hard visual parts in context. Approve before Phase 2.
-        </p>
-        <ul className="mt-12 space-y-3">
-          {JOURNEYS.map((j) => (
-            <li key={j.href}>
-              <Link
-                href={j.href}
-                className="block border-b border-border py-5 transition-colors hover:border-foreground"
-              >
-                <h2 className="font-display text-2xl tracking-tight text-foreground">{j.title}</h2>
-                <p className="mt-1 font-sans text-sm text-muted-foreground">{j.body}</p>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </main>
-    </div>
+    <JourneyShell
+      pageTitle="Home"
+      breadcrumb="Concord"
+      sections={[
+        {
+          title: "Pages",
+          pages: PAGES.map((p) => ({
+            id: p.href,
+            label: p.title,
+            href: p.href,
+          })),
+        },
+      ]}
+    >
+      <p className="mb-6 text-sm text-muted-foreground">
+        Open a page from the sidebar. Layout resting state follows Notion: sidebar + document.
+      </p>
+      <ul className="divide-y divide-border rounded-md border border-border">
+        {PAGES.map((p) => (
+          <li key={p.href}>
+            <Link href={p.href} className="block px-3 py-3 hover:bg-black/[0.03]">
+              <span className="block text-sm font-medium text-foreground">{p.title}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">{p.body}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </JourneyShell>
   )
 }

@@ -50,8 +50,16 @@ This is a **monorepo** containing:
 **Imagine Notion, Khan Academy, and Duolingo had a child:**
 
 - **Notion's monochrome editorial discipline** as the resting state (true black/white/grayscale for ~80% of the interface)
-- **Khan Academy's tactile hand-drawn warmth** as the illustration texture (rough.js hand-drawn primitives)
+- **Notion's information architecture** as the layout base: **left sidebar + single document page**, page title as the only H1, nested pages for flow steps, callouts for Warren — not dashboards, not journey marketing chrome
+- **Khan Academy's tactile hand-drawn warmth** as the illustration texture (rough.js hand-drawn primitives) — used **sparingly** inside content, never as full-page chrome
 - **Duolingo's reward-driven gamification energy** as the emotional engine (streaks, XP, celebrations) — but restrained into a **pastel palette** rather than saturated primaries, so it reads **premium and calm** rather than toy-like
+
+**Layout resting rules (Notion base):**
+1. Sidebar = workspace navigation (Company / Learn / Plan + step pages). Main = white document.
+2. One page title. Breadcrumb optional and quiet. No stacked marketing headers.
+3. Warren lives in a **callout block**, not a competing hero column.
+4. Lists and databases = simple bordered rows. Cards/rough frames only when the interaction needs a paper moment.
+5. Meta (“hard parts”, Phase labels) stays out of the reading path — sidebar footer at most.
 
 This is a **banking interview prep platform** — trust reads through precision, not energy. Numbers stay visually calm. No bounce on financial figures. Hand-drawn aesthetic adds **warmth and approachability** to a high-stakes domain without compromising **editorial rigor**.
 

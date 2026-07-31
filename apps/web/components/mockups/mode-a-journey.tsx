@@ -15,32 +15,17 @@ import {
   intensityToHeatLevel,
 } from "@/lib/mock-data"
 import { Annotate } from "@/components/mockups/annotate"
-import { RoughFrame } from "@/components/mockups/rough-frame"
+import { JourneyShell, NotionCallout } from "@/components/mockups/journey-shell"
 import { Warren } from "@/components/mockups/warren"
 
-const STEPS = ["heat", "rag", "study", "done"] as const
+const STEPS = ["heat", "pack", "study", "done"] as const
 type Step = (typeof STEPS)[number]
 
-function StepNav({ step, setStep }: { step: Step; setStep: (s: Step) => void }) {
-  return (
-    <ol className="flex gap-4 font-sans text-sm text-muted-foreground">
-      {STEPS.map((s) => (
-        <li key={s}>
-          <button
-            type="button"
-            onClick={() => setStep(s)}
-            className={
-              step === s
-                ? "font-medium text-foreground underline decoration-2 underline-offset-8"
-                : "hover:text-foreground"
-            }
-          >
-            {s}
-          </button>
-        </li>
-      ))}
-    </ol>
-  )
+const PAGE_META: Record<Step, { title: string; crumb: string }> = {
+  heat: { title: "Topic heat", crumb: "Goldman Sachs" },
+  pack: { title: "Session pack", crumb: "Goldman Sachs / Prep" },
+  study: { title: "Walk me through an LBO", crumb: "Goldman Sachs / Study" },
+  done: { title: "Session complete", crumb: "Goldman Sachs" },
 }
 
 export function ModeAJourney() {
@@ -67,86 +52,123 @@ export function ModeAJourney() {
   const weakest = cells
     .filter((c) => c.weak)
     .sort((a, b) => b.intensity - a.intensity)[0]
-
   const citation = RAG_CITATIONS[0]!
+  const meta = PAGE_META[step]
 
   return (
-    <div className="space-y-10 font-sans">
-      <StepNav step={step} setStep={setStep} />
-
+    <JourneyShell
+      pageTitle={meta.title}
+      breadcrumb={meta.crumb}
+      sections={[
+        {
+          title: "Company",
+          pages: [
+            {
+              id: "heat",
+              label: "Topic heat",
+              active: step === "heat",
+              onSelect: () => setStep("heat"),
+            },
+            {
+              id: "pack",
+              label: "Session pack",
+              active: step === "pack",
+              onSelect: () => setStep("pack"),
+            },
+            {
+              id: "study",
+              label: "Study",
+              active: step === "study",
+              onSelect: () => {
+                setStep("study")
+                setRevealed(0)
+                setScored(false)
+              },
+            },
+            {
+              id: "done",
+              label: "Done",
+              active: step === "done",
+              onSelect: () => setStep("done"),
+            },
+          ],
+        },
+        {
+          title: "Workspace",
+          pages: [
+            { id: "learn", label: "Learn", href: "/mockups/mode-b" },
+            { id: "plan", label: "Plan", href: "/mockups/plan-sim" },
+          ],
+        },
+      ]}
+    >
       {step === "heat" ? (
-        <section className="space-y-8">
-          <div>
-            <p className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
-              Goldman Sachs · company room
+        <div className="space-y-6">
+          <NotionCallout warren={<Warren mood="encouraging" size={48} />}>
+            <p className="font-medium">Warren</p>
+            <p className="mt-1 text-muted-foreground">
+              GS and Evercore over-index LBO — start there.
             </p>
-            <h2 className="font-display mt-2 text-4xl tracking-tight">Topic heat</h2>
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-              Colour = firm heat. Hatch = your weak topics. Numbers always readable.
-            </p>
+          </NotionCallout>
+
+          <p className="text-sm text-muted-foreground">
+            Colour = firm heat. Hatch = your weak topics. Numbers stay visible.
+          </p>
+
+          <div className="overflow-x-auto rounded-md border border-border">
+            <div className="p-3">
+              <TopicHeatmap
+                firms={firms}
+                topics={topics}
+                cells={cells}
+                compareMode
+                onCellActivate={(cell) => setFocusTopic(cell.topicLabel)}
+              />
+            </div>
           </div>
 
-          <Warren mood="encouraging" aside="GS and Evercore over-index LBO — start there." />
+          {weakest ? (
+            <p className="text-sm text-muted-foreground">
+              Weakest overlap:{" "}
+              <span className="font-medium text-foreground">
+                {weakest.topicLabel} @ {weakest.firmLabel}
+              </span>
+            </p>
+          ) : null}
 
-          <RoughFrame seedKey="mode-a-heat">
-            <TopicHeatmap
-              firms={firms}
-              topics={topics}
-              cells={cells}
-              compareMode
-              onCellActivate={(cell) => setFocusTopic(cell.topicLabel)}
-            />
-            {weakest ? (
-              <p className="mt-4 text-sm text-muted-foreground">
-                Weakest overlap:{" "}
-                <span className="font-medium text-foreground">
-                  {weakest.topicLabel} @ {weakest.firmLabel}
-                </span>
-              </p>
-            ) : null}
-          </RoughFrame>
-
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={() => setStep("rag")}>
-              Start pack · {focusTopic ?? "LBO"}
-            </Button>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button onClick={() => setStep("pack")}>Open pack · {focusTopic ?? "LBO"}</Button>
             <Link href="/mockups/mode-b">
-              <Button variant="outline">Related Learn module</Button>
+              <Button variant="ghost">Related module</Button>
             </Link>
           </div>
-        </section>
+        </div>
       ) : null}
 
-      {step === "rag" ? (
-        <section className="space-y-8">
-          <div>
-            <h2 className="font-display text-4xl tracking-tight">Session pack</h2>
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-              Frozen at start. Citations stay visible — Glassdoor never becomes the answer.
+      {step === "pack" ? (
+        <div className="space-y-6">
+          <NotionCallout warren={<Warren mood="thinking" size={48} />}>
+            <p className="font-medium">Warren</p>
+            <p className="mt-1 text-muted-foreground">
+              Pack frozen at session start. Citations stay visible — Glassdoor never becomes the
+              answer.
             </p>
-          </div>
+          </NotionCallout>
 
-          <Warren
-            mood="thinking"
-            aside="Ranked by heat ∩ weakness from the teaching corpus."
-          />
+          <p className="text-sm leading-relaxed text-foreground">
+            Superday prep for{" "}
+            <Annotate type="underline" show>
+              GS + MS + Evercore
+            </Annotate>
+            , focusing on LBO. Ranked by heat ∩ weakness.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            <Annotate type="box" show>
+              3 items frozen
+            </Annotate>
+          </p>
 
-          <RoughFrame seedKey="mode-a-rag-brief">
-            <p className="text-base leading-relaxed">
-              Superday prep for{" "}
-              <Annotate type="underline" show>
-                GS + MS + Evercore
-              </Annotate>
-              , focusing on LBO mechanics.
-            </p>
-            <p className="mt-3 text-sm text-muted-foreground">
-              <Annotate type="box" show>
-                Pack · 3 items frozen
-              </Annotate>
-            </p>
-          </RoughFrame>
-
-          <div className="space-y-3">
+          <div className="space-y-2">
             {RAG_CITATIONS.slice(0, 3).map((item) => (
               <PseudoRagCitationCard
                 key={item.id}
@@ -166,101 +188,90 @@ export function ModeAJourney() {
               setScored(false)
             }}
           >
-            Open layered study
+            Start study
           </Button>
-        </section>
+        </div>
       ) : null}
 
       {step === "study" ? (
-        <section className="space-y-8">
+        <div className="space-y-6">
+          <p className="text-sm text-muted-foreground">{citation.excerpt}</p>
+
           <div>
-            <p className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
-              Study · GS · technical
-            </p>
-            <h2 className="font-display mt-2 text-4xl tracking-tight">{citation.title}</h2>
+            <label className="text-xs font-medium text-muted-foreground">Your answer</label>
+            <textarea
+              className="mt-2 min-h-36 w-full rounded-md border border-border bg-transparent p-3 text-sm leading-relaxed outline-none focus:border-foreground/30"
+              value={answer}
+              onFocus={() => setTyping(true)}
+              onBlur={() => setTyping(false)}
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder="Lead with structure, then numbers…"
+            />
           </div>
 
-          <RoughFrame seedKey="mode-a-question">
-            <p className="text-base leading-relaxed text-foreground">{citation.excerpt}</p>
-            <label className="mt-6 block">
-              <span className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
-                Your answer
-              </span>
-              <textarea
-                className="mt-2 min-h-32 w-full rounded-md border border-border bg-background p-3 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground/40"
-                value={answer}
-                onFocus={() => setTyping(true)}
-                onBlur={() => setTyping(false)}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder="Lead with structure, then numbers…"
-              />
-            </label>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Button
-                disabled={scored}
-                onClick={() => {
-                  setScored(true)
-                  setRevealed(1)
-                  setTyping(false)
-                }}
-              >
-                Submit
+          <div className="flex flex-wrap gap-2">
+            <Button
+              disabled={scored}
+              onClick={() => {
+                setScored(true)
+                setRevealed(1)
+                setTyping(false)
+              }}
+            >
+              Submit
+            </Button>
+            {scored ? (
+              <Button variant="ghost" onClick={() => setRevealed((v) => Math.min(4, v + 1))}>
+                Reveal next
               </Button>
-              {scored ? (
-                <Button variant="outline" onClick={() => setRevealed((v) => Math.min(4, v + 1))}>
-                  Reveal next layer
-                </Button>
-              ) : null}
-            </div>
-          </RoughFrame>
+            ) : null}
+          </div>
 
-          <Warren
-            mood={scored ? "celebrating" : typing ? "paused" : "idle"}
-            userFocused={typing}
-            aside={
-              scored
+          <NotionCallout
+            warren={
+              <Warren
+                mood={scored ? "celebrating" : typing ? "paused" : "idle"}
+                userFocused={typing}
+                size={48}
+              />
+            }
+          >
+            <p className="font-medium">Warren</p>
+            <p className="mt-1 text-muted-foreground">
+              {scored
                 ? "Strong structure — underline the tax-shield phrase."
                 : typing
                   ? "I'll wait while you write."
-                  : "Attempt first. Layers unlock after you submit."
-            }
-          />
+                  : "Attempt first. Layers unlock after you submit."}
+            </p>
+          </NotionCallout>
 
-          {scored ? (
-            <div className="space-y-4 border-t border-border/80 pt-8">
-              {revealed >= 1 ? (
-                <div>
-                  <p className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
-                    Direct answer
-                  </p>
-                  <p className="mt-2 text-base leading-relaxed">
-                    Walk sources & uses, then returns. Key phrase:{" "}
-                    <Annotate type="highlight" show>
-                      tax shield on interest
-                    </Annotate>
-                    .
-                  </p>
-                </div>
-              ) : null}
+          {scored && revealed >= 1 ? (
+            <div className="space-y-4 border-t border-border pt-6">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Direct answer</p>
+                <p className="mt-1 text-sm leading-relaxed">
+                  Walk sources & uses, then returns. Key:{" "}
+                  <Annotate type="highlight" show>
+                    tax shield on interest
+                  </Annotate>
+                  .
+                </p>
+              </div>
               {revealed >= 2 ? (
                 <div>
-                  <p className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
-                    Diagram
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    Sources (debt + equity) → Uses (purchase equity + refinance) → Returns (MOIC /
-                    IRR).
+                  <p className="text-xs font-medium text-muted-foreground">Diagram</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Sources (debt + equity) → Uses → Returns (MOIC / IRR).
                   </p>
                 </div>
               ) : null}
               {revealed >= 3 ? (
                 <div>
-                  <p className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
-                    Common mistake
-                  </p>
-                  <p className="mt-2 text-base">
+                  <p className="text-xs font-medium text-muted-foreground">Common mistake</p>
+                  <p className="mt-1 text-sm">
                     <Annotate type="strike-through" show>
-                      Skipping firm heat context in Mode A
+                      Skipping firm heat context
                     </Annotate>
                   </p>
                 </div>
@@ -270,34 +281,34 @@ export function ModeAJourney() {
               ) : null}
             </div>
           ) : null}
-        </section>
+        </div>
       ) : null}
 
       {step === "done" ? (
-        <section className="space-y-8">
-          <Warren mood="celebrating" aside="Mastery updated. Heat ∩ weakness refreshed." />
-          <div>
-            <h2 className="font-display text-4xl tracking-tight">
-              Session complete ·{" "}
-              <Annotate type="circle" show>
-                3
-              </Annotate>{" "}
-              cards
-            </h2>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Next: diagram checkpoint in Learn, or keep comparing firm heat.
+        <div className="space-y-6">
+          <NotionCallout warren={<Warren mood="celebrating" size={48} />}>
+            <p className="font-medium">Warren</p>
+            <p className="mt-1 text-muted-foreground">
+              Mastery updated. Heat ∩ weakness refreshed.
             </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
+          </NotionCallout>
+          <p className="text-sm text-muted-foreground">
+            Reviewed{" "}
+            <Annotate type="circle" show>
+              3
+            </Annotate>{" "}
+            cards. Next: Learn diagram checkpoint, or keep comparing firm heat.
+          </p>
+          <div className="flex flex-wrap gap-2">
             <Link href="/mockups/mode-b">
-              <Button>Continue to Learn</Button>
+              <Button>Go to Learn</Button>
             </Link>
-            <Button variant="outline" onClick={() => setStep("heat")}>
-              Restart
+            <Button variant="ghost" onClick={() => setStep("heat")}>
+              Back to heat
             </Button>
           </div>
-        </section>
+        </div>
       ) : null}
-    </div>
+    </JourneyShell>
   )
 }
