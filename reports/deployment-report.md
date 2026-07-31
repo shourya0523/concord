@@ -20,8 +20,8 @@
 | Next.js product | Vercel (`apps/web`) | Live |
 | Scrapers / enrich | `apps/worker` / Cloud Agents | Dockerfile + schedule stubs + health docs |
 | Object storage | Vercel Blob (private) | Docs + env names; token not verified this run |
-| DB | Neon (marketplace) | **Not configured on prod** (`database: unavailable`) |
-| Auth | Neon Auth | **Stub on prod** (`auth: stub`) |
+| DB | Neon (marketplace) | Configured on prod; health check passes |
+| Auth | Neon Auth | Configured on prod; protected routes redirect anonymous users |
 | CI | GitHub Actions | `pytest` + `npm ci` + `@ibpe/web` build |
 | Monitoring | Vercel logs + example config | Runtime logs available; Sentry/OTEL not wired |
 
@@ -32,6 +32,29 @@
 | Production (public) | https://concord-umber.vercel.app | **Deployment-gate target** |
 | Production (team alias) | https://concord-shourya0523s-projects.vercel.app | Vercel Deployment Protection SSO (302) — not used for anonymous smoke |
 | Preview | Git branch previews via Vercel Git integration | Root Directory = `apps/web` |
+
+## Design Phase 1 deployment (2026-07-31)
+
+Commit `7febf6c` deployed through the Vercel Git integration to
+https://concord-umber.vercel.app.
+
+| Check | Result |
+|-------|--------|
+| `/learn` | 200 |
+| `/plan` | 200 |
+| `/simulator` | 200 |
+| `/api/learn/modules` | 200; 5 published modules |
+| `/api/prep/heat?firm_id=firm_goldman_sachs` | 200; local bank signal path available |
+| `/api/health` | 200; `auth: configured`, `database: configured` |
+| Public production smoke routes | Pass |
+| Protected anonymous routes/APIs | 307 to Neon Auth or 401, expected |
+
+The current `scripts/prod_smoke.sh` was written while production auth used the
+stub mode and expects anonymous 200/201 responses from protected paths. With
+Neon Auth configured, it now produces a false-negative overall verdict for
+`/prep/heat`, `/prep/rag`, `/api/mastery`, `/api/notes`,
+`/api/practice/sessions`, and `/api/admin/status`. An authenticated test user
+or auth-aware smoke mode is still needed for those paths.
 
 ## Monorepo Vercel config (confirmed Wave 3)
 
@@ -78,7 +101,7 @@ Script: `bash scripts/prod_smoke.sh`
 | Criterion | Status | Evidence |
 |-----------|--------|----------|
 | Preview deployment passes | Pass (prior) | Vercel Git integration; product already live |
-| Migrations succeed | Blocked | `DATABASE_URL` unset on prod (`database: unavailable`) |
+| Migrations succeed | Partial | Database is configured and published module reads pass; migration history was not inspected in this run |
 | Workers are healthy | Pass (scaffold) | Dockerfile healthcheck + `docs/deployment/workers.md` health section; no unattended Glassdoor in Actions |
 | Production smoke tests pass | Pass | Table above / `scripts/prod_smoke.sh` |
 | Monitoring receives events | Partial | Vercel Runtime Logs only; Sentry/OTEL not provisioned |
@@ -96,7 +119,7 @@ Script: `bash scripts/prod_smoke.sh`
 
 | Data | Posture |
 |------|---------|
-| Neon Postgres | **Blocked** — project/env not configured on production (`/api/health` → `database: unavailable`). When provisioned: rely on Neon PITR + branch snapshots. |
+| Neon Postgres | Configured and serving published module data; PITR/backup settings were not inspected in this run. |
 | Vercel Blob raw artefacts | Docs only; `BLOB_READ_WRITE_TOKEN` not verified this run. |
 | Question bank / corpus files | In-repo / worker host; not Vercel local disk. |
 | Glassdoor session state | Worker/Cloud Agents only (`data/glassdoor_state.json`); never in Vercel public env. |
@@ -113,11 +136,12 @@ Script: `bash scripts/prod_smoke.sh`
 | Check | Result |
 |-------|--------|
 | `vercel` on PATH | Not installed globally; `npx vercel@41` available |
-| `vercel whoami` | **Fail** — `No existing credentials found` (no `VERCEL_TOKEN` in env) |
+| `vercel whoami` | **Fail** — supplied token is rejected as `User not found` |
 | `.vercel/project.json` in workspace | Absent (not re-linked this run) |
 | Live URL smoke | Succeeded without CLI (public HTTPS) |
 
-**Blocker:** authenticate CLI (`vercel login` or Cloud Agents `VERCEL_TOKEN`) to inspect env ls, promote, or pull secrets. Do not invent credentials.
+**Blocker:** replace/re-authorize the Cloud Agent `VERCEL_TOKEN` to inspect env,
+promote manually, or pull secrets. Git-linked deployment remains operational.
 
 ## CI
 
@@ -127,11 +151,11 @@ Script: `bash scripts/prod_smoke.sh`
 
 ## Remaining blockers
 
-1. **Vercel CLI token** — no login / `VERCEL_TOKEN` in this environment → cannot `env ls`, `inspect`, or promote via CLI.
-2. **Neon Postgres + Neon Auth** — prod health reports stub/unavailable; migrations + real auth gate blocked.
+1. **Vercel CLI token** — the supplied token is rejected as `User not found` → cannot `env ls`, `inspect`, or promote via CLI.
+2. **Authenticated smoke identity** — Neon Auth is configured, but this run has no test user/session for protected end-to-end checks.
 3. **Monitoring productization** — Sentry/OTEL DSN not set; example YAML only.
 4. **Blob token verification** — storage docs ready; token presence not confirmed without CLI/`env pull`.
-5. **GET `/api/search` validation** — string query params fail Zod (product/backend fix; smoke uses POST).
+5. **Smoke auth semantics** — `scripts/prod_smoke.sh` still expects anonymous success from protected endpoints.
 
 ## Incident / fix (2026-07-30, earlier)
 
