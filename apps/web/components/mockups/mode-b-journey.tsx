@@ -10,6 +10,7 @@ import { CONCEPTS, DIAGRAM_SOURCES, FIRMS, resourcesForConcept } from "@/lib/moc
 import { Annotate } from "@/components/mockups/annotate"
 import { RoughFrame } from "@/components/mockups/rough-frame"
 import { Warren } from "@/components/mockups/warren"
+import { JourneyStepNav } from "@/components/mockups/journey-step-nav"
 
 const STEPS = ["catalog", "hub", "lab", "quiz", "bridge"] as const
 type Step = (typeof STEPS)[number]
@@ -57,39 +58,21 @@ export function ModeBJourney() {
   const relatedFirms = FIRMS.filter((f) => (concept.firm_relevance[f.id] ?? 0) >= 0.7)
 
   return (
-    <div className="space-y-8">
-      <ol className="flex flex-wrap gap-2 font-mono text-[11px] tracking-wide uppercase">
-        {STEPS.map((s) => (
-          <li key={s}>
-            <button
-              type="button"
-              onClick={() => setStep(s)}
-              className={
-                step === s
-                  ? "rounded-full border border-lime/40 bg-accent px-3 py-1"
-                  : "rounded-full border border-transparent px-3 py-1 text-muted-foreground hover:border-border"
-              }
-            >
-              {s}
-            </button>
-          </li>
-        ))}
-      </ol>
+    <div className="space-y-10 font-sans">
+      <JourneyStepNav steps={STEPS} step={step} onStep={setStep} />
 
       {step === "catalog" ? (
-        <section className="space-y-6 animate-[settle-in_280ms_var(--ease-settle)]">
-          <div className="flex flex-col gap-4 md:flex-row md:justify-between">
-            <div>
-              <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-                Learn · module catalog
-              </p>
-              <h2 className="font-display mt-1 text-4xl tracking-tight">Curriculum</h2>
-            </div>
-            <Warren
-              mood="encouraging"
-              aside="Recommended: LBO module — prereq ready + your weak PE heat."
-            />
+        <section className="space-y-8">
+          <div>
+            <p className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
+              Learn · catalog
+            </p>
+            <h2 className="font-display mt-2 text-4xl tracking-tight">Curriculum</h2>
           </div>
+          <Warren
+            mood="encouraging"
+            aside="Recommended: LBO module — prereq ready + your weak PE heat."
+          />
           <div className="grid gap-4 md:grid-cols-3">
             {MODULES.map((m) => (
               <button

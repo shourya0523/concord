@@ -21,6 +21,28 @@ import { Warren } from "@/components/mockups/warren"
 const STEPS = ["heat", "rag", "study", "done"] as const
 type Step = (typeof STEPS)[number]
 
+function StepNav({ step, setStep }: { step: Step; setStep: (s: Step) => void }) {
+  return (
+    <ol className="flex gap-4 font-sans text-sm text-muted-foreground">
+      {STEPS.map((s) => (
+        <li key={s}>
+          <button
+            type="button"
+            onClick={() => setStep(s)}
+            className={
+              step === s
+                ? "font-medium text-foreground underline decoration-2 underline-offset-8"
+                : "hover:text-foreground"
+            }
+          >
+            {s}
+          </button>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 export function ModeAJourney() {
   const [step, setStep] = React.useState<Step>("heat")
   const [focusTopic, setFocusTopic] = React.useState<string | null>("LBO")
@@ -49,103 +71,82 @@ export function ModeAJourney() {
   const citation = RAG_CITATIONS[0]!
 
   return (
-    <div className="space-y-8">
-      <ol className="flex flex-wrap gap-2 font-mono text-[11px] tracking-wide uppercase">
-        {STEPS.map((s) => (
-          <li key={s}>
-            <button
-              type="button"
-              onClick={() => setStep(s)}
-              className={
-                step === s
-                  ? "rounded-full border border-lime/40 bg-accent px-3 py-1"
-                  : "rounded-full border border-transparent px-3 py-1 text-muted-foreground hover:border-border"
-              }
-            >
-              {s}
-            </button>
-          </li>
-        ))}
-      </ol>
+    <div className="space-y-10 font-sans">
+      <StepNav step={step} setStep={setStep} />
 
       {step === "heat" ? (
-        <section className="space-y-6 animate-[settle-in_280ms_var(--ease-settle)]">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-                Company room · Goldman Sachs
-              </p>
-              <h2 className="font-display mt-1 text-4xl tracking-tight">Topic heat</h2>
-              <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                Colour = firm heat intensity; hatch = your weak topics; number always visible.
-                Glow reserved for the weakest cell only.
-              </p>
-            </div>
-            <Warren
-              mood="encouraging"
-              aside="Evercore and GS over-index LBO — start there."
-            />
+        <section className="space-y-8">
+          <div>
+            <p className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
+              Goldman Sachs · company room
+            </p>
+            <h2 className="font-display mt-2 text-4xl tracking-tight">Topic heat</h2>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+              Colour = firm heat. Hatch = your weak topics. Numbers always readable.
+            </p>
           </div>
 
-          <RoughFrame seedKey="mode-a-heat" torn>
+          <Warren mood="encouraging" aside="GS and Evercore over-index LBO — start there." />
+
+          <RoughFrame seedKey="mode-a-heat">
             <TopicHeatmap
               firms={firms}
               topics={topics}
               cells={cells}
               compareMode
-              onCellActivate={(cell) => {
-                setFocusTopic(cell.topicLabel)
-              }}
+              onCellActivate={(cell) => setFocusTopic(cell.topicLabel)}
             />
             {weakest ? (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Focus glow target:{" "}
-                <span className="font-medium text-[var(--error-foreground)]">
+              <p className="mt-4 text-sm text-muted-foreground">
+                Weakest overlap:{" "}
+                <span className="font-medium text-foreground">
                   {weakest.topicLabel} @ {weakest.firmLabel}
-                </span>{" "}
-                (heat {weakest.intensity}, weak hatch)
+                </span>
               </p>
             ) : null}
           </RoughFrame>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => {
-                setStep("rag")
-              }}
-            >
-              Start pseudo-RAG · {focusTopic ?? "LBO"}
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={() => setStep("rag")}>
+              Start pack · {focusTopic ?? "LBO"}
             </Button>
             <Link href="/mockups/mode-b">
-              <Button variant="outline">Open related Learn module</Button>
+              <Button variant="outline">Related Learn module</Button>
             </Link>
           </div>
         </section>
       ) : null}
 
       {step === "rag" ? (
-        <section className="space-y-6 animate-[settle-in_280ms_var(--ease-settle)]">
+        <section className="space-y-8">
+          <div>
+            <h2 className="font-display text-4xl tracking-tight">Session pack</h2>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+              Frozen at start. Citations stay visible — Glassdoor never becomes the answer.
+            </p>
+          </div>
+
           <Warren
             mood="thinking"
-            aside="Pack frozen at session start. Citations stay visible — Glassdoor never becomes the answer."
+            aside="Ranked by heat ∩ weakness from the teaching corpus."
           />
+
           <RoughFrame seedKey="mode-a-rag-brief">
-            <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-              Session brief · AI grounded
-            </p>
-            <p className="mt-2 text-[15px] leading-relaxed">
+            <p className="text-base leading-relaxed">
               Superday prep for{" "}
               <Annotate type="underline" show>
                 GS + MS + Evercore
-              </Annotate>{" "}
-              focusing on LBO mechanics. Retrieved from teaching corpus ranked by heat ∩ weakness.
+              </Annotate>
+              , focusing on LBO mechanics.
             </p>
-            <Annotate type="box" show>
-              <span className="mt-3 inline-block font-mono text-xs">Pack size · 3 items frozen</span>
-            </Annotate>
+            <p className="mt-3 text-sm text-muted-foreground">
+              <Annotate type="box" show>
+                Pack · 3 items frozen
+              </Annotate>
+            </p>
           </RoughFrame>
 
-          <div className="grid gap-4">
+          <div className="space-y-3">
             {RAG_CITATIONS.slice(0, 3).map((item) => (
               <PseudoRagCitationCard
                 key={item.id}
@@ -165,44 +166,28 @@ export function ModeAJourney() {
               setScored(false)
             }}
           >
-            Open first card · layered study
+            Open layered study
           </Button>
         </section>
       ) : null}
 
       {step === "study" ? (
-        <section className="space-y-6 animate-[settle-in_280ms_var(--ease-settle)]">
-          <div className="flex flex-col gap-4 md:flex-row md:justify-between">
-            <div>
-              <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-                Signature study · Mode A context
-              </p>
-              <h2 className="font-display mt-1 text-3xl tracking-tight">{citation.title}</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Firm chip · GS · occurrence heat high · stage technical
-              </p>
-            </div>
-            <Warren
-              mood={scored ? "celebrating" : typing ? "paused" : "idle"}
-              userFocused={typing}
-              aside={
-                scored
-                  ? "Strong structure — underline the tax-shield phrase."
-                  : typing
-                    ? "Breathing paused while you write."
-                    : "Reveal layers after you attempt — reactions are state-confirmed."
-              }
-            />
+        <section className="space-y-8">
+          <div>
+            <p className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
+              Study · GS · technical
+            </p>
+            <h2 className="font-display mt-2 text-4xl tracking-tight">{citation.title}</h2>
           </div>
 
-          <RoughFrame seedKey="mode-a-question" torn>
-            <p className="text-lg leading-relaxed">{citation.excerpt}</p>
-            <label className="mt-4 block">
-              <span className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
+          <RoughFrame seedKey="mode-a-question">
+            <p className="text-base leading-relaxed text-foreground">{citation.excerpt}</p>
+            <label className="mt-6 block">
+              <span className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
                 Your answer
               </span>
               <textarea
-                className="mt-2 min-h-28 w-full rounded-[var(--radius-control)] border border-border bg-card p-3 text-sm outline-none focus:border-lime/50"
+                className="mt-2 min-h-32 w-full rounded-md border border-border bg-background p-3 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground/40"
                 value={answer}
                 onFocus={() => setTyping(true)}
                 onBlur={() => setTyping(false)}
@@ -210,7 +195,7 @@ export function ModeAJourney() {
                 placeholder="Lead with structure, then numbers…"
               />
             </label>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap gap-3">
               <Button
                 disabled={scored}
                 onClick={() => {
@@ -219,64 +204,69 @@ export function ModeAJourney() {
                   setTyping(false)
                 }}
               >
-                Submit · score (confirmed)
+                Submit
               </Button>
               {scored ? (
-                <Button
-                  variant="outline"
-                  onClick={() => setRevealed((v) => Math.min(4, v + 1))}
-                >
-                  Reveal next layer (r)
+                <Button variant="outline" onClick={() => setRevealed((v) => Math.min(4, v + 1))}>
+                  Reveal next layer
                 </Button>
               ) : null}
             </div>
           </RoughFrame>
 
+          <Warren
+            mood={scored ? "celebrating" : typing ? "paused" : "idle"}
+            userFocused={typing}
+            aside={
+              scored
+                ? "Strong structure — underline the tax-shield phrase."
+                : typing
+                  ? "I'll wait while you write."
+                  : "Attempt first. Layers unlock after you submit."
+            }
+          />
+
           {scored ? (
-            <div className="space-y-4">
+            <div className="space-y-4 border-t border-border/80 pt-8">
               {revealed >= 1 ? (
-                <RoughFrame seedKey="layer-direct">
-                  <p className="font-mono text-[11px] uppercase text-muted-foreground">
-                    1 · Direct answer
+                <div>
+                  <p className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
+                    Direct answer
                   </p>
-                  <p className="mt-2">
-                    Walk sources & uses, then returns. Highlight:{" "}
+                  <p className="mt-2 text-base leading-relaxed">
+                    Walk sources & uses, then returns. Key phrase:{" "}
                     <Annotate type="highlight" show>
                       tax shield on interest
                     </Annotate>
                     .
                   </p>
-                </RoughFrame>
+                </div>
               ) : null}
               {revealed >= 2 ? (
-                <RoughFrame seedKey="layer-diagram">
-                  <p className="font-mono text-[11px] uppercase text-muted-foreground">
-                    4 · Interactive diagram slot
+                <div>
+                  <p className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
+                    Diagram
                   </p>
-                  <div className="mt-3 rounded-[16px] border border-border bg-card p-4 font-mono text-xs leading-relaxed text-muted-foreground">
-                    {`Sources → Uses\n  Debt + Equity → Purchase equity + Refinance\n  ↓\n  Returns: MOIC / IRR intuition`}
-                  </div>
-                </RoughFrame>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    Sources (debt + equity) → Uses (purchase equity + refinance) → Returns (MOIC /
+                    IRR).
+                  </p>
+                </div>
               ) : null}
               {revealed >= 3 ? (
-                <RoughFrame seedKey="layer-mistakes">
-                  <p className="font-mono text-[11px] uppercase text-muted-foreground">
-                    7 · Common mistakes
+                <div>
+                  <p className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
+                    Common mistake
                   </p>
-                  <p className="mt-2">
+                  <p className="mt-2 text-base">
                     <Annotate type="strike-through" show>
                       Skipping firm heat context in Mode A
                     </Annotate>
                   </p>
-                </RoughFrame>
+                </div>
               ) : null}
               {revealed >= 4 ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => setStep("done")}>Complete session</Button>
-                  <span className="self-center font-mono text-[11px] text-[var(--milestone-foreground)]">
-                    AI follow-up · cite pack item {citation.id}
-                  </span>
-                </div>
+                <Button onClick={() => setStep("done")}>Complete session</Button>
               ) : null}
             </div>
           ) : null}
@@ -284,28 +274,28 @@ export function ModeAJourney() {
       ) : null}
 
       {step === "done" ? (
-        <section className="space-y-6 animate-[settle-in_280ms_var(--ease-settle)]">
+        <section className="space-y-8">
           <Warren mood="celebrating" aside="Mastery updated. Heat ∩ weakness refreshed." />
-          <RoughFrame seedKey="mode-a-done">
-            <p className="font-display text-3xl tracking-tight">
+          <div>
+            <h2 className="font-display text-4xl tracking-tight">
               Session complete ·{" "}
               <Annotate type="circle" show>
                 3
               </Annotate>{" "}
-              cards reviewed
-            </p>
+              cards
+            </h2>
             <p className="mt-3 text-sm text-muted-foreground">
-              Next: Apply diagram checkpoint in Learn, or continue firm heat compare.
+              Next: diagram checkpoint in Learn, or keep comparing firm heat.
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Link href="/mockups/mode-b">
-                <Button>Continue to Learn journey</Button>
-              </Link>
-              <Button variant="outline" onClick={() => setStep("heat")}>
-                Restart Mode A
-              </Button>
-            </div>
-          </RoughFrame>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/mockups/mode-b">
+              <Button>Continue to Learn</Button>
+            </Link>
+            <Button variant="outline" onClick={() => setStep("heat")}>
+              Restart
+            </Button>
+          </div>
         </section>
       ) : null}
     </div>

@@ -1,52 +1,61 @@
+"use client"
+
 import Link from "next/link"
+import type { CSSProperties } from "react"
 
 import { MockupSvgFilters } from "@/components/mockups/svg-filters"
-
-export const metadata = {
-  title: "Phase 1 journey mockups",
-  description: "Full-journey Concord mockups — Mode A, Learn, Plan→Simulator",
-}
+import { MockupThemeLock } from "@/components/mockups/mockup-theme-lock"
 
 const JOURNEYS = [
   {
     href: "/mockups/mode-a",
-    title: "Mode A · Company → RAG → Study",
-    body: "Topic heat dual-encoding → pseudo-RAG citations → layered reveal with Warren focus-pause.",
+    title: "Company → RAG → Study",
+    body: "Topic heat → grounded pack → layered reveal with Warren.",
   },
   {
     href: "/mockups/mode-b",
-    title: "Mode B · Learn module → Lab",
-    body: "Module catalog → roadmap checkpoints → DiagramCanvas lab → quiz → Apply at Firm.",
+    title: "Learn → Lab → Firm",
+    body: "Module catalog → diagram lab → quiz → Apply at Firm.",
   },
   {
     href: "/mockups/plan-sim",
     title: "Plan → Simulator → Score",
-    body: "Interview-date roadmap → DiceBear interviewer → torn-paper hero score + handwriting.",
+    body: "Roadmap → interviewer mock → score reveal.",
   },
 ] as const
 
 export default function MockupsIndexPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div
+      className="min-h-screen text-foreground"
+      style={
+        {
+          "--paper": "oklch(0.985 0.004 85)",
+          "--background": "oklch(0.985 0.004 85)",
+          background:
+            "radial-gradient(120% 80% at 100% 0%, oklch(0.97 0.01 85), transparent 55%), var(--paper)",
+        } as CSSProperties
+      }
+    >
+      <MockupThemeLock />
       <MockupSvgFilters />
-      <main className="mx-auto max-w-3xl px-4 py-12 md:px-6">
-        <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-          Phase 1 · full-journey mockups
+      <main className="mx-auto max-w-3xl px-4 py-14 md:px-6">
+        <p className="font-sans text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
+          Concord · Phase 1
         </p>
-        <h1 className="font-display mt-2 text-5xl tracking-tight md:text-6xl">Concord journeys</h1>
-        <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
-          Connected flows with hard visual parts in context — not isolated component demos. Approve
-          before Phase 2 product integration.
+        <h1 className="font-display mt-2 text-5xl tracking-tight">Journeys</h1>
+        <p className="mt-4 max-w-md font-sans text-sm leading-relaxed text-muted-foreground">
+          Full flows with hard visual parts in context. Approve before Phase 2.
         </p>
-        <ul className="mt-10 space-y-4">
+        <ul className="mt-12 space-y-3">
           {JOURNEYS.map((j) => (
             <li key={j.href}>
               <Link
                 href={j.href}
-                className="block rounded-[var(--radius-study)] border border-border bg-card px-5 py-5 transition-transform duration-[280ms] ease-[var(--ease-settle)] hover:-translate-y-0.5"
+                className="block border-b border-border py-5 transition-colors hover:border-foreground"
               >
                 <h2 className="font-display text-2xl tracking-tight">{j.title}</h2>
-                <p className="mt-2 text-sm text-muted-foreground">{j.body}</p>
+                <p className="mt-1 font-sans text-sm text-muted-foreground">{j.body}</p>
               </Link>
             </li>
           ))}

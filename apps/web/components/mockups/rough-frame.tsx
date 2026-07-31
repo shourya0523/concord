@@ -11,19 +11,22 @@ type RoughFrameProps = {
   children: React.ReactNode
   className?: string
   padding?: number
-  /** Apply static torn-paper filter */
+  /**
+   * @deprecated Never filter text. Kept for API compat; ignored.
+   * Torn edges belong on decorative chrome only, not content.
+   */
   torn?: boolean
 }
 
 /**
- * Hand-drawn border via rough.js with fixed seed + memoized redraw.
+ * Hand-drawn border via rough.js — SVG stroke only.
+ * Children stay sharp (no feDisplacement on text).
  */
 export function RoughFrame({
   seedKey,
   children,
   className,
-  padding = 12,
-  torn = false,
+  padding = 10,
 }: RoughFrameProps) {
   const hostRef = React.useRef<HTMLDivElement>(null)
   const svgRef = React.useRef<SVGSVGElement>(null)
@@ -44,10 +47,10 @@ export function RoughFrame({
       const rc = rough.svg(svg)
       const node = rc.rectangle(padding / 2, padding / 2, width - padding, height - padding, {
         seed,
-        roughness: 1.15,
-        bowing: 0.9,
+        roughness: 0.85,
+        bowing: 0.6,
         stroke: "var(--ink)",
-        strokeWidth: 1.25,
+        strokeWidth: 1.15,
         fill: "transparent",
       })
       svg.appendChild(node)
@@ -60,16 +63,13 @@ export function RoughFrame({
   }, [padding, seed])
 
   return (
-    <div
-      ref={hostRef}
-      className={cn("relative", torn && "[filter:url(#torn-paper-static)]", className)}
-    >
+    <div ref={hostRef} className={cn("relative bg-card", className)}>
       <svg
         ref={svgRef}
         className="pointer-events-none absolute inset-0 z-0 overflow-visible"
         aria-hidden
       />
-      <div className="relative z-10 p-5 md:p-6">{children}</div>
+      <div className="relative z-10 p-5 font-sans md:p-6">{children}</div>
     </div>
   )
 }
