@@ -154,7 +154,7 @@ export function JourneyShell({
           {breadcrumb ? (
             <p className="mb-2 text-xs text-muted-foreground">{breadcrumb}</p>
           ) : null}
-          <h1 className="text-[32px] font-semibold leading-tight tracking-tight text-foreground md:text-[40px]">
+          <h1 className="font-sans text-[32px] font-semibold leading-tight tracking-tight text-foreground md:text-[40px]">
             {pageTitle}
           </h1>
           <div className="mt-8">{children}</div>
