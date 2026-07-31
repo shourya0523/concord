@@ -6,25 +6,22 @@ import { ConceptLabHeader } from "@ibpe/ui/components/company-concept-headers"
 import { ResourceLinkList } from "@ibpe/ui/components/resource-link-list"
 
 import { DiagramIsland } from "@/components/diagram-island"
-import {
-  CONCEPTS,
-  DIAGRAM_SOURCES,
-  FIRMS,
-  getConcept,
-  resourcesForConcept,
-} from "@/lib/mock-data"
+import { DIAGRAM_SOURCES, FIRMS } from "@/lib/mock-data"
+import { getConceptDetail, listConcepts, listLearningModules } from "@/lib/data/learning"
 
 type Props = {
   params: Promise<{ slug: string }>
 }
 
 export async function generateStaticParams() {
-  return CONCEPTS.map((c) => ({ slug: c.slug }))
+  const result = await listConcepts()
+  return result.items.map((item) => ({ slug: item.concept.slug }))
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
-  const concept = getConcept(slug)
+  const result = await getConceptDetail(slug)
+  const concept = result?.item.concept
   return {
     title: concept ? `${concept.title} · Concept lab` : "Concept lab · IBPE",
     description: concept?.summary ?? "Concept learning lab",
@@ -33,19 +30,24 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function ConceptLabPage({ params }: Props) {
   const { slug } = await params
-  const concept = getConcept(slug)
-  if (!concept) notFound()
+  const [result, allConcepts, modules] = await Promise.all([
+    getConceptDetail(slug),
+    listConcepts(),
+    listLearningModules(),
+  ])
+  if (!result) notFound()
+  const { concept, resources } = result.item
 
   const diagram = DIAGRAM_SOURCES[slug]
-  const resources = resourcesForConcept(concept.id)
   const relatedFirms = FIRMS.filter((f) => (concept.firm_relevance[f.id] ?? 0) >= 0.7)
+  const parentModule = modules.items.find((module) => module.concept_ids.includes(concept.id))
 
   return (
     <div className="space-y-10">
       <ConceptLabHeader
         conceptName={concept.title}
         domain={concept.domain?.toUpperCase()}
-        masteryLabel="Developing"
+        masteryLabel={result.source === "published" ? "Published lab" : "Foundation lab"}
         subtitle={concept.summary}
         actions={
           <>
@@ -72,6 +74,14 @@ export default async function ConceptLabPage({ params }: Props) {
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <section className="space-y-4">
           <h2 className="font-display text-3xl tracking-tight">Lab notes</h2>
+          {parentModule ? (
+            <p className="text-sm">
+              Parent module:{" "}
+              <Link className="underline" href={`/learn/${parentModule.slug}`}>
+                {parentModule.title}
+              </Link>
+            </p>
+          ) : null}
           <p className="max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
             Mode B ignores firm heat by default. Optional bridges below show where this concept
             over-indexes in reported interviews — still directional, not canonical answers.
@@ -91,7 +101,11 @@ export default async function ConceptLabPage({ params }: Props) {
             </ul>
           ) : null}
           <div className="flex flex-wrap gap-2 pt-2">
-            {CONCEPTS.filter((c) => c.id !== concept.id).map((c) => (
+            {allConcepts.items
+              .map((item) => item.concept)
+              .filter((c) => c.id !== concept.id)
+              .slice(0, 6)
+              .map((c) => (
               <Link
                 key={c.id}
                 href={`/concepts/${c.slug}`}
@@ -99,13 +113,18 @@ export default async function ConceptLabPage({ params }: Props) {
               >
                 {c.title}
               </Link>
-            ))}
+              ))}
           </div>
         </section>
         <ResourceLinkList
           resources={
             resources.length
-              ? resources
+              ? resources.map((resource) => ({
+                  id: resource.id,
+                  label: resource.label,
+                  href: resource.url,
+                  kind: resource.kind,
+                }))
               : [
                   {
                     id: "browse",

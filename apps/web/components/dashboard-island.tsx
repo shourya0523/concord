@@ -6,7 +6,6 @@ import Link from "next/link"
 import { Button } from "@ibpe/ui/components/button"
 import {
   EditorialHeading,
-  MetricDisplay,
   MetadataPill,
 } from "@ibpe/ui/components/editorial"
 
@@ -18,13 +17,47 @@ import { FIRMS } from "@/lib/mock-data"
 export function DashboardIsland() {
   const [targets, setTargets] = React.useState<string[]>([])
   const [mode, setMode] = React.useState<"company_prep" | "concept_learn">("company_prep")
+  const [mastery, setMastery] = React.useState<Array<{ score: number; subject_id: string }>>([])
+  const [planItems, setPlanItems] = React.useState(0)
+  const [modules, setModules] = React.useState<Array<{ slug: string; title: string }>>([])
 
   React.useEffect(() => {
     setTargets(readStoredTargets())
+    const controller = new AbortController()
+    Promise.all([
+      fetch("/api/mastery", { signal: controller.signal }),
+      fetch("/api/study-plan", { signal: controller.signal }),
+      fetch("/api/learn/modules", { signal: controller.signal }),
+    ])
+      .then(async ([masteryResponse, planResponse, moduleResponse]) => {
+        const masteryPayload = masteryResponse.ok
+          ? ((await masteryResponse.json()) as { items?: Array<{ score: number; subject_id: string }> })
+          : {}
+        const planPayload = planResponse.ok
+          ? ((await planResponse.json()) as { plan?: { items?: unknown[] } })
+          : {}
+        const modulePayload = moduleResponse.ok
+          ? ((await moduleResponse.json()) as {
+              items?: Array<{ slug: string; title: string }>
+            })
+          : {}
+        setMastery(masteryPayload.items ?? [])
+        setPlanItems(planPayload.plan?.items?.length ?? 0)
+        setModules(modulePayload.items ?? [])
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          console.warn("[dashboard] Summary data unavailable", error)
+        }
+      })
+    return () => controller.abort()
   }, [])
 
-  const readiness = targets.length ? Math.min(92, 48 + targets.length * 8) : 0
   const primary = FIRMS.find((f) => f.id === targets[0])
+  const weakCount = mastery.filter((item) => item.score < 0.68).length
+  const averageMastery = mastery.length
+    ? Math.round((mastery.reduce((sum, item) => sum + item.score, 0) / mastery.length) * 100)
+    : null
 
   return (
     <div className="space-y-10">
@@ -71,11 +104,25 @@ export function DashboardIsland() {
         </section>
 
         <aside className="space-y-8 border-t border-border pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
-          <div className="grid grid-cols-2 gap-6">
-            <MetricDisplay label="Readiness" value={`${readiness}%`} hint={primary?.name ?? "Select firms"} />
-            <MetricDisplay label="Weak topics" value="3" hint="Auto-focus queue" />
-            <MetricDisplay label="Days out" value="18" hint="Interview urgency" />
-            <MetricDisplay label="Streak" value="4" hint="Sessions" />
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground">Mastery</p>
+              <p className="mt-1 text-2xl font-semibold">
+                {averageMastery === null ? "—" : `${averageMastery}%`}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Weak records</p>
+              <p className="mt-1 text-2xl font-semibold">{weakCount}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Plan items</p>
+              <p className="mt-1 text-2xl font-semibold">{planItems}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Modules</p>
+              <p className="mt-1 text-2xl font-semibold">{modules.length}</p>
+            </div>
           </div>
           <WeakTopicFocusBar />
           <div className="space-y-3">
@@ -83,10 +130,14 @@ export function DashboardIsland() {
               Suggested next
             </p>
             <p className="font-display text-2xl leading-snug tracking-tight">
-              Pseudo-RAG pack for {primary?.name ?? "your targets"} × DCF weakness
+              {mode === "company_prep"
+                ? `Grounded pack for ${primary?.name ?? "your targets"}`
+                : modules[0]?.title ?? "Choose a learning module"}
             </p>
             <p className="text-sm text-muted-foreground">
-              Heat ∩ weakness overlay prefers DCF at IB targets and LBO at PE targets.
+              {mastery.length
+                ? `${weakCount} mastery records are below proficient and feed the next session.`
+                : "Complete a real practice attempt to generate a personal weakness signal."}
             </p>
             <div className="flex flex-wrap gap-2">
               <Link href="/prep/rag">
@@ -96,8 +147,8 @@ export function DashboardIsland() {
                 <Button variant="outline">Weak-topic drill</Button>
               </Link>
               {mode === "concept_learn" ? (
-                <Link href="/concepts/dcf-valuation">
-                  <Button variant="ghost">Open DCF lab</Button>
+                <Link href={modules[0] ? `/learn/${modules[0].slug}` : "/learn"}>
+                  <Button variant="ghost">Open Learn</Button>
                 </Link>
               ) : primary ? (
                 <Link href={`/companies/${primary.slug}`}>

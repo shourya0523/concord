@@ -9,13 +9,32 @@ import { PseudoRagCitationCard } from "@ibpe/ui/components/pseudo-rag-citation-c
 
 import { TargetSelectIsland, readStoredTargets } from "@/components/target-select-island"
 import { WeakTopicFocusBar } from "@/components/weak-topic-focus-bar"
-import { MOCK_RAG_PACK, RAG_CITATIONS, FIRMS } from "@/lib/mock-data"
+import { FIRMS } from "@/lib/mock-data"
+
+type RagHit = {
+  id: string
+  title: string
+  snippet?: string
+  score: number
+  provenance?: string
+  metadata: Record<string, unknown>
+}
+
+type RagResponse = {
+  pack: { id: string; frozen_at: string; item_ids: string[] }
+  hits: RagHit[]
+  explanations: Array<{ item_id: string; reasons: string[] }>
+  source: string
+  notes: string[]
+}
 
 export function RagPrepIsland() {
-  const [focusPrompt, setFocusPrompt] = React.useState(MOCK_RAG_PACK.query)
+  const [focusPrompt, setFocusPrompt] = React.useState("Superday technicals: accounting and paper LBO")
   const [targets, setTargets] = React.useState<string[]>([])
   const [focusTopic, setFocusTopic] = React.useState<string | null>(null)
-  const [ran, setRan] = React.useState(true)
+  const [result, setResult] = React.useState<RagResponse | null>(null)
+  const [status, setStatus] = React.useState<"idle" | "loading" | "error">("idle")
+  const [error, setError] = React.useState("")
 
   React.useEffect(() => {
     setTargets(readStoredTargets())
@@ -25,17 +44,37 @@ export function RagPrepIsland() {
     .map((f) => f.name)
     .join(" · ")
 
-  const citations = focusTopic
-    ? RAG_CITATIONS.filter((c) => {
-        const blob = `${c.title} ${c.whyRetrieved}`.toLowerCase()
-        if (focusTopic === "topic_dcf") return blob.includes("dcf") || blob.includes("wacc")
-        if (focusTopic === "topic_lbo") return blob.includes("lbo")
-        if (focusTopic === "topic_acct") return blob.includes("accounting") || blob.includes("statement")
-        return true
+  async function retrieve() {
+    if (targets.length === 0) {
+      setError("Choose at least one target firm before retrieving a pack.")
+      setStatus("error")
+      return
+    }
+    setStatus("loading")
+    setError("")
+    try {
+      const response = await fetch("/api/prep/rag", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          firm_ids: targets,
+          query: focusPrompt,
+          weak_topics: focusTopic ? [focusTopic] : [],
+          limit: 6,
+        }),
       })
-    : RAG_CITATIONS
+      if (!response.ok) throw new Error(`Retrieval failed (${response.status})`)
+      setResult((await response.json()) as RagResponse)
+      setStatus("idle")
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not retrieve a grounded pack.")
+      setStatus("error")
+    }
+  }
 
-  const shown = citations.length ? citations : RAG_CITATIONS
+  const explanationMap = new Map(
+    result?.explanations.map((item) => [item.item_id, item.reasons.join(" · ")]) ?? [],
+  )
 
   return (
     <div className="space-y-8">
@@ -59,23 +98,37 @@ export function RagPrepIsland() {
       <div className="flex flex-wrap items-center gap-3">
         <Button
           type="button"
-          onClick={() => {
-            setRan(true)
-          }}
+          disabled={status === "loading" || targets.length === 0}
+          onClick={() => void retrieve()}
         >
-          Retrieve grounded pack
+          {status === "loading" ? "Retrieving…" : "Retrieve grounded pack"}
         </Button>
-        <Link href="/study">
+        <Link
+          href={
+            result?.pack.item_ids.length
+              ? `/study?session=${encodeURIComponent(result.pack.id)}&question=${encodeURIComponent(result.pack.item_ids[0] ?? "")}`
+              : "/study"
+          }
+          aria-disabled={!result}
+        >
           <Button type="button" variant="outline">
             Start study loop
           </Button>
         </Link>
-        <p className="font-mono text-[11px] text-muted-foreground">
-          Frozen · {MOCK_RAG_PACK.frozen_at.slice(0, 10)} · stub pack
-        </p>
+        {result ? (
+          <p className="font-mono text-[11px] text-muted-foreground">
+            Frozen · {result.pack.frozen_at.slice(0, 10)} · {result.source}
+          </p>
+        ) : null}
       </div>
 
-      {ran ? (
+      {error ? (
+        <p role="alert" className="border border-dashed border-error px-4 py-3 text-sm">
+          {error}
+        </p>
+      ) : null}
+
+      {result ? (
         <section className="space-y-4" aria-live="polite">
           <header className="space-y-1">
             <h2 className="font-display text-3xl tracking-tight">Grounded pack</h2>
@@ -86,15 +139,25 @@ export function RagPrepIsland() {
             </p>
           </header>
           <div className="flex flex-col gap-3">
-            {shown.map((c) => (
+            {result.hits.map((hit) => (
               <PseudoRagCitationCard
-                key={c.id}
-                title={c.title}
-                excerpt={c.excerpt}
-                whyRetrieved={c.whyRetrieved}
-                provenance={c.provenance}
-                score={c.score}
-                sourceUrl={c.sourceUrl}
+                key={hit.id}
+                title={hit.title}
+                excerpt={hit.snippet ?? "Open the study loop for the published teaching answer."}
+                whyRetrieved={explanationMap.get(hit.id) ?? "Semantic match to your focus prompt"}
+                provenance={
+                  hit.provenance === "github_source"
+                    ? "github-corpus"
+                    : hit.provenance === "gemini_synthesised"
+                      ? "gemini-enriched"
+                      : "editorial"
+                }
+                score={hit.score}
+                sourceUrl={
+                  typeof hit.metadata.source_url === "string"
+                    ? hit.metadata.source_url
+                    : undefined
+                }
               />
             ))}
           </div>

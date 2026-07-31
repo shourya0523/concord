@@ -9,7 +9,7 @@
 
 /*
   Editorial Finance Terminal
-  Warm paper · near-black · acid-lime accent
+  Cream paper · true black / grey · restrained pastel data accents
   Display: Instrument Serif · UI: Geist · Mono: Geist Mono
   Fonts must be literal names in @theme inline (Tailwind v4 parse-time).
 */
@@ -90,31 +90,31 @@
 }
 
 :root {
-  --paper: oklch(0.975 0.012 92);
-  --ink: oklch(0.18 0.014 55);
-  --graphite: oklch(0.42 0.016 60);
-  --stone: oklch(0.91 0.014 88);
-  --lime: oklch(0.86 0.21 128);
-  --lime-foreground: oklch(0.2 0.04 130);
+  --paper: #f7f1e4;
+  --ink: #111111;
+  --graphite: #555555;
+  --stone: #d4cec0;
+  --lime: #8fbc8f;
+  --lime-foreground: #111111;
 
   --background: var(--paper);
   --foreground: var(--ink);
-  --card: oklch(0.99 0.008 92);
+  --card: #f7f1e4;
   --card-foreground: var(--ink);
-  --popover: oklch(0.99 0.008 92);
+  --popover: #f7f1e4;
   --popover-foreground: var(--ink);
-  --primary: var(--lime);
-  --primary-foreground: var(--lime-foreground);
-  --secondary: oklch(0.94 0.012 88);
+  --primary: #111111;
+  --primary-foreground: #f7f1e4;
+  --secondary: #ebe4d4;
   --secondary-foreground: var(--ink);
-  --muted: oklch(0.945 0.01 90);
-  --muted-foreground: oklch(0.5 0.02 70);
-  --accent: oklch(0.94 0.04 128);
+  --muted: #ebe4d4;
+  --muted-foreground: #555555;
+  --accent: #ebe4d4;
   --accent-foreground: var(--ink);
   --destructive: oklch(0.55 0.2 25);
-  --border: oklch(0.86 0.016 85);
-  --input: oklch(0.88 0.014 85);
-  --ring: var(--lime);
+  --border: #cfc7b6;
+  --input: #cfc7b6;
+  --ring: #111111;
   --chart-1: var(--lime);
   --chart-2: oklch(0.55 0.04 70);
   --chart-3: oklch(0.42 0.03 60);
@@ -130,11 +130,11 @@
   --sidebar-border: oklch(0.88 0.014 85);
   --sidebar-ring: var(--lime);
 
-  --heat-0: oklch(0.96 0.008 90);
-  --heat-1: oklch(0.9 0.05 128);
-  --heat-2: oklch(0.84 0.1 128);
-  --heat-3: oklch(0.78 0.15 128);
-  --heat-4: oklch(0.72 0.2 128);
+  --heat-0: #eee8dc;
+  --heat-1: #dce8dc;
+  --heat-2: #bfd5bf;
+  --heat-3: #9fc49f;
+  --heat-4: #79a979;
   --weak: oklch(0.62 0.14 35);
 
   /* Concord pastel semantic system (DESIGN.md) */

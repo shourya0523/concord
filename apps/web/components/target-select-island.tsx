@@ -42,13 +42,46 @@ export function TargetSelectIsland({ value, onChange, className, syncSearchParam
       setInternal(value)
       return
     }
+    const controller = new AbortController()
     setInternal(readStoredTargets())
+    fetch("/api/targets", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) return null
+        return (await response.json()) as { target_set?: { firm_ids?: string[] } }
+      })
+      .then((payload) => {
+        const ids = payload?.target_set?.firm_ids
+        if (!ids?.length) return
+        setInternal(ids)
+        writeStoredTargets(ids)
+        onChange?.(ids)
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          console.warn("[targets] Could not load saved targets", error)
+        }
+      })
+    return () => controller.abort()
   }, [value])
 
   function handleChange(next: string[]) {
     setInternal(next)
     writeStoredTargets(next)
     onChange?.(next)
+    if (next.length > 0) {
+      void fetch("/api/targets", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          firm_ids: next,
+          primary_firm_id: next[0] ?? null,
+        }),
+      }).then((response) => {
+        if (!response.ok && response.status !== 401) {
+          console.warn(`[targets] Save failed with HTTP ${response.status}`)
+        }
+      })
+    }
     if (syncSearchParam) {
       const params = new URLSearchParams(window.location.search)
       if (next.length) params.set("firms", next.join(","))
