@@ -5,14 +5,19 @@ import Link from "next/link"
 
 import { Button } from "@ibpe/ui/components/button"
 
-import { TargetSelectIsland, fetchFirmOptions, readStoredTargets } from "@/components/target-select-island"
+import {
+  TargetSelectIsland,
+  fetchFirmOptions,
+  readStoredTargets,
+} from "@/components/target-select-island"
 import { TopicHeatIsland } from "@/components/topic-heat-island"
 import {
   CircledNumber,
+  HeatStrip,
   SemanticPill,
   WarrenCallout,
 } from "@/components/paper"
-import { topicLabel } from "@/lib/topics"
+import { conceptIdForTopic, topicLabel } from "@/lib/topics"
 import { weakTopicsFromMastery, type WeakTopic } from "@/lib/weak-topics"
 
 type MasteryItem = { score: number; subject_id: string; subject_type: string }
@@ -24,12 +29,70 @@ type DashboardData = {
   weakTopics: WeakTopic[]
   interviewDate: string | null
   streakDays: number
+  loadedAtMs: number
+}
+
+type HeatPayload = {
+  topics: Array<{
+    firm_id: string
+    topic_id: string
+    intensity: number
+    sample_size: number
+  }>
+}
+
+type MasteryPayload = { items?: MasteryItem[] }
+type PlanPayload = { plan?: { items?: DashboardData["planItems"] } }
+type ModulePayload = { items?: DashboardData["modules"] }
+type ProfilePayload = { profile?: { interview_date?: string | null } }
+type ProgressPayload = { streak_days?: number }
+
+const HOT_THRESHOLD = 0.5
+
+function readinessTier(percent: number): { label: string; tone: "milestone" } {
+  if (percent < 40) return { label: "Needs work", tone: "milestone" }
+  if (percent < 70) return { label: "Building", tone: "milestone" }
+  return { label: "Ready", tone: "milestone" }
+}
+
+function urgencyCopy(days: number): { label: string; detail: string } {
+  if (days <= 7) {
+    return {
+      label: "Final stretch",
+      detail:
+        "Front-load weak-topic drills in the hottest target-firm topics today.",
+    }
+  }
+  if (days <= 14) {
+    return {
+      label: "Close window",
+      detail:
+        "Keep the roadmap tight: one company pack, one weak concept, one calm review loop.",
+    }
+  }
+  if (days <= 30) {
+    return {
+      label: "Build cadence",
+      detail:
+        "Use the runway for prereq modules now so final weeks can stay firm-specific.",
+    }
+  }
+  return {
+    label: "Date set",
+    detail:
+      "The roadmap can pace modules, weak topics, and firm drills against your interview.",
+  }
 }
 
 export function DashboardIsland() {
   const [targets, setTargets] = React.useState<string[]>([])
-  const [firmNames, setFirmNames] = React.useState<Map<string, { name: string; slug: string }>>(new Map())
-  const [mode, setMode] = React.useState<"company_prep" | "concept_learn">("company_prep")
+  const [firmNames, setFirmNames] = React.useState<
+    Map<string, { name: string; slug: string }>
+  >(new Map())
+  const [mode, setMode] = React.useState<"company_prep" | "concept_learn">(
+    "company_prep"
+  )
+  const [heatTopics, setHeatTopics] = React.useState<HeatPayload["topics"]>([])
   const [data, setData] = React.useState<DashboardData>({
     mastery: [],
     planItems: [],
@@ -37,58 +100,157 @@ export function DashboardIsland() {
     weakTopics: [],
     interviewDate: null,
     streakDays: 0,
+    loadedAtMs: 0,
   })
 
   React.useEffect(() => {
-    setTargets(readStoredTargets())
+    const targetTimer = window.setTimeout(
+      () => setTargets(readStoredTargets()),
+      0
+    )
     void fetchFirmOptions().then((options) => {
       setFirmNames(
-        new Map(options.map((firm) => [firm.id, { name: firm.name, slug: firm.id.replace(/^firm_/, "") }])),
+        new Map(
+          options.map((firm) => [
+            firm.id,
+            { name: firm.name, slug: firm.id.replace(/^firm_/, "") },
+          ])
+        )
       )
     })
     const controller = new AbortController()
-    const json = async (response: Response) => (response.ok ? response.json() : {})
+    const json = async <T,>(response: Response): Promise<T | null> =>
+      response.ok ? ((await response.json()) as T) : null
     Promise.all([
-      fetch("/api/mastery", { signal: controller.signal }).then(json),
-      fetch("/api/study-plan", { signal: controller.signal }).then(json),
-      fetch("/api/learn/modules", { signal: controller.signal }).then(json),
-      fetch("/api/profile", { signal: controller.signal }).then(json),
-      fetch("/api/progress", { signal: controller.signal }).then(json),
+      fetch("/api/mastery", { signal: controller.signal }).then((response) =>
+        json<MasteryPayload>(response)
+      ),
+      fetch("/api/study-plan", { signal: controller.signal }).then((response) =>
+        json<PlanPayload>(response)
+      ),
+      fetch("/api/learn/modules", { signal: controller.signal }).then(
+        (response) => json<ModulePayload>(response)
+      ),
+      fetch("/api/profile", { signal: controller.signal }).then((response) =>
+        json<ProfilePayload>(response)
+      ),
+      fetch("/api/progress", { signal: controller.signal }).then((response) =>
+        json<ProgressPayload>(response)
+      ),
     ])
-      .then(([masteryPayload, planPayload, modulePayload, profilePayload, progressPayload]: any[]) => {
-        const mastery = (masteryPayload.items ?? []) as MasteryItem[]
-        setData({
-          mastery,
-          planItems: (planPayload.plan?.items ?? []) as DashboardData["planItems"],
-          modules: (modulePayload.items ?? []) as DashboardData["modules"],
-          weakTopics: weakTopicsFromMastery(
-            mastery.map((item) => ({
-              subject_type: item.subject_type as "concept",
-              subject_id: item.subject_id,
-              score: item.score,
-            })),
-          ),
-          interviewDate: (profilePayload.profile?.interview_date ?? null) as string | null,
-          streakDays: (progressPayload.streak_days ?? 0) as number,
-        })
-      })
+      .then(
+        ([
+          masteryPayload,
+          planPayload,
+          modulePayload,
+          profilePayload,
+          progressPayload,
+        ]) => {
+          const mastery = masteryPayload?.items ?? []
+          setData({
+            mastery,
+            planItems: planPayload?.plan?.items ?? [],
+            modules: modulePayload?.items ?? [],
+            weakTopics: weakTopicsFromMastery(
+              mastery.map((item) => ({
+                subject_type: item.subject_type as "concept",
+                subject_id: item.subject_id,
+                score: item.score,
+              }))
+            ),
+            interviewDate: profilePayload?.profile?.interview_date ?? null,
+            streakDays: progressPayload?.streak_days ?? 0,
+            loadedAtMs: Date.now(),
+          })
+        }
+      )
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
           console.warn("[dashboard] Summary data unavailable", error)
         }
       })
-    return () => controller.abort()
+    return () => {
+      window.clearTimeout(targetTimer)
+      controller.abort()
+    }
   }, [])
+
+  React.useEffect(() => {
+    if (targets.length === 0) {
+      return
+    }
+    const controller = new AbortController()
+    const params = targets
+      .map((id) => `firm_id=${encodeURIComponent(id)}`)
+      .join("&")
+    fetch(`/api/prep/heat?${params}`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) return { topics: [] }
+        return (await response.json()) as HeatPayload
+      })
+      .then((payload) => setHeatTopics(payload.topics ?? []))
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setHeatTopics([])
+        }
+      })
+    return () => controller.abort()
+  }, [targets])
 
   const primary = targets[0] ? firmNames.get(targets[0]) : undefined
   const weakCount = data.mastery.filter((item) => item.score < 0.68).length
   const averageMastery = data.mastery.length
-    ? Math.round((data.mastery.reduce((sum, item) => sum + item.score, 0) / data.mastery.length) * 100)
+    ? Math.round(
+        (data.mastery.reduce((sum, item) => sum + item.score, 0) /
+          data.mastery.length) *
+          100
+      )
     : null
-  const daysUntil = data.interviewDate
-    ? Math.max(0, Math.ceil((Date.parse(`${data.interviewDate}T00:00:00Z`) - Date.now()) / 86_400_000))
-    : null
+  const daysUntil =
+    data.interviewDate && data.loadedAtMs > 0
+      ? Math.max(
+          0,
+          Math.ceil(
+            (Date.parse(`${data.interviewDate}T00:00:00Z`) - data.loadedAtMs) /
+              86_400_000
+          )
+        )
+      : null
   const weakest = data.weakTopics[0]
+  const masteryByConcept = new Map(
+    data.mastery
+      .filter((item) => item.subject_type === "concept")
+      .map((item) => [item.subject_id, item.score])
+  )
+  const weakTopicSet = new Set(data.weakTopics.map((weak) => weak.topic))
+  const readinessRows = targets.map((firmId) => {
+    const hotTopics = heatTopics.filter(
+      (row) =>
+        row.firm_id === firmId &&
+        row.intensity >= HOT_THRESHOLD &&
+        row.topic_id !== "untagged"
+    )
+    const conceptIds = [
+      ...new Set(
+        hotTopics
+          .map((row) => conceptIdForTopic(row.topic_id))
+          .filter((id): id is string => id !== null)
+      ),
+    ]
+    const percent =
+      conceptIds.length === 0
+        ? null
+        : Math.round(
+            (conceptIds.reduce(
+              (sum, id) => sum + (masteryByConcept.get(id) ?? 0),
+              0
+            ) /
+              conceptIds.length) *
+              100
+          )
+    return { firmId, hotTopics, conceptIds, percent }
+  })
+  const urgency = daysUntil === null ? null : urgencyCopy(daysUntil)
   const suggestedReason = weakest
     ? `${primary?.name ?? "Your target"} heat ∩ your ${topicLabel(weakest.topic)} weakness (${Math.round(weakest.score * 100)}% mastery)`
     : data.mastery.length === 0
@@ -106,7 +268,11 @@ export function DashboardIsland() {
             {mode === "company_prep" ? "Company prep" : "Learn"}
           </h1>
         </div>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Active mode">
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label="Active mode"
+        >
           <Button
             type="button"
             size="sm"
@@ -136,7 +302,11 @@ export function DashboardIsland() {
               {targets.length} selected
             </SemanticPill>
           </div>
-          <TargetSelectIsland value={targets} onChange={setTargets} syncSearchParam />
+          <TargetSelectIsland
+            value={targets}
+            onChange={setTargets}
+            syncSearchParam
+          />
           <TopicHeatIsland firmIds={targets} />
           <Link
             href="/prep/heat"
@@ -152,27 +322,137 @@ export function DashboardIsland() {
             {data.planItems.length > 0 ? (
               <ul className="space-y-1.5 text-sm">
                 {data.planItems.slice(0, 4).map((item, index) => (
-                  <li key={`${item.kind}-${item.id}-${index}`} className="flex items-center gap-2">
+                  <li
+                    key={`${item.kind}-${item.id}-${index}`}
+                    className="flex items-center gap-2"
+                  >
                     <span className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
                       {item.kind}
                     </span>
-                    <span className="truncate">{item.id.replace(/^(module_|concept_|q_)/, "").replace(/[-_]/g, " ")}</span>
+                    <span className="truncate">
+                      {item.id
+                        .replace(/^(module_|concept_|q_)/, "")
+                        .replace(/[-_]/g, " ")}
+                    </span>
                   </li>
                 ))}
               </ul>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No assignments yet — open the roadmap to build today&apos;s mix of firm drills and
-                module checkpoints.
+                No assignments yet — open the roadmap to build today&apos;s mix
+                of firm drills and module checkpoints.
               </p>
             )}
-            <Link href="/plan" className="inline-block text-sm text-foreground underline-offset-4 hover:underline">
+            <Link
+              href="/plan"
+              className="inline-block text-sm text-foreground underline-offset-4 hover:underline"
+            >
               Open roadmap →
             </Link>
           </section>
         </section>
 
         <aside className="space-y-8 border-t border-border pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
+          {daysUntil !== null && urgency ? (
+            <section className="flex items-center gap-4 border border-ink/20 bg-streak/10 px-4 py-4">
+              <CircledNumber
+                value={String(daysUntil)}
+                label="days left"
+                size="sm"
+              />
+              <div className="min-w-0 space-y-1">
+                <SemanticPill tone={daysUntil <= 14 ? "streak" : "milestone"}>
+                  {urgency.label}
+                </SemanticPill>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {urgency.detail}
+                </p>
+              </div>
+            </section>
+          ) : (
+            <section className="border border-border px-4 py-3 text-sm text-muted-foreground">
+              Add an interview date in{" "}
+              <Link
+                href="/settings"
+                className="text-foreground underline-offset-4 hover:underline"
+              >
+                Settings
+              </Link>{" "}
+              to pace your roadmap.
+            </section>
+          )}
+
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+                Firm readiness
+              </h2>
+              <Link
+                href="/progress"
+                className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Full progress →
+              </Link>
+            </div>
+            {readinessRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Select targets to score readiness against each firm&apos;s
+                hot-topic labs.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {readinessRows.map((row) => {
+                  const firm = firmNames.get(row.firmId)
+                  const tier =
+                    row.percent === null ? null : readinessTier(row.percent)
+                  return (
+                    <li
+                      key={row.firmId}
+                      className="border border-border bg-milestone/10 px-3 py-3"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                          {firm?.name ??
+                            row.firmId.replace(/^firm_/, "").replace(/-/g, " ")}
+                        </span>
+                        {row.percent === null ? (
+                          <SemanticPill tone="neutral" icon={false}>
+                            score —
+                          </SemanticPill>
+                        ) : (
+                          <>
+                            <span className="font-display text-2xl leading-none tracking-tight tabular-nums">
+                              {row.percent}%
+                            </span>
+                            <SemanticPill tone={tier!.tone}>
+                              {tier!.label}
+                            </SemanticPill>
+                          </>
+                        )}
+                      </div>
+                      {row.hotTopics.length > 0 ? (
+                        <HeatStrip
+                          compact
+                          className="mt-3"
+                          entries={row.hotTopics.slice(0, 4).map((topic) => ({
+                            topic: topic.topic_id,
+                            intensity: topic.intensity,
+                            sampleSize: topic.sample_size,
+                            weak: weakTopicSet.has(topic.topic_id),
+                          }))}
+                        />
+                      ) : (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          No hot topics with mapped concept labs yet.
+                        </p>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
+
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-xs text-muted-foreground">Mastery</p>
@@ -182,32 +462,36 @@ export function DashboardIsland() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Weak records</p>
-              <p className="mt-1 font-display text-3xl tracking-tight">{weakCount}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Days to interview</p>
               <p className="mt-1 font-display text-3xl tracking-tight">
-                {daysUntil === null ? "—" : daysUntil}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Streak</p>
-              <p className="mt-1">
-                {data.streakDays > 0 ? (
-                  <SemanticPill tone="streak">{data.streakDays} days</SemanticPill>
-                ) : (
-                  <span className="font-display text-3xl tracking-tight">—</span>
-                )}
+                {weakCount}
               </p>
             </div>
           </div>
+
+          <section className="inline-flex items-center gap-4 border border-ink/20 bg-streak/10 px-4 py-3 hover:-translate-y-0.5 motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out motion-reduce:transform-none">
+            <CircledNumber
+              value={String(data.streakDays)}
+              label="day streak"
+              size="sm"
+            />
+            <div className="space-y-1">
+              <SemanticPill tone="streak">
+                {data.streakDays > 0 ? "active streak" : "start streak"}
+              </SemanticPill>
+              <p className="text-xs text-muted-foreground">
+                Keep one calm rep moving each day.
+              </p>
+            </div>
+          </section>
 
           {weakest ? (
             <section className="space-y-2">
               <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
                 Weak-topic spotlight
               </h2>
-              <SemanticPill tone="weak">{topicLabel(weakest.topic)}</SemanticPill>
+              <SemanticPill tone="weak">
+                {topicLabel(weakest.topic)}
+              </SemanticPill>
               <p className="text-sm text-muted-foreground">{weakest.reason}</p>
             </section>
           ) : null}
@@ -232,7 +516,13 @@ export function DashboardIsland() {
                 <Button variant="outline">Weak-topic drill</Button>
               </Link>
               {mode === "concept_learn" ? (
-                <Link href={data.modules[0] ? `/learn/${data.modules[0].slug}` : "/learn"}>
+                <Link
+                  href={
+                    data.modules[0]
+                      ? `/learn/${data.modules[0].slug}`
+                      : "/learn"
+                  }
+                >
                   <Button variant="ghost">Open Learn</Button>
                 </Link>
               ) : primary ? (
@@ -243,29 +533,31 @@ export function DashboardIsland() {
             </div>
           </div>
 
-          <nav aria-label="Shortcuts" className="space-y-1 border-t border-border pt-4 text-sm">
-            <Link className="block text-muted-foreground hover:text-foreground" href="/simulator">
+          <nav
+            aria-label="Shortcuts"
+            className="space-y-1 border-t border-border pt-4 text-sm"
+          >
+            <Link
+              className="block text-muted-foreground hover:text-foreground"
+              href="/simulator"
+            >
               Interview simulator →
             </Link>
-            <Link className="block text-muted-foreground hover:text-foreground" href="/learn">
+            <Link
+              className="block text-muted-foreground hover:text-foreground"
+              href="/learn"
+            >
               Learn catalog →
             </Link>
-            <Link className="block text-muted-foreground hover:text-foreground" href="/progress">
+            <Link
+              className="block text-muted-foreground hover:text-foreground"
+              href="/progress"
+            >
               Progress →
             </Link>
           </nav>
         </aside>
       </div>
-
-      {daysUntil !== null && daysUntil <= 14 ? (
-        <div className="flex items-center gap-4 border-t border-border pt-6">
-          <CircledNumber value={String(daysUntil)} label="days remaining" size="sm" />
-          <p className="max-w-md text-sm text-muted-foreground">
-            Interview is close — the roadmap front-loads weak-topic drills in your hottest firm
-            topics. Calm, steady reps beat cramming.
-          </p>
-        </div>
-      ) : null}
     </div>
   )
 }
