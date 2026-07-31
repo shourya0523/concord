@@ -32,15 +32,15 @@ export const MOCKUP_LIGHT_VARS = {
   "--secondary": "oklch(0.94 0.008 85)",
   "--secondary-foreground": "oklch(0.18 0.014 55)",
   "--muted": "oklch(0.955 0.006 85)",
-  "--muted-foreground": "oklch(0.48 0.015 60)",
-  "--accent": "oklch(0.955 0.015 128)",
+  "--muted-foreground": "oklch(0.40 0.02 60)",
+  "--accent": "oklch(0.94 0.01 85)",
   "--accent-foreground": "oklch(0.18 0.014 55)",
-  "--border": "oklch(0.88 0.008 80)",
-  "--input": "oklch(0.88 0.008 80)",
+  "--border": "oklch(0.86 0.008 80)",
+  "--input": "oklch(0.86 0.008 80)",
   "--ring": "oklch(0.22 0.02 55)",
   color: "oklch(0.18 0.014 55)",
   background:
-    "radial-gradient(120% 80% at 100% 0%, oklch(0.97 0.008 85), transparent 55%), oklch(0.985 0.004 85)",
+    "radial-gradient(120% 80% at 100% 0%, oklch(0.97 0.006 85), transparent 55%), oklch(0.985 0.004 85)",
 } as CSSProperties
 
 export function JourneyShell({
