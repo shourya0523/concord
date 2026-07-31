@@ -16,39 +16,57 @@ import {
 } from "@ibpe/ai";
 import type { TopicHeat } from "@ibpe/contracts";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
-import {
-  CONCEPTS,
-  RESOURCES,
-} from "@/lib/mock-data";
 
-function staticTeachingDocuments(): TeachingDocument[] {
-  const conceptDocs: TeachingDocument[] = CONCEPTS.map((concept) => ({
-    id: concept.id,
-    title: concept.title,
-    body: concept.summary ?? concept.title,
-    topic: concept.id.replace(/^concept_/, "topic_"),
-    domain: concept.domain ?? "both",
-    difficulty: null,
-    provenance: "static_seed",
-    concept_ids: [concept.id],
-    firm_ids: Object.keys(concept.firm_relevance),
-    source_label: "Static concept seed",
-  }));
-
-  const resourceDocs: TeachingDocument[] = RESOURCES.map((resource) => ({
-    id: resource.id,
-    title: resource.label,
-    body: `${resource.label}. ${resource.url}`,
-    topic: null,
-    domain: null,
-    difficulty: null,
-    provenance: resource.provenance,
-    concept_ids: resource.concept_ids,
-    firm_ids: resource.firm_ids,
-    source_label: "Curated resource",
-  }));
-
-  return [...conceptDocs, ...resourceDocs];
+/**
+ * Last-resort lexical corpus: published teaching Q/A (not embedded docs).
+ * Only used when the embedding index is unavailable/empty.
+ */
+async function loadPublishedTeachingDocuments(limit = 250): Promise<TeachingDocument[]> {
+  if (!isDatabaseConfigured()) return [];
+  try {
+    const sql = requireSql();
+    const rows = (await sql`
+      SELECT
+        q.id,
+        q.canonical_wording,
+        q.topic,
+        q.domain,
+        q.difficulty,
+        a.concise_answer,
+        a.expanded_explanation,
+        a.provenance_type
+      FROM published.v_questions q
+      JOIN published.v_answers a ON a.canonical_question_id = q.id
+      ORDER BY q.updated_at DESC NULLS LAST
+      LIMIT ${limit}
+    `) as Array<{
+      id: string;
+      canonical_wording: string;
+      topic: string | null;
+      domain: string | null;
+      difficulty: string | null;
+      concise_answer: string;
+      expanded_explanation: string;
+      provenance_type: string;
+    }>;
+    return rows
+      .filter((row) => row.provenance_type !== "glassdoor_occurrence")
+      .map((row) => ({
+        id: row.id,
+        title: row.canonical_wording,
+        body: `${row.concise_answer}\n\n${row.expanded_explanation}`,
+        topic: row.topic,
+        domain: row.domain,
+        difficulty: row.difficulty,
+        provenance: mapProvenance(row.provenance_type),
+        concept_ids: row.topic ? [row.topic] : [],
+        firm_ids: [],
+        source_label: "published_corpus",
+      }));
+  } catch (err) {
+    console.warn("[rag] published teaching read failed", err);
+    return [];
+  }
 }
 
 type RagRow = {
@@ -243,10 +261,10 @@ export async function hybridSearch(opts: {
     }
   }
 
-  // Lexical fallback over static + any embedded titles without vectors
+  // Lexical fallback over embedded docs, else the published corpus itself
   const embedded = await loadEmbeddedDocuments({ limit: 500 });
   const docs: TeachingDocument[] =
-    embedded.length > 0 ? embedded : staticTeachingDocuments();
+    embedded.length > 0 ? embedded : await loadPublishedTeachingDocuments(500);
   const result = searchCorpus({
     request: {
       q: opts.q,
@@ -315,10 +333,9 @@ export async function buildRealPrepRagPack(input: {
     }
   }
 
-  const docs = [
-    ...(await loadEmbeddedDocuments({ limit: 250 })),
-    ...staticTeachingDocuments(),
-  ];
+  const embedded = await loadEmbeddedDocuments({ limit: 250 });
+  const docs =
+    embedded.length > 0 ? embedded : await loadPublishedTeachingDocuments(250);
   const result = buildPseudoRagPack({
     query: input.query,
     firm_ids: input.firm_ids,

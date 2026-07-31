@@ -13,7 +13,10 @@ import {
   listBankAsCanonical,
 } from "@/lib/data/bank-fallback";
 import type { QuestionDetailResponse, QuestionListResponse } from "@/lib/api/schemas";
-import { diagramsForConcepts } from "@/lib/data/learning";
+import {
+  diagramsForConcepts,
+  getDiagramAssetForConcept,
+} from "@/lib/data/learning";
 import { conceptIdForTopic } from "@/lib/topics";
 
 type PublishedQuestionRow = {
@@ -144,6 +147,7 @@ function emptyStudy(): NonNullable<QuestionDetailResponse["study"]> {
     interview_ready_explanation: null,
     step_by_step: [],
     diagram_refs: [],
+    diagram_asset: null,
     formulae: [],
     assumptions: [],
     common_mistakes: [],
@@ -295,6 +299,10 @@ async function getPublishedStudyPayload(options: {
     });
   }
 
+  const diagramAsset = options.conceptIds[0]
+    ? await getDiagramAssetForConcept(options.conceptIds[0])
+    : null;
+
   return {
     answer_id: row.id,
     direct_answer: row.concise_answer,
@@ -305,6 +313,14 @@ async function getPublishedStudyPayload(options: {
       .filter(Boolean)
       .slice(0, 8),
     diagram_refs: diagramsForConcepts(options.conceptIds),
+    diagram_asset: diagramAsset
+      ? {
+          id: diagramAsset.ref.id,
+          title: diagramAsset.title,
+          body: diagramAsset.body,
+          a11y_fallback: diagramAsset.ref.a11y_fallback ?? null,
+        }
+      : null,
     formulae,
     assumptions: asStringArray(row.assumptions_json),
     common_mistakes: asStringArray(row.common_mistakes_json),

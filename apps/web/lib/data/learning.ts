@@ -861,6 +861,16 @@ export async function getConceptDetail(
   return item ? { item, source: "stub" } : null;
 }
 
+/** Resolved diagram asset for a concept (DB first, code-registered fallback). */
+export async function getDiagramAssetForConcept(
+  conceptId: string,
+): Promise<DiagramAsset | null> {
+  const diagramId = CONCEPT_DIAGRAM[conceptId];
+  if (!diagramId) return null;
+  const assets = await loadDiagramAssets();
+  return assets.get(diagramId) ?? null;
+}
+
 /** Published teaching questions for a concept's topic (drill linking). */
 export async function listQuestionsForConcept(
   conceptId: string,

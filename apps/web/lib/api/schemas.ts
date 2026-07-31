@@ -53,6 +53,16 @@ export const LegacyStudyBlockSchema = z.object({
   interview_ready_explanation: z.string().nullable(),
   step_by_step: z.array(z.string()).default([]),
   diagram_refs: z.array(DiagramRefSchema).default([]),
+  /** Resolved diagram for the inline reveal slot (body included). */
+  diagram_asset: z
+    .object({
+      id: z.string(),
+      title: z.string(),
+      body: z.string(),
+      a11y_fallback: z.string().nullable(),
+    })
+    .nullable()
+    .default(null),
   formulae: z.array(z.string()).default([]),
   assumptions: z.array(z.string()).default([]),
   common_mistakes: z.array(z.string()).default([]),

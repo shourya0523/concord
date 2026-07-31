@@ -5,16 +5,16 @@ import type {
 } from "@/lib/api/schemas";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
-import { DEFAULT_TARGET_IDS } from "@/lib/mock-data";
 import { ensureAppUserQuery } from "./users";
 
 const stubTargets = new Map<string, TargetCompanySet>();
 
+/** Empty until the user picks firms — never fabricate a firm set (guardrail 15). */
 function defaultTargetSet(userId: string): TargetCompanySet {
   return TargetCompanySetSchema.parse({
     user_id: userId,
-    firm_ids: DEFAULT_TARGET_IDS,
-    primary_firm_id: DEFAULT_TARGET_IDS[0] ?? null,
+    firm_ids: [],
+    primary_firm_id: null,
     updated_at: new Date().toISOString(),
   });
 }
