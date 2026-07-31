@@ -1,6 +1,6 @@
 # Concord — Design Language & Technical Specification
 
-**Status:** Phase 1 mockups ready for approval — journeys at `/mockups` (do not start Phase 2 until approved)
+**Status:** Phase 1 mockups on `main` at `/mockups` — black · grey · cream shell with **lime line-hover accents**. Do not start Phase 2 until approved.
 
 ---
 
@@ -13,7 +13,7 @@ This is a **monorepo** containing:
 - **Next.js web app** (`apps/web`) — product UI (company rooms, concept labs, heat, pseudo-RAG stubs already scaffolded)
 - **Package ecosystem** — `@ibpe/ui` (shadcn DS + `TopicHeatmap` + `DiagramCanvas`), `@ibpe/contracts`, `@ibpe/database`, `@ibpe/search`, `@ibpe/ai`
 - **Data pipeline** (`src/ibpe_corpus/`) — GitHub Q/A import (teaching truth), Glassdoor occurrence signals, Gemini enrichment
-- **Existing design tokens** — "Editorial Finance Terminal" theme (warm paper / ink / acid-lime) — **to be evolved** into the pastel paper system in this document
+- **Existing design tokens** — "Editorial Finance Terminal" (warm paper / ink / acid-lime) **evolved** into this doc: black/grey chrome · cream paper · **lime reserved for line hover accents** + pastel data/rewards
 
 ### Product Thesis (Two Equal Modes)
 
@@ -49,7 +49,7 @@ This is a **monorepo** containing:
 
 **Imagine Notion, Khan Academy, and Duolingo had a child:**
 
-- **Notion's monochrome editorial discipline** as the resting state (true black/white/grayscale for ~80% of the interface)
+- **Notion's monochrome editorial discipline** as the resting state (**black / grey chrome · cream paper · black ink** for ~80% of the interface)
 - **Notion's information architecture** as the layout base: **left sidebar + single document page**, page title as the only H1, nested pages for flow steps, callouts for Warren — not dashboards, not journey marketing chrome
 - **Khan Academy's tactile hand-drawn warmth** as the illustration texture (rough.js hand-drawn primitives) — used **sparingly** inside content, never as full-page chrome
 - **Duolingo's reward-driven gamification energy** as the emotional engine (streaks, XP, celebrations) — but restrained into a **pastel palette** rather than saturated primaries, so it reads **premium and calm** rather than toy-like
@@ -63,15 +63,16 @@ This is a **monorepo** containing:
 
 **Interaction (drawing system):**
 - Prefer **rough-notation `box`** (hand-drawn outline) for hover/focus on interactive controls and heatmap cells.
+- **Line hover accents use lime** (`--lime`) — the drawn box / underline stroke on hover is acid-lime, not black ink and not glow.
 - **Do not** use glow, soft ring, or drop-shadow as the primary hover affordance.
 - Glow remains reserved for rare data callouts (e.g. single weakest heat cell), never for button chrome.
 
 **Paper / torn pages:**
-- Resting chrome = **black / charcoal sidebar** against a **cream document**.
+- Resting chrome = **black sidebar** + **dark grey workspace** against a **cream document**.
 - **Paper UI** inside content: cream sheet, rough.js border, optional **torn edge strips** (filter on decorative edges only — never on body text).
 - Static torn filter for sheets; animated hero torn only on score / milestone reveals.
 
-**Settled palette:** Black · grey · cream, with **pastel accents** only for heat / rewards / semantics. Do **not** run light-grey chrome behind a white page (light-on-light) — the cream page must sit on dark grey so foreground reads.
+**Settled palette:** Black · grey · cream, with **lime for line hover accents** and **pastel accents** for heat / rewards / semantics. Do **not** run light-grey chrome behind a white page (light-on-light) — the cream page must sit on dark grey so foreground reads.
 
 This is a **banking interview prep platform** — trust reads through precision, not energy. Numbers stay visually calm. No bounce on financial figures. Hand-drawn aesthetic adds **warmth and approachability** to a high-stakes domain without compromising **editorial rigor**.
 
@@ -79,15 +80,15 @@ This is a **banking interview prep platform** — trust reads through precision,
 
 ## 3. Color System
 
-### Settled base — Black / Grey / Cream
+### Settled base — Black / Grey / Cream (+ lime hover lines)
 
-Contrast model: **black / grey chrome · cream paper · black ink · pastel data**.
+Contrast model: **black / grey chrome · cream paper · black ink · lime line-hover · pastel data**.
 Chrome is **true neutral** (chroma 0) — no warm brown charcoal.
 
 ```css
 /* Chrome — true black / grey (neutral only) */
---chrome: #111111;           /* Black sidebar */
---chrome-hover: #2a2a2a;     /* Grey hover */
+--chrome: #000000;           /* Black sidebar */
+--chrome-hover: #2a2a2a;     /* Grey hover fill */
 --chrome-border: #333333;
 --chrome-workspace: #1a1a1a; /* Dark grey canvas behind cream */
 --chrome-text: #e8e8e8;
@@ -99,10 +100,14 @@ Chrome is **true neutral** (chroma 0) — no warm brown charcoal.
 --ink: #111111;              /* Black text on cream */
 --graphite: #555555;         /* Grey secondary */
 --stone: #d4cec0;            /* Border on cream */
+
+/* Line hover accent (rough-notation box / underline on hover) */
+--lime: oklch(0.86 0.21 128);
+--lime-foreground: oklch(0.2 0.04 130);
 ```
 
 Primary actions on cream use **black** fill with cream label.
-
+**Hover line marks** (rough-notation `box` / underline drawn around controls & heatmap cells) use **`--lime`** — not ink, not glow.
 Pastel accents (heat, success, error, streak, milestone) stay data/reward-only — see below. They never paint the shell.
 
 ### Semantic Pastel System
@@ -434,7 +439,7 @@ group.show(); // Animates in order
 **When to animate:**
 - **On feedback reveal** (after answer is scored, not on submit tap)
 - **On milestone unlock** (celebration moment)
-- **On hover/focus** for interactive controls and heatmap cells → prefer **`box`** (hand-drawn outline), **not glow/ring**
+- **On hover/focus** for interactive controls and heatmap cells → prefer **`box`** (hand-drawn outline) in **`--lime`**, **not glow/ring** and not black ink stroke
 
 **When NOT to animate:**
 - On page load (instant final state, or brief delay before animating key callouts)
@@ -616,6 +621,7 @@ Applied consistently, **never mixed within the same element type**.
 
 3. **Heatmap / control hover:**
    - Primary affordance = **rough-notation `box`** drawn around the active cell or button
+   - Stroke color = **`--lime`** (line hover accent)
    - Glow reserved only for the **1 weakest-overlap callout** (static), never as hover chrome
    - Never always-on glow across a full grid
 
