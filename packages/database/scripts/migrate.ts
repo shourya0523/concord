@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * Apply Neon migrations 010 → 020 → 030 via DATABASE_URL.
+ * Apply Neon migrations 010+ via DATABASE_URL.
  * Uses neon Pool (Node + ws). Prefer direct (non-pooled) URL for DDL sessions.
  */
 import { readFile } from "node:fs/promises";
@@ -23,6 +23,8 @@ const FILES = [
   "010_neon_platform.sql",
   "020_neon_published.sql",
   "030_neon_rls.sql",
+  "031_neon_auth_user_id.sql",
+  "032_learning_flows.sql",
 ] as const;
 
 function splitSql(sqlText: string): string[] {
