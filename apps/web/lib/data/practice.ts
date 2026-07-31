@@ -5,20 +5,19 @@
 import { randomUUID } from "node:crypto";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
+import { PracticeSessionSchema, type PracticeSession } from "@ibpe/contracts";
 import type {
   CreatePracticeSessionRequest,
-  LocalPracticeSession,
   PracticeSessionResponse,
 } from "@/lib/api/schemas";
-import { LocalPracticeSessionSchema } from "@/lib/api/schemas";
 import { listQuestions } from "@/lib/data/questions";
 import { ensureAppUserQuery } from "./users";
 
-const stubSessions = new Map<string, LocalPracticeSession>();
+const stubSessions = new Map<string, PracticeSession>();
 
-function learningModeToDb(input: CreatePracticeSessionRequest): string {
-  if (input.learning_mode) return input.learning_mode;
-  return input.mode === "concept" ? "concept_learn" : "company_prep";
+/** Persist practice mode on the session row (supports simulator). */
+function practiceModeToDb(input: CreatePracticeSessionRequest): string {
+  return input.mode;
 }
 
 function simulatorStageTemplate() {
@@ -77,7 +76,7 @@ export async function createPracticeSession(options: {
   const sessionId = `sess_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
 
   const metadata = sessionMetadata(input, questionIds);
-  const session = LocalPracticeSessionSchema.parse({
+  const session = PracticeSessionSchema.parse({
     id: sessionId,
     user_id: userId,
     mode: input.mode,
@@ -108,7 +107,7 @@ export async function createPracticeSession(options: {
         VALUES (
           ${sessionId},
           (SELECT id FROM app.users WHERE neon_auth_user_id = ${userId} LIMIT 1),
-          ${learningModeToDb(input)},
+          ${practiceModeToDb(input)},
           ${input.firm_ids[0] ?? null},
           ${startedAt}::timestamptz,
           ${JSON.stringify(metadata)}::jsonb
@@ -118,7 +117,7 @@ export async function createPracticeSession(options: {
     return { session, source: "published" };
   } catch (err) {
     console.warn("[practice] DB insert failed; returning stub session", err);
-    const stubSession = LocalPracticeSessionSchema.parse({
+    const stubSession = PracticeSessionSchema.parse({
       ...session,
       metadata: { ...session.metadata, stub: true },
     });
@@ -134,7 +133,7 @@ export async function createPracticeSession(options: {
 export async function getPracticeSession(
   sessionId: string,
   userId?: string,
-): Promise<LocalPracticeSession | null> {
+): Promise<PracticeSession | null> {
   const mem = stubSessions.get(sessionId);
   if (mem) return mem;
   if (!isDatabaseConfigured()) return null;
@@ -179,8 +178,12 @@ export async function getPracticeSession(
         ? "company"
         : row.mode === "concept_learn"
           ? "concept"
-          : row.mode;
-  return LocalPracticeSessionSchema.parse({
+          : ["company", "concept", "adaptive_weak", "pseudo_rag", "simulator"].includes(
+                row.mode,
+              )
+            ? row.mode
+            : "adaptive_weak";
+  return PracticeSessionSchema.parse({
     id: row.id,
     user_id: row.user_id,
     mode,
