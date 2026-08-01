@@ -32,6 +32,7 @@ When auth/DB env is missing, APIs **stub / bank-fallback** so `next build` and f
 | Method | Path | Notes |
 |--------|------|-------|
 | `*` | `/api/auth/[...path]` | Neon Auth handler (503 stub if unset) |
+| UI | `/sign-in`, `/sign-up` | Email + Google; new users → `/onboarding` |
 | `GET` | `/api/health` | Auth/DB config probe |
 | `GET` | `/api/questions` | Published list or `question_bank.json` fallback |
 | `GET` | `/api/questions/[id]` | Detail |
@@ -41,7 +42,7 @@ When auth/DB env is missing, APIs **stub / bank-fallback** so `next build` and f
 | `GET` | `/api/notes`, `/api/mastery` | User stubs + RLS GUC hook |
 | `GET` | `/api/admin/status` | Admin stub |
 
-`proxy.ts` protects `/practice`, `/prep`, `/account`, and user APIs when Neon Auth is configured.
+`proxy.ts` protects `/practice`, `/account`, and user write APIs (`/api/practice`, `/api/notes`, `/api/mastery`, `/api/admin`) when Neon Auth is configured. Mode A prep pages (`/prep/heat`, `/prep/rag`) stay public-read.
 
 ### Importer
 

@@ -1,8 +1,5 @@
-import Link from "next/link"
-
-import { MetadataPill } from "@ibpe/ui/components/editorial"
-
 import { neonAuthPublicStatus } from "@/lib/auth/config"
+import { SettingsAccountPanel } from "@/components/settings-account-panel"
 import { SettingsProfileIsland } from "@/components/settings-island"
 import { TargetSelectIsland } from "@/components/target-select-island"
 import { ThemePreference } from "@/components/theme-preference"
@@ -53,21 +50,7 @@ export default function SettingsPage() {
         <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
           Account
         </h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <MetadataPill tone="lime">Neon Auth</MetadataPill>
-          <MetadataPill>{auth.configured ? "configured" : "shell / stub"}</MetadataPill>
-          <Link
-            href="/sign-in"
-            className="text-sm text-foreground underline-offset-4 hover:underline"
-          >
-            Sign in →
-          </Link>
-        </div>
-        <p className="max-w-xl text-sm text-muted-foreground">
-          Product login uses Neon Auth per ADR 0006. Your profile, plans, and attempts live in
-          Neon Postgres — nothing is sold or shared, and local browser storage only mirrors your
-          target set.
-        </p>
+        <SettingsAccountPanel configured={auth.configured} />
       </section>
     </div>
   )
