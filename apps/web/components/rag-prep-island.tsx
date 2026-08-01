@@ -7,9 +7,16 @@ import { Button } from "@ibpe/ui/components/button"
 import { Input } from "@ibpe/ui/components/input"
 import { PseudoRagCitationCard } from "@ibpe/ui/components/pseudo-rag-citation-card"
 
-import { TargetSelectIsland, fetchFirmOptions, readStoredTargets } from "@/components/target-select-island"
+import { StudyLoopIsland } from "@/components/study-loop-island"
+import {
+  TargetSelectIsland,
+  fetchFirmOptions,
+  readStoredTargets,
+  writeStoredTargets,
+} from "@/components/target-select-island"
 import { WeakTopicFocusBar } from "@/components/weak-topic-focus-bar"
 import { Annotate, PaperSheet, WarrenCallout } from "@/components/paper"
+import { conceptSlugForTopic, topicLabel } from "@/lib/topics"
 import { weakTopicsFromMastery } from "@/lib/weak-topics"
 
 type RagHit = {
@@ -26,30 +33,57 @@ type RagResponse = {
   hits: RagHit[]
   explanations: Array<{ item_id: string; reasons: string[] }>
   source: string
+  brief?: string
+  brief_source?: "gemini" | "template"
+  brief_citations?: Array<{ item_id: string; label: string }>
   notes: string[]
 }
 
-export function RagPrepIsland() {
-  const [focusPrompt, setFocusPrompt] = React.useState("Superday technicals: accounting and paper LBO")
+type Props = {
+  initialFirmIds?: string[]
+  initialTopic?: string | null
+}
+
+function promptForTopic(topic: string | null | undefined) {
+  return topic
+    ? `Focus this pack on ${topicLabel(topic)} for my target firm prep`
+    : "Superday technicals: accounting and paper LBO"
+}
+
+export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Props) {
+  const initialFirmIdsKey = initialFirmIds.join(",")
+  const [focusPrompt, setFocusPrompt] = React.useState(() => promptForTopic(initialTopic))
   const [targets, setTargets] = React.useState<string[]>([])
   const [firmNames, setFirmNames] = React.useState<string[]>([])
-  const [focusTopic, setFocusTopic] = React.useState<string | null>(null)
+  const [focusTopic, setFocusTopic] = React.useState<string | null>(initialTopic)
   const [weakTopics, setWeakTopics] = React.useState<string[]>([])
   const [result, setResult] = React.useState<RagResponse | null>(null)
-  const [status, setStatus] = React.useState<"idle" | "loading" | "error">("idle")
+  const [status, setStatus] = React.useState<"idle" | "loading" | "error">(
+    "idle"
+  )
   const [error, setError] = React.useState("")
   const [focused, setFocused] = React.useState(false)
+  const [loopStarted, setLoopStarted] = React.useState(false)
 
   React.useEffect(() => {
-    setTargets(readStoredTargets())
+    if (initialFirmIds.length > 0) {
+      setTargets(initialFirmIds)
+      writeStoredTargets(initialFirmIds)
+    } else {
+      setTargets(readStoredTargets())
+    }
     const controller = new AbortController()
     fetch("/api/mastery", { signal: controller.signal })
       .then(async (response) =>
         response.ok
           ? ((await response.json()) as {
-              items?: Array<{ score: number; subject_id: string; subject_type: string }>
+              items?: Array<{
+                score: number
+                subject_id: string
+                subject_type: string
+              }>
             })
-          : { items: [] },
+          : { items: [] }
       )
       .then((payload) => {
         setWeakTopics(
@@ -58,13 +92,18 @@ export function RagPrepIsland() {
               subject_type: item.subject_type as "concept",
               subject_id: item.subject_id,
               score: item.score,
-            })),
-          ).map((entry) => entry.topic),
+            }))
+          ).map((entry) => entry.topic)
         )
       })
       .catch(() => undefined)
     return () => controller.abort()
-  }, [])
+  }, [initialFirmIdsKey])
+
+  React.useEffect(() => {
+    setFocusTopic(initialTopic)
+    if (initialTopic) setFocusPrompt(promptForTopic(initialTopic))
+  }, [initialTopic])
 
   React.useEffect(() => {
     if (targets.length === 0) {
@@ -105,16 +144,44 @@ export function RagPrepIsland() {
       })
       if (!response.ok) throw new Error(`Retrieval failed (${response.status})`)
       setResult((await response.json()) as RagResponse)
+      setLoopStarted(false)
       setStatus("idle")
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not retrieve a grounded pack.")
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not retrieve a grounded pack."
+      )
       setStatus("error")
     }
   }
 
   const explanationMap = new Map(
-    result?.explanations.map((item) => [item.item_id, item.reasons.join(" · ")]) ?? [],
+    result?.explanations.map((item) => [
+      item.item_id,
+      item.reasons.join(" · "),
+    ]) ?? []
   )
+  const itemReasons =
+    result?.explanations.reduce<Record<string, string>>((acc, item) => {
+      acc[item.item_id] = item.reasons.join(" · ")
+      return acc
+    }, {}) ?? {}
+  const itemCitations =
+    result?.hits.reduce<Record<string, { label: string; url?: string }>>(
+      (acc, hit) => {
+        acc[hit.id] = {
+          label: `${hit.id} · ${hit.provenance ?? "corpus"}`,
+          url:
+            typeof hit.metadata.source_url === "string"
+              ? hit.metadata.source_url
+              : undefined,
+        }
+        return acc
+      },
+      {}
+    ) ?? {}
+  const focusConceptSlug = focusTopic ? conceptSlugForTopic(focusTopic) : null
 
   return (
     <div className="space-y-8">
@@ -140,8 +207,26 @@ export function RagPrepIsland() {
           </label>
           <TargetSelectIsland value={targets} onChange={setTargets} />
         </div>
-        <WeakTopicFocusBar focusedId={focusTopic} onFocusChange={setFocusTopic} />
+        <WeakTopicFocusBar
+          focusedId={focusTopic}
+          onFocusChange={setFocusTopic}
+        />
       </div>
+
+      {focusTopic ? (
+        <div className="flex flex-wrap items-center gap-3 border border-dashed border-border px-4 py-3">
+          <span className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
+            Heat focus · {topicLabel(focusTopic)}
+          </span>
+          {focusConceptSlug ? (
+            <Link href={`/concepts/${focusConceptSlug}`}>
+              <Button type="button" variant="outline">
+                Open concept lab
+              </Button>
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button
@@ -151,30 +236,29 @@ export function RagPrepIsland() {
         >
           {status === "loading" ? "Retrieving…" : "Retrieve grounded pack"}
         </Button>
-        <Link
-          href={
-            result?.pack.item_ids.length
-              ? `/study?question=${encodeURIComponent(result.pack.item_ids[0] ?? "")}`
-              : "/study"
-          }
-          aria-disabled={!result}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!result?.pack.item_ids.length}
+          onClick={() => setLoopStarted(true)}
         >
-          <Button type="button" variant="outline">
-            Start study loop
-          </Button>
-        </Link>
+          {loopStarted ? "Study loop started" : "Start study loop"}
+        </Button>
         {result ? (
           <Annotate type="box" color="var(--graphite)" padding={4}>
             <span className="font-mono text-[11px] text-muted-foreground">
-              Frozen · {result.pack.frozen_at.slice(0, 10)} · {result.pack.item_ids.length} items ·{" "}
-              {result.source}
+              Frozen · {result.pack.frozen_at.slice(0, 10)} ·{" "}
+              {result.pack.item_ids.length} items · {result.source}
             </span>
           </Annotate>
         ) : null}
       </div>
 
       {error ? (
-        <p role="alert" className="border border-dashed border-error px-4 py-3 text-sm">
+        <p
+          role="alert"
+          className="border border-dashed border-error px-4 py-3 text-sm"
+        >
           {error}
         </p>
       ) : null}
@@ -182,20 +266,62 @@ export function RagPrepIsland() {
       {result ? (
         <section className="space-y-4" aria-live="polite">
           <header className="space-y-1">
-            <h2 className="font-display text-3xl tracking-tight">Pack preview</h2>
+            <h2 className="font-display text-3xl tracking-tight">
+              Pack preview
+            </h2>
             <p className="text-sm text-muted-foreground">
               Ranked by firm heat ∩ weak topics ∩ brief similarity
-              {firmNames.length ? ` · ${firmNames.join(" · ")}` : ""}. Every card carries its
-              retrieval reasons and citations — Glassdoor rows are signals only.
+              {firmNames.length ? ` · ${firmNames.join(" · ")}` : ""}. Every
+              card carries its retrieval reasons and citations — Glassdoor rows
+              are signals only.
             </p>
           </header>
+          {result.brief ? (
+            <PaperSheet seedKey={`rag-brief-${result.pack.id}`} torn={false}>
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+                    Grounded brief
+                  </span>
+                  <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground uppercase">
+                    {result.brief_source === "gemini"
+                      ? "Gemini rewrite"
+                      : "Template"}
+                  </span>
+                </div>
+                <p className="text-sm leading-6">{result.brief}</p>
+                {result.brief_citations?.length ? (
+                  <div
+                    className="flex flex-wrap gap-2"
+                    aria-label="Brief citations"
+                  >
+                    {result.brief_citations.map((citation) => (
+                      <span
+                        key={citation.item_id}
+                        className="rounded-full border border-ink/20 bg-background px-2.5 py-1 text-[11px] text-muted-foreground"
+                        title={citation.item_id}
+                      >
+                        {citation.label}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </PaperSheet>
+          ) : null}
           <div className="flex flex-col gap-3">
             {result.hits.map((hit) => (
               <PseudoRagCitationCard
                 key={hit.id}
                 title={hit.title}
-                excerpt={hit.snippet ?? "Open the study loop for the published teaching answer."}
-                whyRetrieved={explanationMap.get(hit.id) ?? "Semantic match to your session brief"}
+                excerpt={
+                  hit.snippet ??
+                  "Open the study loop for the published teaching answer."
+                }
+                whyRetrieved={
+                  explanationMap.get(hit.id) ??
+                  "Semantic match to your session brief"
+                }
                 provenance={
                   hit.provenance === "github_source"
                     ? "github-corpus"
@@ -214,12 +340,38 @@ export function RagPrepIsland() {
               />
             ))}
           </div>
-          <PaperSheet seedKey={`rag-close-${result.pack.id}`} torn={false}>
-            <p className="text-sm text-muted-foreground">
-              Session close: attempts against this pack update mastery and refresh the
-              heat ∩ weakness recommendation on your dashboard.
-            </p>
-          </PaperSheet>
+          {loopStarted ? (
+            <section className="border-t border-border pt-6">
+              <StudyLoopIsland
+                title="Pseudo-RAG study loop"
+                eyebrow="Mode A · frozen pack · layered reveal"
+                initialQuestionIds={result.pack.item_ids}
+                initialFirmIds={targets}
+                sessionMode="pseudo_rag"
+                learningMode="company_prep"
+                ragContext={{
+                  packId: result.pack.id,
+                  frozenAt: result.pack.frozen_at,
+                  firmNames,
+                  itemReasons,
+                  itemCitations,
+                  brief: result.brief,
+                }}
+              />
+            </section>
+          ) : (
+            <PaperSheet seedKey={`rag-close-${result.pack.id}`} torn={false}>
+              <div className="space-y-2">
+                <p className="font-medium">Ready for the real session.</p>
+                <p className="text-sm text-muted-foreground">
+                  Start study loop freezes this pack into a pseudo-RAG practice
+                  session. Attempts use the existing practice API for mastery
+                  when auth is available; anonymous users still get the layered
+                  reveal and close recommendations.
+                </p>
+              </div>
+            </PaperSheet>
+          )}
         </section>
       ) : null}
     </div>

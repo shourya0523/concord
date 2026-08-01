@@ -5,18 +5,26 @@ import Link from "next/link"
 
 import { Button } from "@ibpe/ui/components/button"
 
+import { DiagramIsland } from "@/components/diagram-island"
 import {
   Annotate,
   CircledNumber,
+  HandwritingHeadline,
+  InkHoverScope,
   InterviewerAvatar,
+  PaperBurst,
   PaperSheet,
+  RoughHover,
   SemanticPill,
   Warren,
+  WarrenCallout,
   type InterviewerId,
   type InterviewerState,
 } from "@/components/paper"
-import { fetchFirmOptions, readStoredTargets } from "@/components/target-select-island"
-import { topicLabel } from "@/lib/topics"
+import {
+  fetchFirmOptions,
+  readStoredTargets,
+} from "@/components/target-select-island"
 
 /**
  * Interview simulator (DESIGN.md §10.11) — firm-templated mock.
@@ -45,10 +53,58 @@ const STAGE_TEMPLATES: Record<"ib" | "pe", StageTemplate[]> = {
 /** Stage → concept lab for the after-action recommendations. */
 const STAGE_CONCEPT: Record<string, { slug: string; title: string }> = {
   ib_fit: { slug: "behavioural-story", title: "Behavioural story" },
-  ib_accounting: { slug: "accounting-foundations", title: "Accounting foundations" },
+  ib_accounting: {
+    slug: "accounting-foundations",
+    title: "Accounting foundations",
+  },
   ib_valuation: { slug: "dcf-wacc", title: "DCF & WACC" },
   pe_fit: { slug: "behavioural-story", title: "Behavioural story" },
   pe_lbo: { slug: "lbo-paper-lbo", title: "Paper LBO" },
+}
+
+const STAGE_DIAGRAM_PROMPT: Record<
+  string,
+  { title: string; prompt: string; source: string; a11y: string }
+> = {
+  ib_accounting: {
+    title: "Three-statement sketch",
+    prompt:
+      "Sketch how depreciation flows through income statement, cash flow, and balance sheet.",
+    source: `flowchart LR
+  Revenue --> EBITDA
+  EBITDA --> EBIT
+  Depreciation -. added back .-> CFO
+  CFO --> Cash
+  Depreciation -. lowers .-> PP&E
+  Cash --> BalanceSheet[Balance sheet balances]`,
+    a11y: "Depreciation reduces EBIT, is added back in operating cash flow, lowers PP&E, and the cash impact rolls into the balance sheet.",
+  },
+  ib_valuation: {
+    title: "DCF bridge sketch",
+    prompt:
+      "Sketch unlevered free cash flow through terminal value, discounting, and equity bridge.",
+    source: `flowchart LR
+  UFCF[Unlevered FCF] --> Discount[Discount at WACC]
+  Terminal[Terminal value] --> Discount
+  Discount --> EV[Enterprise value]
+  EV --> NetDebt[Less net debt]
+  NetDebt --> Equity[Equity value]`,
+    a11y: "Unlevered free cash flow and terminal value are discounted at WACC to enterprise value, then bridged through net debt to equity value.",
+  },
+  pe_lbo: {
+    title: "Sources & uses sketch",
+    prompt:
+      "Sketch sources & uses before speaking to returns, debt paydown, and exit multiple.",
+    source: `flowchart LR
+  Equity[Equity sponsor] --> Sources
+  Debt[Debt financing] --> Sources
+  Sources --> Purchase[Purchase equity]
+  Sources --> Fees[Fees and expenses]
+  EBITDA[Entry EBITDA] --> Exit[Exit EBITDA x multiple]
+  Exit --> DebtPaydown[Less remaining debt]
+  DebtPaydown --> MOIC[Equity MOIC / IRR]`,
+    a11y: "Sponsor equity and debt fund purchase price plus fees; exit value less remaining debt produces sponsor proceeds and MOIC or IRR.",
+  },
 }
 
 const RATINGS = [
@@ -84,9 +140,12 @@ type Phase = "setup" | "starting" | "running" | "reveal"
 /** Deterministic fixed-cast mapping (DESIGN.md §6 — same firm, same face). */
 function interviewerForFirm(firmName: string): InterviewerId {
   const name = firmName.toLowerCase()
+  if (/(blackstone|carlyle)/.test(name)) return "taylor-associate-blackstone"
+  if (/(evercore|lazard|centerview|pjt|moelis)/.test(name))
+    return "casey-md-evercore"
   if (
-    /(kkr|blackstone|carlyle|apollo|tpg|advent|permira|cvc|bain capital|eqt|vista|thoma bravo|silver lake|warburg)/.test(
-      name,
+    /(kkr|apollo|tpg|advent|permira|cvc|bain capital|eqt|vista|thoma bravo|silver lake|warburg)/.test(
+      name
     )
   ) {
     return "alex-pe-kkr"
@@ -101,20 +160,44 @@ function trackKeyForFirm(firm: FirmOption | undefined): "ib" | "pe" {
   return firm?.track?.toLowerCase().includes("pe") ? "pe" : "ib"
 }
 
+function mmss(totalSeconds: number): string {
+  const safe = Math.max(0, totalSeconds)
+  const minutes = Math.floor(safe / 60)
+  const seconds = safe % 60
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+}
+
+function stageClock(
+  elapsedMs: number,
+  stageMinutes: number
+): { label: string; overtime: boolean } {
+  const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000))
+  const limitSeconds = stageMinutes * 60
+  const remaining = limitSeconds - elapsedSeconds
+  if (remaining >= 0) return { label: mmss(remaining), overtime: false }
+  return { label: `+${mmss(Math.abs(remaining))}`, overtime: true }
+}
+
 export function SimulatorIsland() {
   const [phase, setPhase] = React.useState<Phase>("setup")
   const [firms, setFirms] = React.useState<FirmOption[]>([])
   const [firmId, setFirmId] = React.useState<string>("")
   const [role, setRole] = React.useState<"Analyst" | "Associate">("Analyst")
-  const [session, setSession] = React.useState<SessionPayload["session"] | null>(null)
+  const [session, setSession] = React.useState<
+    SessionPayload["session"] | null
+  >(null)
   const [stageIndex, setStageIndex] = React.useState(0)
-  const [question, setQuestion] = React.useState<QuestionPayload["question"] | null>(null)
+  const [question, setQuestion] = React.useState<
+    QuestionPayload["question"] | null
+  >(null)
   const [questionLoading, setQuestionLoading] = React.useState(false)
   const [answer, setAnswer] = React.useState("")
   const [typing, setTyping] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
   const [results, setResults] = React.useState<StageResult[]>([])
   const [error, setError] = React.useState<string | null>(null)
+  const [elapsedMs, setElapsedMs] = React.useState(0)
+  const elapsedMsRef = React.useRef(0)
   const startedAt = React.useRef(0)
 
   React.useEffect(() => {
@@ -152,7 +235,7 @@ export function SimulatorIsland() {
       setError(null)
       try {
         const response = await fetch(
-          `/api/questions/${encodeURIComponent(questionId)}?view=study`,
+          `/api/questions/${encodeURIComponent(questionId)}?view=study`
         )
         if (!response.ok) {
           setError(`The stage question didn't load (HTTP ${response.status}).`)
@@ -162,13 +245,15 @@ export function SimulatorIsland() {
         setQuestion(payload.question)
         setAnswer("")
         startedAt.current = Date.now()
+        elapsedMsRef.current = 0
+        setElapsedMs(0)
       } catch {
         setError("The stage question didn't load — the network request failed.")
       } finally {
         setQuestionLoading(false)
       }
     },
-    [],
+    []
   )
 
   async function start() {
@@ -196,7 +281,9 @@ export function SimulatorIsland() {
         return
       }
       if (!response.ok) {
-        setError(`The simulator session failed to start (HTTP ${response.status}).`)
+        setError(
+          `The simulator session failed to start (HTTP ${response.status}).`
+        )
         setPhase("setup")
         return
       }
@@ -210,7 +297,9 @@ export function SimulatorIsland() {
       setPhase("running")
       await loadStageQuestion(payload.session, 0)
     } catch {
-      setError("The simulator session failed to start — the network request failed.")
+      setError(
+        "The simulator session failed to start — the network request failed."
+      )
       setPhase("setup")
     }
   }
@@ -222,21 +311,28 @@ export function SimulatorIsland() {
     setSubmitting(true)
     setError(null)
     const correct = confidence >= PASS_CONFIDENCE
+    const timeSpentMs = Math.max(
+      0,
+      Math.round(elapsedMsRef.current || elapsedMs)
+    )
     try {
-      const response = await fetch(`/api/practice/sessions/${session.id}/attempts`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          canonical_question_id: question.id,
-          response_text: answer,
-          confidence,
-          correct,
-          time_spent_ms: Date.now() - startedAt.current,
-        }),
-      })
+      const response = await fetch(
+        `/api/practice/sessions/${session.id}/attempts`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            canonical_question_id: question.id,
+            response_text: answer,
+            confidence,
+            correct,
+            time_spent_ms: timeSpentMs,
+          }),
+        }
+      )
       if (!response.ok) {
         setError(
-          `The rating didn't save (HTTP ${response.status}). Your answer is still here — try again.`,
+          `The rating didn't save (HTTP ${response.status}). Your answer is still here — try again.`
         )
         return
       }
@@ -254,7 +350,9 @@ export function SimulatorIsland() {
       setStageIndex(nextIndex)
       await loadStageQuestion(session, nextIndex)
     } catch {
-      setError("The rating didn't save — the network request failed. Your answer is still here.")
+      setError(
+        "The rating didn't save — the network request failed. Your answer is still here."
+      )
     } finally {
       setSubmitting(false)
     }
@@ -268,6 +366,8 @@ export function SimulatorIsland() {
     setResults([])
     setAnswer("")
     setError(null)
+    elapsedMsRef.current = 0
+    setElapsedMs(0)
   }
 
   const interviewerState: InterviewerState = submitting
@@ -279,97 +379,195 @@ export function SimulatorIsland() {
         : "speaking"
 
   const stage = stages[stageIndex]
+  const diagramPrompt = stage ? STAGE_DIAGRAM_PROMPT[stage.id] : undefined
+  const timer = stage ? stageClock(elapsedMs, stage.minutes) : null
+
+  React.useEffect(() => {
+    if (
+      phase !== "running" ||
+      questionLoading ||
+      !stage ||
+      startedAt.current === 0
+    )
+      return
+    const tick = () => {
+      const nextElapsedMs = Date.now() - startedAt.current
+      elapsedMsRef.current = nextElapsedMs
+      setElapsedMs(nextElapsedMs)
+    }
+    tick()
+    const id = window.setInterval(tick, 1000)
+    return () => window.clearInterval(id)
+  }, [phase, questionLoading, stage, stageIndex])
 
   if (phase === "reveal") {
     const passed = results.filter((result) => result.correct).length
-    const overall = results.length > 0 ? Math.round((passed / results.length) * 100) : 0
+    const overall =
+      results.length > 0 ? Math.round((passed / results.length) * 100) : 0
     const weakStages = results.filter((result) => !result.correct)
     const conceptLinks = new Map(
       weakStages.flatMap((result) => {
         const concept = STAGE_CONCEPT[result.stage.id]
         return concept ? [[concept.slug, concept] as const] : []
-      }),
+      })
     )
     return (
       <div className="space-y-6">
         <PaperSheet seedKey={`sim-reveal-${session?.id ?? "done"}`} hero>
-          <div className="flex flex-wrap items-start gap-6">
-            <CircledNumber value={`${overall}%`} label="self-rated readiness" size="lg" />
-            <div className="min-w-0 flex-1 space-y-3">
-              <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                {firm?.name ?? "Firm"} mock · {role} · {trackKey.toUpperCase()} template
-              </p>
-              <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-                {passed} of {results.length} stages rated Good or better. This is your confirmed
-                self-rating, persisted through the practice-attempt API — Concord does not
-                fabricate an AI score.
-              </p>
-              <ul className="space-y-1.5">
-                {results.map((result) => (
-                  <li key={result.stage.id} className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                      {result.stage.label} · {result.stage.minutes}m
-                    </span>
-                    <SemanticPill tone={result.correct ? "success" : "error"}>
-                      {result.correct ? "Solid" : "Needs work"}
-                    </SemanticPill>
-                  </li>
-                ))}
-              </ul>
+          <div className="relative overflow-hidden">
+            <PaperBurst
+              play
+              seedKey={`sim-reveal-burst-${session?.id ?? "done"}`}
+              className="pointer-events-none absolute top-0 right-0 opacity-80"
+            />
+            <HandwritingHeadline
+              phrase={
+                overall >= 75 ? "Mock debrief ready" : "Reset the weak reps"
+              }
+              play
+              className="mb-5"
+            />
+            <div className="flex flex-wrap items-start gap-6">
+              <CircledNumber
+                value={`${overall}%`}
+                label="self-rated readiness"
+                size="lg"
+              />
+              <div className="min-w-0 flex-1 space-y-3">
+                <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                  {firm?.name ?? "Firm"} mock · {role} ·{" "}
+                  {trackKey.toUpperCase()} template
+                </p>
+                <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+                  {passed} of {results.length} stages rated Good or better. This
+                  is your confirmed self-rating, persisted through the
+                  practice-attempt API — Concord does not fabricate an AI score.
+                </p>
+                <ul className="space-y-1.5">
+                  {results.map((result) => (
+                    <li
+                      key={result.stage.id}
+                      className="flex flex-wrap items-center gap-2 text-sm"
+                    >
+                      <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                        {result.correct ? (
+                          <>
+                            {result.stage.label} · {result.stage.minutes}m
+                          </>
+                        ) : (
+                          <Annotate
+                            type="box"
+                            color="var(--error-foreground)"
+                            padding={2}
+                          >
+                            {result.stage.label} · {result.stage.minutes}m
+                          </Annotate>
+                        )}
+                      </span>
+                      <SemanticPill tone={result.correct ? "success" : "error"}>
+                        {result.correct ? "Solid" : "Needs work"}
+                      </SemanticPill>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <Warren mood="celebrating" size={64} />
             </div>
-            <Warren mood="celebrating" size={64} />
           </div>
         </PaperSheet>
 
-        <section className="space-y-3">
-          <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-            Recommended next
-          </h2>
-          {weakStages.length > 0 ? (
-            <ul className="space-y-1.5 text-sm">
-              {[...conceptLinks.values()].map((concept) => (
-                <li key={concept.slug}>
+        <PaperSheet
+          seedKey={`sim-after-action-${session?.id ?? "done"}`}
+          torn={false}
+        >
+          <section className="space-y-4">
+            <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+              Recommended next
+            </h2>
+            <WarrenCallout
+              mood={weakStages.length > 0 ? "concerned" : "encouraging"}
+              bracket
+            >
+              {weakStages.length > 0 ? (
+                <span>
+                  Your weak stages were{" "}
+                  <strong>
+                    {weakStages.map((result) => result.stage.label).join(", ")}
+                  </strong>
+                  . Re-run those labels first, then use the linked concept labs
+                  for the mechanics.
+                </span>
+              ) : (
+                <span>
+                  Every stage cleared Good or better. Keep the same cadence with
+                  one fresh module checkpoint or a company prep pack.
+                </span>
+              )}
+            </WarrenCallout>
+            {weakStages.length > 0 ? (
+              <ul className="space-y-1.5 text-sm">
+                {[...conceptLinks.values()].map((concept) => (
+                  <li key={concept.slug}>
+                    <Link
+                      href={`/concepts/${concept.slug}`}
+                      className="text-foreground underline-offset-4 hover:underline"
+                    >
+                      {concept.title} lab →
+                    </Link>{" "}
+                    <span className="text-muted-foreground">
+                      for your weaker{" "}
+                      {weakStages
+                        .filter(
+                          (result) =>
+                            STAGE_CONCEPT[result.stage.id]?.slug ===
+                            concept.slug
+                        )
+                        .map((result) => result.stage.label.toLowerCase())
+                        .join(" & ")}{" "}
+                      stage
+                    </span>
+                  </li>
+                ))}
+                <li>
                   <Link
-                    href={`/concepts/${concept.slug}`}
+                    href="/learn"
                     className="text-foreground underline-offset-4 hover:underline"
                   >
-                    {concept.title} lab →
+                    Learn modules →
                   </Link>{" "}
                   <span className="text-muted-foreground">
-                    for your weaker {weakStages
-                      .filter((result) => STAGE_CONCEPT[result.stage.id]?.slug === concept.slug)
-                      .map((result) => result.stage.label.toLowerCase())
-                      .join(" & ")}{" "}
-                    stage
+                    prereq-ordered lessons and drills
                   </span>
                 </li>
-              ))}
-              <li>
-                <Link href="/learn" className="text-foreground underline-offset-4 hover:underline">
-                  Learn modules →
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Every stage landed Good or better — keep cadence with a{" "}
+                <Link
+                  href="/learn"
+                  className="text-foreground underline-offset-4 hover:underline"
+                >
+                  Learn module
                 </Link>{" "}
-                <span className="text-muted-foreground">prereq-ordered lessons and drills</span>
-              </li>
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Every stage landed Good or better — keep cadence with a{" "}
-              <Link href="/learn" className="text-foreground underline-offset-4 hover:underline">
-                Learn module
-              </Link>{" "}
-              or a fresh{" "}
-              <Link href="/prep/rag" className="text-foreground underline-offset-4 hover:underline">
-                session pack
-              </Link>
-              .
-            </p>
-          )}
-          <div className="pt-2">
-            <Button variant="outline" onClick={resetToSetup}>
-              Run another mock
-            </Button>
-          </div>
-        </section>
+                or a fresh{" "}
+                <Link
+                  href="/prep/rag"
+                  className="text-foreground underline-offset-4 hover:underline"
+                >
+                  session pack
+                </Link>
+                .
+              </p>
+            )}
+            <div className="pt-2">
+              <RoughHover>
+                <Button variant="outline" onClick={resetToSetup}>
+                  Run another mock
+                </Button>
+              </RoughHover>
+            </div>
+          </section>
+        </PaperSheet>
       </div>
     )
   }
@@ -389,7 +587,9 @@ export function SimulatorIsland() {
               disabled={phase !== "setup"}
               className="w-full border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground disabled:opacity-60"
             >
-              {firms.length === 0 ? <option value="">Loading firm catalog…</option> : null}
+              {firms.length === 0 ? (
+                <option value="">Loading firm catalog…</option>
+              ) : null}
               {firms.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.name}
@@ -420,8 +620,9 @@ export function SimulatorIsland() {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          {trackKey === "pe" ? "PE" : "IB"} stage template from {firm?.name ?? "the firm"}&apos;s
-          track · deterministic cast — same firm, same interviewer.
+          {trackKey === "pe" ? "PE" : "IB"} stage template from{" "}
+          {firm?.name ?? "the firm"}&apos;s track · deterministic cast — same
+          firm, same interviewer.
         </p>
       </section>
 
@@ -440,7 +641,10 @@ export function SimulatorIsland() {
                     : "todo"
                 : "todo"
             return (
-              <li key={item.id} className="relative flex items-center gap-3 py-1.5">
+              <li
+                key={item.id}
+                className="relative flex items-center gap-3 py-1.5"
+              >
                 {index < stages.length - 1 ? (
                   <span
                     aria-hidden
@@ -467,7 +671,13 @@ export function SimulatorIsland() {
                       </span>
                     </Annotate>
                   ) : (
-                    <span className={state === "done" ? "text-muted-foreground line-through" : "text-muted-foreground"}>
+                    <span
+                      className={
+                        state === "done"
+                          ? "text-muted-foreground line-through"
+                          : "text-muted-foreground"
+                      }
+                    >
                       {item.label} · {item.minutes}m
                     </span>
                   )}
@@ -478,7 +688,11 @@ export function SimulatorIsland() {
         </ol>
       </section>
 
-      <InterviewerAvatar interviewerId={interviewerId} state={interviewerState} size={64} />
+      <InterviewerAvatar
+        interviewerId={interviewerId}
+        state={interviewerState}
+        size={64}
+      />
 
       {error ? (
         <div
@@ -500,58 +714,134 @@ export function SimulatorIsland() {
       ) : null}
 
       {phase === "setup" || phase === "starting" ? (
-        <Button disabled={!firmId || phase === "starting"} onClick={() => void start()}>
-          {phase === "starting" ? "Briefing your interviewer…" : "Start firm mock"}
-        </Button>
+        <RoughHover>
+          <Button
+            disabled={!firmId || phase === "starting"}
+            onClick={() => void start()}
+          >
+            {phase === "starting"
+              ? "Briefing your interviewer…"
+              : "Start firm mock"}
+          </Button>
+        </RoughHover>
       ) : null}
 
       {phase === "running" ? (
-        <PaperSheet seedKey={`sim-stage-${session?.id ?? "run"}-${stageIndex}`} torn={false}>
-          {questionLoading ? (
-            <p className="text-sm text-muted-foreground">
-              Your interviewer is reading the next prompt…
-            </p>
-          ) : question ? (
-            <>
-              <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                Stage {stageIndex + 1} of {stages.length}
-                {stage ? ` · ${stage.label} · ~${stage.minutes}m` : ""}
-                {question.topic ? ` · topic: ${question.topic.replace(/_/g, " ")}` : ""}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <PaperSheet
+            seedKey={`sim-stage-${session?.id ?? "run"}-${stageIndex}`}
+            torn={false}
+          >
+            {questionLoading ? (
+              <p className="text-sm text-muted-foreground">
+                Your interviewer is reading the next prompt…
               </p>
-              <p className="mt-3 text-xl font-medium leading-snug">
-                {question.canonical_wording}
-              </p>
-              <textarea
-                className="mt-4 min-h-40 w-full border border-border bg-transparent p-3 text-sm leading-relaxed outline-none focus:border-foreground"
-                value={answer}
-                onFocus={() => setTyping(true)}
-                onBlur={() => setTyping(false)}
-                onChange={(event) => setAnswer(event.target.value)}
-                placeholder="Structure your spoken answer here — then rate yourself honestly. A blank that earned an 'Again' is fine too."
-                aria-label="Your answer"
-              />
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                {RATINGS.map((rating) => (
-                  <Button
-                    key={rating.label}
-                    variant={rating.confidence >= PASS_CONFIDENCE ? "default" : "outline"}
-                    disabled={submitting}
-                    onClick={() => void submitRating(rating.confidence)}
+            ) : question ? (
+              <>
+                <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                  Stage {stageIndex + 1} of {stages.length}
+                  {stage ? ` · ${stage.label} · ~${stage.minutes}m` : ""}
+                  {question.topic
+                    ? ` · topic: ${question.topic.replace(/_/g, " ")}`
+                    : ""}
+                </p>
+                {timer ? (
+                  <div
+                    className="mt-3 flex flex-wrap items-center gap-2"
+                    aria-live="polite"
                   >
-                    {rating.label}
-                  </Button>
-                ))}
-                <span className="text-xs text-muted-foreground" aria-live="polite">
-                  {submitting ? "Saving your rating…" : "Good or better counts as solid."}
-                </span>
+                    <span
+                      className={
+                        timer.overtime
+                          ? "font-mono text-2xl tracking-tight text-error-foreground"
+                          : "font-mono text-2xl tracking-tight text-foreground"
+                      }
+                    >
+                      {timer.label}
+                    </span>
+                    <SemanticPill
+                      tone={timer.overtime ? "weak" : "neutral"}
+                      icon={false}
+                    >
+                      {timer.overtime
+                        ? `overtime past ${stage?.minutes}m`
+                        : "stage clock"}
+                    </SemanticPill>
+                  </div>
+                ) : null}
+                <p className="mt-3 text-xl leading-snug font-medium">
+                  {question.canonical_wording}
+                </p>
+                <textarea
+                  className="mt-4 min-h-40 w-full border border-border bg-transparent p-3 text-sm leading-relaxed outline-none focus:border-foreground"
+                  value={answer}
+                  onFocus={() => setTyping(true)}
+                  onBlur={() => setTyping(false)}
+                  onChange={(event) => setAnswer(event.target.value)}
+                  placeholder="Structure your spoken answer here — then rate yourself honestly. A blank that earned an 'Again' is fine too."
+                  aria-label="Your answer"
+                />
+                <InkHoverScope className="mt-4 flex flex-wrap items-center gap-2">
+                  {RATINGS.map((rating) => (
+                    <Button
+                      key={rating.label}
+                      variant={
+                        rating.confidence >= PASS_CONFIDENCE
+                          ? "default"
+                          : "outline"
+                      }
+                      disabled={submitting}
+                      onClick={() => void submitRating(rating.confidence)}
+                    >
+                      {rating.label}
+                    </Button>
+                  ))}
+                  <span
+                    className="text-xs text-muted-foreground"
+                    aria-live="polite"
+                  >
+                    {submitting
+                      ? "Saving your rating…"
+                      : "Good or better counts as solid."}
+                  </span>
+                </InkHoverScope>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                This stage couldn&apos;t load a question — use the retry above,
+                or abandon the mock.
+              </p>
+            )}
+          </PaperSheet>
+          {diagramPrompt ? (
+            <PaperSheet
+              seedKey={`sim-diagram-${stage?.id ?? "stage"}`}
+              torn={false}
+            >
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                    Diagram prompt
+                  </p>
+                  <p className="text-sm font-medium">{diagramPrompt.prompt}</p>
+                  {stage ? (
+                    <Link
+                      href={`/concepts/${STAGE_CONCEPT[stage.id]?.slug ?? ""}`}
+                      className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                      Open {STAGE_CONCEPT[stage.id]?.title ?? stage.label} lab →
+                    </Link>
+                  ) : null}
+                </div>
+                <DiagramIsland
+                  title={diagramPrompt.title}
+                  source={diagramPrompt.source}
+                  a11yFallback={diagramPrompt.a11y}
+                />
               </div>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              This stage couldn&apos;t load a question — use the retry above, or abandon the mock.
-            </p>
-          )}
-        </PaperSheet>
+            </PaperSheet>
+          ) : null}
+        </div>
       ) : null}
     </div>
   )

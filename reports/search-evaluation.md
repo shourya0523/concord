@@ -1,6 +1,6 @@
-# Search evaluation (Wave 2 start)
+# Search evaluation (Wave 2)
 
-Updated: 2026-07-30 · Branch: `local/ws-search-a9ff` · Package: `@ibpe/search`
+Updated: 2026-07-31 · Branch: `local/ws-search-rag-brief-bb32` · Packages: `@ibpe/search`, `@ibpe/ai`, `@ibpe/web`
 
 ## Scope
 
@@ -8,15 +8,16 @@ Evaluate hybrid retrieval + firm topic heat + **pseudo-RAG company packs**. Teac
 
 ## Backend under test
 
-| Component | Implementation |
-|-----------|----------------|
-| Lexical "FTS" | Token overlap (stopword-aware) |
-| Trigram | Character 3-gram Jaccard (pg_trgm stand-in) |
-| Vectors | Sparse bag-of-tokens cosine — **not** AI SDK `embed()` / Neon pgvector yet |
-| Metadata | topic / domain / provenance / difficulty filters |
-| Firm topic heat | Bank occurrence counts → `ln(n+1)/ln(50)` (matches `published.v_firm_topic_heat`) |
-| Weakness | Explicit `weak_topics` boost |
-| Live scrape | **Disabled** — fixtures / `data/question_bank.json` / exports only |
+| Component       | Implementation                                                                                 |
+| --------------- | ---------------------------------------------------------------------------------------------- |
+| Lexical "FTS"   | Token overlap (stopword-aware)                                                                 |
+| Trigram         | Character 3-gram Jaccard (pg_trgm stand-in)                                                    |
+| Vectors         | Sparse bag-of-tokens cosine — **not** AI SDK `embed()` / Neon pgvector yet                     |
+| Metadata        | topic / domain / provenance / difficulty filters                                               |
+| Firm topic heat | Bank occurrence counts → `ln(n+1)/ln(50)` (matches `published.v_firm_topic_heat`)              |
+| Weakness        | Explicit `weak_topics` boost                                                                   |
+| RAG brief       | Deterministic cited template; optional Gemini rewrite guarded by API key + cited pack item IDs |
+| Live scrape     | **Disabled** — fixtures / `data/question_bank.json` / exports only                             |
 
 Neon FTS / `pg_trgm` / pgvector are **not provisioned** for this evaluation; in-memory hybrid is the documented Wave 2 default.
 
@@ -27,12 +28,13 @@ Neon FTS / `pg_trgm` / pgvector are **not provisioned** for this evaluation; in-
 
 ## Smoke cases
 
-| ID | Query / setup | Expectation | Result |
-|----|---------------|-------------|--------|
-| S1 | `three financial statements depreciation` + weak=`accounting` | Top hit accounting / statements; provenance ≠ glassdoor | PASS (unit) |
-| S2 | Heat for `firm_goldman-sachs` + `firm_morgan-stanley` | Rows with `method=glassdoor_occurrence`, intensity ∈ [0,1] | PASS (unit) |
-| S3 | Pack: GS+JPM, weak=`lbo`,`valuation`, prompt LBO/DCF | Frozen pack; every citation has provenance; explanations mention weak and/or heat | PASS (unit) |
-| S4 | Recommend for GS + weak accounting | Reasons non-empty; grounded provenance | PASS (unit) |
+| ID  | Query / setup                                                 | Expectation                                                                       | Result                     |
+| --- | ------------------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------- |
+| S1  | `three financial statements depreciation` + weak=`accounting` | Top hit accounting / statements; provenance ≠ glassdoor                           | PASS (unit)                |
+| S2  | Heat for `firm_goldman-sachs` + `firm_morgan-stanley`         | Rows with `method=glassdoor_occurrence`, intensity ∈ [0,1]                        | PASS (unit)                |
+| S3  | Pack: GS+JPM, weak=`lbo`,`valuation`, prompt LBO/DCF          | Frozen pack; every citation has provenance; explanations mention weak and/or heat | PASS (unit)                |
+| S4  | Recommend for GS + weak accounting                            | Reasons non-empty; grounded provenance                                            | PASS (unit)                |
+| S5  | Generated brief guard with uncited/fake-cited claims          | Keeps only sentences citing retrieved item IDs; rejects fully uncited text        | PASS (`rag-brief.test.ts`) |
 
 ## Pseudo-RAG pack checklist
 
@@ -43,6 +45,8 @@ Neon FTS / `pg_trgm` / pgvector are **not provisioned** for this evaluation; in-
 - [x] Cite every item (`github_source` | `static_seed` | …)
 - [x] Explain weak-topic + heat hits in pack metadata
 - [x] Refuse `glassdoor_occurrence` as pack teaching items
+- [x] RAG brief response cites retrieved pack item IDs (`brief_citations`)
+- [x] Gemini rewrite skipped when key missing; rejected when citation guard strips all claims
 
 ## Ranking quality (qualitative — seed corpus)
 
@@ -57,10 +61,11 @@ On the 18-item seed, lexical cues dominate for exact technical prompts (statemen
 ```bash
 npm test -w @ibpe/search
 npm run demo -w @ibpe/search
+npx tsx --test apps/web/lib/data/rag-brief.test.ts
 ```
 
 ## Risks / follow-ups
 
 - Most `exports/questions.jsonl` rows still have `topic: null` — pack heat alignment depends on `inferTopic()` heuristics until taxonomy enrichment lands.
 - Do not treat Glassdoor question prose as answer text in packs.
-- Wire `@ibpe/search` into backend route handlers in a follow-up (owned by `ibpe-backend`).
+- Gemini brief quality still needs production evals with a real key and larger published packs; keyless environments use the cited template.

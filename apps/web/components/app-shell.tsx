@@ -15,6 +15,7 @@ const NAV = [
       { href: "/prep/heat", label: "Topic heat" },
       { href: "/prep/rag", label: "Session pack" },
       { href: "/study", label: "Study" },
+      { href: "/saved", label: "Saved" },
     ],
   },
   {
@@ -75,8 +76,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         className={cn(
                           "block rounded px-2 py-1 text-sm transition-colors",
                           active
-                            ? "bg-chrome-hover font-medium text-white"
-                            : "text-[#aaa] hover:bg-chrome-workspace hover:text-white",
+                            ? "bg-chrome-hover font-medium text-chrome-text"
+                            : "text-chrome-muted hover:bg-chrome-workspace hover:text-chrome-text",
                         )}
                       >
                         {item.label}
@@ -89,10 +90,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="mt-auto space-y-1 px-2 pt-4">
-          <Link href="/sign-in" className="block text-xs text-chrome-muted hover:text-white">
+          <Link
+            href="/sign-in"
+            className="block text-xs text-chrome-muted hover:text-chrome-text"
+          >
             Neon Auth · Sign in
           </Link>
-          <p className="text-[10px] text-[#666]">Black · grey · cream · pastel data</p>
+          <p className="text-[10px] text-chrome-muted">Black · grey · cream · pastel data</p>
         </div>
       </aside>
 
@@ -109,8 +113,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className={cn(
                   "shrink-0 rounded px-2 py-1 text-xs",
                   isActive(pathname, item.href)
-                    ? "bg-chrome-hover font-medium text-white"
-                    : "text-[#aaa]",
+                    ? "bg-chrome-hover font-medium text-chrome-text"
+                    : "text-chrome-muted",
                 )}
               >
                 {item.label}
@@ -119,7 +123,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </nav>
         <main className="mx-auto w-full max-w-[900px] px-3 py-5 md:px-8 md:py-8">
-          <article className="min-h-[calc(100svh-4rem)] border border-black/20 bg-paper px-5 py-8 text-ink shadow-[4px_4px_0_0_rgba(0,0,0,0.35)] md:px-10 md:py-10">
+          <article className="min-h-[calc(100svh-4rem)] border border-ink/20 bg-paper px-5 py-8 text-ink shadow-[4px_4px_0_0_rgba(0,0,0,0.35)] md:px-10 md:py-10">
             {children}
           </article>
         </main>

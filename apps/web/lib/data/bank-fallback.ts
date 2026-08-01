@@ -65,6 +65,7 @@ export function bankRowToCanonical(q: BankQuestion): CanonicalQuestion {
 export async function listBankAsCanonical(options: {
   q?: string;
   track?: string;
+  topic?: string;
   limit: number;
   offset: number;
 }): Promise<{ items: CanonicalQuestion[]; total: number }> {
@@ -72,6 +73,7 @@ export async function listBankAsCanonical(options: {
   const needle = options.q?.trim().toLowerCase();
   const track = options.track?.trim().toUpperCase();
   const filtered = all.filter((row) => {
+    if (options.topic) return false;
     if (track && String(row.track).toUpperCase() !== track) return false;
     if (!needle) return true;
     return (

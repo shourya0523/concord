@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 const QuerySchema = z.object({
   q: z.string().optional().default(""),
   track: z.string().optional(),
+  topic: z.string().optional(),
   limit: z.coerce.number().int().positive().max(100).default(20),
   offset: z.coerce.number().int().nonnegative().default(0),
 });
@@ -28,6 +29,7 @@ export async function GET(request: Request) {
     const result = await listQuestions({
       q: parsed.data.q || undefined,
       track: parsed.data.track,
+      topic: parsed.data.topic,
       limit: parsed.data.limit,
       offset: parsed.data.offset,
     });

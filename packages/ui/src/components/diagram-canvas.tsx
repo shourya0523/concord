@@ -50,18 +50,22 @@ function DiagramCanvas({
     void import("mermaid")
       .then((module) => {
         const mermaid = module.default
+        const styles = getComputedStyle(document.documentElement)
+        const paper = styles.getPropertyValue("--paper").trim() || "#f7f1e4"
+        const ink = styles.getPropertyValue("--ink").trim() || "#111111"
+        const secondary = styles.getPropertyValue("--secondary").trim() || "#ebe4d4"
         mermaid.initialize({
           startOnLoad: false,
           securityLevel: "strict",
           theme: "base",
           themeVariables: {
-            background: "#f7f1e4",
-            primaryColor: "#f7f1e4",
-            primaryBorderColor: "#111111",
-            primaryTextColor: "#111111",
-            lineColor: "#111111",
-            secondaryColor: "#ebe4d4",
-            tertiaryColor: "#ebe4d4",
+            background: paper,
+            primaryColor: paper,
+            primaryBorderColor: ink,
+            primaryTextColor: ink,
+            lineColor: ink,
+            secondaryColor: secondary,
+            tertiaryColor: secondary,
             fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif",
             fontSize: "14px",
           },

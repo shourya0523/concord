@@ -166,52 +166,77 @@
   --ease-calm: ease-out;
 }
 
+/*
+  Dark mode (DESIGN.md §3): keep the product dual-surface —
+  true-black chrome + cream paper + black ink. Only heat/data
+  pastels shift lightness. Inverting paper to charcoal made
+  hardcoded cream inserts + tokenized ink fight each other
+  (light text on cream / muddied muted labels).
+*/
 .dark {
-  --paper: oklch(0.16 0.012 55);
-  --ink: oklch(0.94 0.01 92);
-  --graphite: oklch(0.68 0.015 80);
-  --stone: oklch(0.26 0.012 60);
-  --lime: oklch(0.88 0.22 128);
-  --lime-foreground: oklch(0.18 0.04 130);
+  --paper: #f7f1e4;
+  --ink: #111111;
+  --graphite: #555555;
+  --stone: #d4cec0;
+  --lime: oklch(0.86 0.21 128);
+  --lime-foreground: #111111;
+
+  /* Chrome stays true black / grey */
+  --chrome: #111111;
+  --chrome-hover: #2a2a2a;
+  --chrome-border: #333333;
+  --chrome-workspace: #0c0c0c;
+  --chrome-text: #e8e8e8;
+  --chrome-muted: #888888;
 
   --background: var(--paper);
   --foreground: var(--ink);
-  --card: oklch(0.2 0.012 55);
+  --card: #f7f1e4;
   --card-foreground: var(--ink);
-  --popover: oklch(0.2 0.012 55);
+  --popover: #f7f1e4;
   --popover-foreground: var(--ink);
-  --primary: var(--lime);
-  --primary-foreground: var(--lime-foreground);
-  --secondary: oklch(0.24 0.012 55);
+  --primary: #111111;
+  --primary-foreground: #f7f1e4;
+  --secondary: #ebe4d4;
   --secondary-foreground: var(--ink);
-  --muted: oklch(0.24 0.01 55);
-  --muted-foreground: oklch(0.7 0.015 80);
-  --accent: oklch(0.28 0.05 128);
+  --muted: #ebe4d4;
+  --muted-foreground: #555555;
+  --accent: #ebe4d4;
   --accent-foreground: var(--ink);
-  --destructive: oklch(0.68 0.18 22);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: var(--lime);
+  --destructive: oklch(0.55 0.2 25);
+  --border: #cfc7b6;
+  --input: #cfc7b6;
+  --ring: #111111;
   --chart-1: var(--lime);
-  --chart-2: oklch(0.7 0.04 80);
-  --chart-3: oklch(0.55 0.03 70);
-  --chart-4: oklch(0.78 0.08 95);
-  --chart-5: oklch(0.4 0.02 60);
-  --sidebar: oklch(0.18 0.012 55);
-  --sidebar-foreground: var(--ink);
+  --chart-2: oklch(0.55 0.04 70);
+  --chart-3: oklch(0.42 0.03 60);
+  --chart-4: oklch(0.7 0.08 95);
+  --chart-5: oklch(0.32 0.02 55);
+  --sidebar: #111111;
+  --sidebar-foreground: var(--chrome-text);
   --sidebar-primary: var(--lime);
   --sidebar-primary-foreground: var(--lime-foreground);
-  --sidebar-accent: oklch(0.26 0.04 128);
-  --sidebar-accent-foreground: var(--ink);
-  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-accent: #2a2a2a;
+  --sidebar-accent-foreground: var(--chrome-text);
+  --sidebar-border: #333333;
   --sidebar-ring: var(--lime);
 
-  --heat-0: oklch(0.22 0.01 55);
-  --heat-1: oklch(0.32 0.05 128);
-  --heat-2: oklch(0.42 0.1 128);
-  --heat-3: oklch(0.55 0.15 128);
-  --heat-4: oklch(0.7 0.2 128);
-  --weak: oklch(0.72 0.14 40);
+  /* Slightly brighter heat cells for dark chrome adjacency */
+  --heat-0: #eee8dc;
+  --heat-1: #dce8dc;
+  --heat-2: #bfd5bf;
+  --heat-3: #9fc49f;
+  --heat-4: #79a979;
+  --weak: oklch(0.62 0.14 35);
+
+  --success: oklch(0.82 0.08 145);
+  --success-foreground: oklch(0.25 0.04 148);
+  --error: oklch(0.78 0.12 25);
+  --error-foreground: oklch(0.28 0.04 28);
+  --streak: oklch(0.84 0.11 75);
+  --streak-foreground: oklch(0.32 0.04 72);
+  --milestone: oklch(0.80 0.10 290);
+  --milestone-foreground: oklch(0.30 0.04 285);
 }
 
 @layer base {

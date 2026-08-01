@@ -35,12 +35,12 @@ export function PaperSheet({
         <>
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-2 top-0 z-20 h-2 bg-[#f7f1e4]"
+            className="pointer-events-none absolute inset-x-2 top-0 z-20 h-2 bg-paper"
             style={{ filter }}
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-2 bottom-0 z-20 h-2 bg-[#f7f1e4]"
+            className="pointer-events-none absolute inset-x-2 bottom-0 z-20 h-2 bg-paper"
             style={{ filter }}
           />
         </>
@@ -48,7 +48,7 @@ export function PaperSheet({
       <RoughFrame
         seedKey={seedKey}
         padding={padding}
-        className="bg-[#f7f1e4]"
+        className="bg-paper text-ink"
       >
         {children}
       </RoughFrame>
