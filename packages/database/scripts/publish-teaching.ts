@@ -166,10 +166,18 @@ async function main() {
         ON CONFLICT (id) DO UPDATE SET
           canonical_wording = EXCLUDED.canonical_wording,
           question_type = EXCLUDED.question_type,
-          topic = EXCLUDED.topic,
-          subtopic = EXCLUDED.subtopic,
-          domain = EXCLUDED.domain,
-          track = EXCLUDED.track,
+          -- Preserve keyword-backfilled topics/domains when export is null/other
+          topic = COALESCE(EXCLUDED.topic, canonical.canonical_questions.topic),
+          subtopic = COALESCE(EXCLUDED.subtopic, canonical.canonical_questions.subtopic),
+          domain = CASE
+            WHEN EXCLUDED.domain IS NOT NULL AND EXCLUDED.domain <> 'other'
+              THEN EXCLUDED.domain
+            WHEN canonical.canonical_questions.domain IS NOT NULL
+              AND canonical.canonical_questions.domain <> 'other'
+              THEN canonical.canonical_questions.domain
+            ELSE COALESCE(EXCLUDED.domain, canonical.canonical_questions.domain, 'other')
+          END,
+          track = COALESCE(EXCLUDED.track, canonical.canonical_questions.track),
           difficulty = EXCLUDED.difficulty,
           review_state = 'published',
           provenance = EXCLUDED.provenance,

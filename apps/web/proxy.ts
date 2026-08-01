@@ -9,9 +9,10 @@ const protect = createAuthProxy({ loginUrl: "/sign-in" });
 export default protect;
 
 export const config = {
+  // Mode A prep pages (/prep/heat, /prep/rag) are public-read — heat/RAG APIs
+  // are already anonymous. Auth still gates practice persistence + account.
   matcher: [
     "/practice/:path*",
-    "/prep/:path*",
     "/account/:path*",
     "/api/practice/:path*",
     "/api/notes/:path*",
