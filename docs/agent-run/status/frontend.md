@@ -1,14 +1,16 @@
 # Status: frontend
 
-State: DESIGN.md gap-close integrate + paper-kit visual cohesion
+State: DESIGN.md gap-close integrate + paper-kit visual cohesion + Simulator/Study plan paper depth
 Wave: 2
 Updated: 2026-08-01
-Branch: `local/ws-paper-cohesion-bb32`
+Branch: `local/ws-sim-plan-paper-bb32`
 
 ## Verification
 
 - `npm run typecheck -w @ibpe/web` — green (per workstream branches; re-run on integrate)
 - `npm run typecheck -w @ibpe/web` — green on `local/ws-paper-cohesion-bb32`
+- `npm run typecheck -w @ibpe/web` — green on `local/ws-sim-plan-paper-bb32`
+- `npm run lint -w @ibpe/web -- components/simulator-island.tsx components/study-plan-island.tsx components/paper/index.ts` — green
 
 ## Notes
 
@@ -24,6 +26,7 @@ Branch: `local/ws-paper-cohesion-bb32`
 - DESIGN.md §10.12-§10.13 P1 gaps closed: Saved now has client search over bookmarks/notes/collections, real bookmark provenance/firm/tag chips when present, and POST-backed collection creation
 - Progress now renders a target-firm heat∩weakness matrix using the shared heatmap hatch overlay, a weak concept mastery map, and a calm empty state for diagram completion while the API has no completion flags
 - Design Phase 2 gap-close Item 4 — dashboard readiness/streak/urgency polish, study-plan urgency + prereq module mini-map, and concept lab prereq/parent-module mini-maps
+- DESIGN.md §10.10-§10.11 paper-kit depth: Simulator has a calm stage countdown/overtime clock, technical-stage diagram prompt rail, handwriting + burst score reveal, annotated weak-stage after-action sheet, and rough-hover CTAs; Study plan roadmap uses paper day cells, strike/cross-off completion marks, weak/streak urgency pills, diagram pills for real diagram checkpoints, and a rough-hover mock slot link
 - Dashboard readiness now derives from target firm heat rows + concept mastery, mirroring the progress readiness tiers with visible numeric scores
 - Neon Auth shells (`/sign-in`, `/sign-up`, `/api/auth/[...path]`) — ADR 0006; stub when env unset
 - Consumes `@ibpe/ui` primitives (TopicHeatmap, PseudoRagCitationCard, TargetCompanyMultiSelect, etc.)
