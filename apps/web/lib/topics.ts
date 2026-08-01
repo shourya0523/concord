@@ -68,6 +68,14 @@ const CONCEPT_TOPIC: Record<string, string> = {
   concept_behavioural_story: "behavioral",
 }
 
+const CONCEPT_SLUG: Record<string, string> = {
+  concept_accounting_foundations: "accounting-foundations",
+  concept_ev_equity_value: "ev-equity-value",
+  concept_dcf_wacc: "dcf-wacc",
+  concept_lbo_paper_lbo: "lbo-paper-lbo",
+  concept_behavioural_story: "behavioural-story",
+}
+
 export function topicForConceptId(conceptId: string): string | null {
   return CONCEPT_TOPIC[conceptId] ?? null
 }
@@ -77,4 +85,9 @@ export function conceptIdForTopic(topic: string): string | null {
     if (slug === topic) return conceptId
   }
   return null
+}
+
+export function conceptSlugForTopic(topic: string): string | null {
+  const conceptId = conceptIdForTopic(topic)
+  return conceptId ? (CONCEPT_SLUG[conceptId] ?? null) : null
 }

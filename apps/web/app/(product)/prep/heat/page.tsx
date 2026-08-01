@@ -53,7 +53,11 @@ export default async function HeatComparePage({ searchParams }: Props) {
       </WarrenCallout>
 
       <TargetSelectIsland syncSearchParam />
-      <TopicHeatIsland compareMode firmIds={firmIds.length > 0 ? firmIds : undefined} />
+      <TopicHeatIsland
+        compareMode
+        activateTarget="rag"
+        firmIds={firmIds.length > 0 ? firmIds : undefined}
+      />
       <HeatInsightsIsland firmIds={firmIds.length > 0 ? firmIds : undefined} />
     </div>
   )

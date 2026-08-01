@@ -157,19 +157,22 @@ type SignalRow = {
 export async function getCompanySignals(options: {
   firmId: string;
   topic?: string | null;
+  role?: string | null;
   limit?: number;
   offset?: number;
 }): Promise<CompanySignalsResponse> {
   const limit = options.limit ?? 20;
   const offset = options.offset ?? 0;
+  const role = options.role?.trim() || null;
 
   if (!isDatabaseConfigured()) {
     try {
       const rows = await loadBankQuestions();
       const matches = rows.filter(
         (row) =>
-          `firm_${slugify(row.company ?? "")}` === options.firmId ||
-          slugify(row.company ?? "") === options.firmId,
+          (`firm_${slugify(row.company ?? "")}` === options.firmId ||
+            slugify(row.company ?? "") === options.firmId) &&
+          (!role || row.position === role),
       );
       const items = matches.slice(offset, offset + limit).map((row) =>
         CompanySignalSchema.parse({
@@ -215,6 +218,7 @@ export async function getCompanySignals(options: {
     FROM published.v_company_room_signals
     WHERE (firm_id = ${options.firmId} OR firm_slug = ${options.firmId})
       AND (${topic}::text IS NULL OR topic = ${topic})
+      AND (${role}::text IS NULL OR role_raw = ${role})
       AND source_question_wording IS NOT NULL
     ORDER BY scraped_at DESC NULLS LAST, occurrence_id
     LIMIT ${limit} OFFSET ${offset}
@@ -225,6 +229,7 @@ export async function getCompanySignals(options: {
     FROM published.v_company_room_signals
     WHERE (firm_id = ${options.firmId} OR firm_slug = ${options.firmId})
       AND (${topic}::text IS NULL OR topic = ${topic})
+      AND (${role}::text IS NULL OR role_raw = ${role})
       AND source_question_wording IS NOT NULL
   `) as Array<{ n: number }>;
 

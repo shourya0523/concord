@@ -13,6 +13,7 @@ import { intensityBand } from "@/components/paper/heat-strip"
 type Props = {
   firmIds?: string[]
   compareMode?: boolean
+  activateTarget?: "company" | "rag"
   className?: string
   onCellsLoaded?: (cells: TopicHeatCell[]) => void
 }
@@ -37,13 +38,20 @@ function toHeatLevel(intensity: number): 0 | 1 | 2 | 3 | 4 {
  * Firm×topic matrix fed entirely by /api/prep/heat (tagged occurrences) and
  * /api/mastery (weak overlay). No static firm/topic catalogs.
  */
-export function TopicHeatIsland({ firmIds, compareMode = true, className, onCellsLoaded }: Props) {
+export function TopicHeatIsland({
+  firmIds,
+  compareMode = true,
+  activateTarget = "company",
+  className,
+  onCellsLoaded,
+}: Props) {
   const router = useRouter()
   const [ids, setIds] = React.useState<string[]>(firmIds ?? [])
   const [cells, setCells] = React.useState<TopicHeatCell[]>([])
   const [firms, setFirms] = React.useState<Array<{ id: string; label: string }>>([])
   const [topics, setTopics] = React.useState<Array<{ id: string; label: string }>>([])
   const [status, setStatus] = React.useState<"idle" | "loading" | "ready" | "error">("idle")
+  const [showWeakOverlay, setShowWeakOverlay] = React.useState(true)
 
   React.useEffect(() => {
     if (firmIds?.length) {
@@ -101,6 +109,7 @@ export function TopicHeatIsland({ firmIds, compareMode = true, className, onCell
           .filter((row) => row.topic_id !== "untagged")
           .map((row) => ({
             firmId: row.firm_id,
+            firmSlug: slugByFirm.get(row.firm_id)?.slug,
             firmLabel: slugByFirm.get(row.firm_id)?.name ?? row.firm_id,
             topicId: row.topic_id,
             topicLabel: topicLabel(row.topic_id),
@@ -123,8 +132,29 @@ export function TopicHeatIsland({ firmIds, compareMode = true, className, onCell
     return () => controller.abort()
   }, [ids.join(",")])
 
+  const displayCells = React.useMemo(
+    () =>
+      showWeakOverlay
+        ? cells
+        : cells.map((cell) => ({
+            ...cell,
+            weak: false,
+          })),
+    [cells, showWeakOverlay],
+  )
+  const hasWeakCells = cells.some((cell) => cell.weak)
+
   function onCellActivate(cell: TopicHeatCell) {
-    router.push(`/companies/${cell.firmId.replace(/^firm_/, "")}?focus=${cell.topicId}`)
+    if (activateTarget === "rag") {
+      const params = new URLSearchParams({
+        firm: cell.firmId,
+        topic: cell.topicId,
+      })
+      router.push(`/prep/rag?${params.toString()}`)
+      return
+    }
+    const firmKey = cell.firmSlug ?? cell.firmId.replace(/^firm_/, "")
+    router.push(`/companies/${firmKey}?focus=${cell.topicId}`)
   }
 
   if (ids.length === 0) {
@@ -149,13 +179,36 @@ export function TopicHeatIsland({ firmIds, compareMode = true, className, onCell
   }
 
   return (
-    <TopicHeatmap
-      firms={firms}
-      topics={topics}
-      cells={cells}
-      compareMode={compareMode}
-      onCellActivate={onCellActivate}
-      className={className}
-    />
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-mono text-[10px] tracking-wide text-muted-foreground/80 uppercase">
+          Cell click opens{" "}
+          {activateTarget === "rag" ? "a scoped pseudo-RAG pack" : "the company topic focus"}.
+          Heat level and n are printed in every cell; hatch marks weak topics.
+        </p>
+        <button
+          type="button"
+          aria-pressed={showWeakOverlay}
+          disabled={!hasWeakCells}
+          onClick={() => setShowWeakOverlay((current) => !current)}
+          className="rounded-full border border-border px-3 py-1 font-mono text-[10px] tracking-wide text-muted-foreground uppercase transition-colors duration-200 ease-out hover:border-foreground/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Weakness overlay {showWeakOverlay ? "on" : "off"}
+        </button>
+      </div>
+      {!hasWeakCells ? (
+        <p className="font-mono text-[10px] tracking-wide text-muted-foreground/70 uppercase">
+          No weak-topic hatch is available from mastery yet.
+        </p>
+      ) : null}
+      <TopicHeatmap
+        firms={firms}
+        topics={topics}
+        cells={displayCells}
+        compareMode={compareMode}
+        onCellActivate={onCellActivate}
+        className={className}
+      />
+    </div>
   )
 }
