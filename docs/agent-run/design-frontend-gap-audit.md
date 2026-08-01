@@ -33,7 +33,15 @@
 
 ## Orchestrator workstreams (this pass)
 
-1. **DS / shell** — dark-mode tokens + PaperSheet/diagram contrast + Settings theme control  
-2. **Frontend A** — RAG flagship session loop (§10.5 P0)  
-3. **Frontend B** — company room + heat cell → concept/RAG (§10.3–10.4)  
-4. **Frontend C** — progress heat∩weakness + saved search/CRUD polish (§10.12–10.13)  
+| Stream | Branch | State |
+|--------|--------|-------|
+| DS / shell dark contrast + Settings theme | integrate `2cd7cd0` | Done — cream paper locked under `.dark` |
+| §10.5 RAG study loop (P0) | `local/ws-rag-session-bb32` | Done — `StudyLoopIsland` |
+| §10.3–10.4 heat → scoped RAG | `local/ws-heat-nav-bb32` | Done — `?firm=&topic=` |
+| §10.12–10.13 progress + saved | `local/ws-progress-saved-bb32` | Done — matrix + search |
+
+## Still open (next pass)
+
+- §10.6 module lesson/quiz depth; §10.8 hint + practice-more CTA
+- §10.9 Again/Hard/Good/Easy; §10.11 cited simulator feedback
+- §10.14 notifications; diagram completion API for progress
