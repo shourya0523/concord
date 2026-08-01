@@ -82,14 +82,22 @@ python main.py ui --port 5050
 
 These entrypoints remain until workers absorb them behind the same argv surface (ADR 0004).
 
-## Pipeline stages
+## Pipeline (three lanes)
+
+Do **not** treat the corpus as one conveyor. Operational contract: [data-pipeline.md](./data-pipeline.md).
 
 ```text
-discover → fetch/archive → extract → classify PE → canonicalise
-        → answer (source|match|synth) → validate → export/publish
+Lane T (teaching):  discover → extract → classify → canonicalise (fuzzy)
+                    → answer (source|match|synth) → validate → export
+                    → publish:teaching → embed:rag
+
+Lane S (signals):   scrape/bank → extract (topic_signal) → canonicalise (exact)
+                    → topic tag → join_firm_signals → heat views
+
+Lane P (practice):  published teaching × heat × mastery → mode pack → session
 ```
 
-Jobs are restartable with idempotency keys. Prefer `JobEvent` contracts for progress.
+Jobs are restartable with idempotency keys. Prefer `JobEvent` contracts for progress. Completeness dimensions C1–C8 and mode readiness gates live in the data-pipeline doc.
 
 ## Contracts
 
