@@ -355,6 +355,63 @@ async function getPublishedStudyPayload(options: {
   };
 }
 
+async function loadBankSignalsForQuestion(
+  questionId: string,
+): Promise<QuestionDetailResponse["bank_signals"]> {
+  if (!isDatabaseConfigured()) return [];
+  try {
+    const sql = requireSql();
+    const rows = (await sql`
+      SELECT
+        coalesce(o.legacy_bank_id, o.id) AS id,
+        coalesce(o.employer_raw, f.name, 'Unknown') AS company,
+        coalesce(o.track, 'IB') AS track,
+        coalesce(nullif(o.role_raw, ''), 'Unknown') AS position,
+        o.interview_date AS date_posted,
+        NULL::text AS "user",
+        NULL::text AS experience,
+        coalesce(v.cleaned_wording, v.source_wording, '') AS question,
+        o.process_text AS process,
+        coalesce(o.scraped_at, o.created_at, now())::text AS scraped_at
+      FROM canonical.question_occurrences o
+      LEFT JOIN canonical.firms f ON f.id = o.firm_id
+      LEFT JOIN canonical.question_variants v ON v.id = o.question_variant_id
+      WHERE o.canonical_question_id = ${questionId}
+      ORDER BY o.scraped_at DESC NULLS LAST, o.id
+      LIMIT 12
+    `) as Array<{
+      id: string;
+      company: string;
+      track: string;
+      position: string;
+      date_posted: string | null;
+      user: string | null;
+      experience: string | null;
+      question: string;
+      process: string | null;
+      scraped_at: string;
+    }>;
+
+    return rows
+      .filter((row) => row.question.trim().length > 0)
+      .map((row) => ({
+        id: row.id,
+        company: row.company,
+        track: row.track,
+        position: row.position,
+        date_posted: row.date_posted,
+        user: row.user,
+        experience: row.experience,
+        question: row.question,
+        process: row.process,
+        scraped_at: row.scraped_at,
+      }));
+  } catch (err) {
+    console.warn("[questions] bank_signals load failed", err);
+    return [];
+  }
+}
+
 export async function getQuestion(
   id: string,
   options?: { includeStudy?: boolean },
@@ -393,8 +450,9 @@ export async function getQuestion(
     const question = rowToCanonical(rows[0]);
     const conceptId = question.topic ? conceptIdForTopic(question.topic) : null;
     const conceptIds = conceptId ? [conceptId] : [];
+    const bank_signals = await loadBankSignalsForQuestion(id);
     if (!options?.includeStudy) {
-      return { question, bank_signals: [], source: "published" };
+      return { question, bank_signals, source: "published" };
     }
     const study = await getPublishedStudyPayload({
       questionId: id,
@@ -402,7 +460,7 @@ export async function getQuestion(
     });
     return {
       question,
-      bank_signals: [],
+      bank_signals,
       study,
       study_payload: toStudyPayload({ question, study }),
       source: "published",

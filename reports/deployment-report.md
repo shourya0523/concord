@@ -177,13 +177,17 @@ promote manually, or pull secrets. Git-linked deployment remains operational.
 
 ## Integration audit (2026-08-01)
 
-See `reports/integration-audit-2026-08-01.md`.
+See `reports/integration-audit-2026-08-01.md` and follow-up fixes in
+`reports/integration-fixes-2026-08-01.md`.
 
 | Issue | Status |
 |-------|--------|
-| `published.v_firm_topic_heat` ignored `occurrence.topic` → all `untagged` | **Fixed** on Neon + `migrations/037_heat_view_occurrence_topic.sql` |
-| Smoke scripts assumed stub-auth anonymous 200s on `/prep/*` | **Updated** auth-aware expectations |
-| Learn checkpoint `question_ids` empty; occurrence↔teaching join null | Still open |
+| `published.v_firm_topic_heat` ignored `occurrence.topic` → all `untagged` | **Fixed** (`037` + Neon) |
+| Topic coverage thin / teaching domain=`other` | **Improved** (`038` on Neon: 1855 tagged occ; ib domain 179) |
+| Learn checkpoint `question_ids` empty | **Fixed** (`039` seeds 6 checkpoints) |
+| `/prep/*` anonymous 307 | **Fixed in code** (`proxy.ts`); live after deploy |
+| Occurrence↔teaching join / empty `bank_signals` | **Partial** (47 links + API load) |
+| Smoke scripts stub-auth assumptions | **Updated** auth-aware |
 | Authenticated E2E test user | Still open |
 
 ## Remaining blockers

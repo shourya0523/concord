@@ -48,10 +48,19 @@ check GET "/onboarding" 200
 check GET "/sign-in" 200
 check GET "/sign-up" 200
 check GET "/settings" 200
-# Neon Auth protects /prep/* — anonymous 307 to /sign-in is expected when configured
+# Mode A /prep/* is public-read after proxy fix; accept 307 until deploy lands
 if [[ "$AUTH_MODE" == "configured" ]]; then
-  check GET "/prep/heat" 307
-  check GET "/prep/rag" 307
+  prep_heat="$(curl -sS -o /dev/null -w "%{http_code}" -A "$UA" --max-time 30 "${BASE_URL}/prep/heat" || echo 000)"
+  prep_rag="$(curl -sS -o /dev/null -w "%{http_code}" -A "$UA" --max-time 30 "${BASE_URL}/prep/rag" || echo 000)"
+  for label_code in "prep/heat:$prep_heat" "prep/rag:$prep_rag"; do
+    path="${label_code%%:*}"; code="${label_code##*:}"
+    if [[ "$code" == "200" || "$code" == "307" ]]; then
+      printf "PASS  %-6s %-40s -> %s (200|307 until proxy deploy)\n" "GET" "/$path" "$code"
+    else
+      printf "FAIL  %-6s %-40s -> %s (expected 200|307)\n" "GET" "/$path" "$code"
+      FAIL=1
+    fi
+  done
 else
   check GET "/prep/heat" 200
   check GET "/prep/rag" 200

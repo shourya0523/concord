@@ -60,14 +60,14 @@ SELECT
     f.id AS firm_id,
     f.slug AS firm_slug,
     f.name AS firm_name,
-    coalesce(q.topic, 'untagged') AS topic_id,
+    coalesce(o.topic, q.topic, 'untagged') AS topic_id,
     count(*)::integer AS sample_size,
     least(1.0, ln(count(*) + 1) / ln(50))::double precision AS intensity,
     'glassdoor_occurrence'::text AS method
 FROM canonical.question_occurrences o
 JOIN canonical.firms f ON f.id = o.firm_id
 LEFT JOIN canonical.canonical_questions q ON q.id = o.canonical_question_id
-GROUP BY f.id, f.slug, f.name, coalesce(q.topic, 'untagged');
+GROUP BY f.id, f.slug, f.name, coalesce(o.topic, q.topic, 'untagged');
 
 CREATE OR REPLACE VIEW published.v_company_room_signals
 WITH (security_invoker = true) AS

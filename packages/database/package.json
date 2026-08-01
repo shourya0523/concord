@@ -14,6 +14,7 @@
     "seed:bank": "tsx scripts/seed-bank.ts",
     "publish:teaching": "tsx scripts/publish-teaching.ts",
     "embed:rag": "tsx scripts/embed-rag.ts",
+    "link:occurrences": "tsx scripts/link-occurrences.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

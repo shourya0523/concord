@@ -682,7 +682,11 @@ ON CONFLICT (id) DO UPDATE SET
     position = EXCLUDED.position,
     concept_id = EXCLUDED.concept_id,
     diagram_id = EXCLUDED.diagram_id,
-    question_ids = EXCLUDED.question_ids,
+    question_ids = CASE
+      WHEN jsonb_array_length(COALESCE(learning_module_checkpoints.question_ids, '[]'::jsonb)) > 0
+        THEN learning_module_checkpoints.question_ids
+      ELSE EXCLUDED.question_ids
+    END,
     body_markdown = EXCLUDED.body_markdown,
     metadata_json = learning_module_checkpoints.metadata_json || EXCLUDED.metadata_json,
     updated_at = now();

@@ -38,7 +38,7 @@ export function ModeAJourney() {
   const [typing, setTyping] = React.useState(false)
   const [answer, setAnswer] = React.useState("")
 
-  const firms = FIRMS.filter((f) => ["firm_gs", "firm_ms", "firm_ev"].includes(f.id)).map(
+  const firms = FIRMS.filter((f) => ["firm_goldman-sachs", "firm_morgan-stanley", "firm_evercore"].includes(f.id)).map(
     (f) => ({ id: f.id, label: f.aliases[0] ?? f.name }),
   )
   const topics = TOPICS.slice(0, 6)

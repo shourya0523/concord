@@ -61,14 +61,9 @@ smoke_base() {
     /companies/goldman-sachs /concepts/dcf-valuation; do
     check_http "$tag PAGE $path" "${base}${path}" 200
   done
-  # Neon Auth protects /prep/* when configured
-  if [[ "$auth_mode" == "configured" ]]; then
-    check_http_any "$tag PAGE /prep/heat" "${base}/prep/heat" 307 200
-    check_http_any "$tag PAGE /prep/rag" "${base}/prep/rag" 307 200
-  else
-    check_http "$tag PAGE /prep/heat" "${base}/prep/heat" 200
-    check_http "$tag PAGE /prep/rag" "${base}/prep/rag" 200
-  fi
+  # Mode A prep pages public after proxy fix; 307 acceptable until deploy
+  check_http_any "$tag PAGE /prep/heat" "${base}/prep/heat" 200 307
+  check_http_any "$tag PAGE /prep/rag" "${base}/prep/rag" 200 307
 
   echo "=== APIs ($tag) ==="
   check_http_any "$tag GET /api/questions" "${base}/api/questions?limit=3" 200 500

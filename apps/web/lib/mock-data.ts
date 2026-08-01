@@ -17,7 +17,7 @@ import type { CitationProvenance } from "@ibpe/ui/components/pseudo-rag-citation
 
 export const FIRMS: Firm[] = [
   {
-    id: "firm_gs",
+    id: "firm_goldman-sachs",
     name: "Goldman Sachs",
     slug: "goldman-sachs",
     aliases: ["GS", "Goldman"],
@@ -28,7 +28,7 @@ export const FIRMS: Firm[] = [
     metadata: {},
   },
   {
-    id: "firm_ms",
+    id: "firm_morgan-stanley",
     name: "Morgan Stanley",
     slug: "morgan-stanley",
     aliases: ["MS"],
@@ -39,10 +39,10 @@ export const FIRMS: Firm[] = [
     metadata: {},
   },
   {
-    id: "firm_bx",
+    id: "firm_the-blackstone-group",
     name: "Blackstone",
-    slug: "blackstone",
-    aliases: ["BX"],
+    slug: "the-blackstone-group",
+    aliases: ["BX", "Blackstone", "The Blackstone Group"],
     tracks: ["PE"],
     industry: "Private equity",
     geographies: ["US", "EMEA"],
@@ -61,7 +61,7 @@ export const FIRMS: Firm[] = [
     metadata: {},
   },
   {
-    id: "firm_ev",
+    id: "firm_evercore",
     name: "Evercore",
     slug: "evercore",
     aliases: [],
@@ -79,7 +79,7 @@ export const TARGET_COMPANIES: TargetCompany[] = FIRMS.map((f) => ({
   track: f.tracks[0],
 }))
 
-export const DEFAULT_TARGET_IDS = ["firm_gs", "firm_bx"]
+export const DEFAULT_TARGET_IDS = ["firm_goldman-sachs", "firm_the-blackstone-group"]
 
 export const TOPICS: { id: string; label: string }[] = [
   { id: "topic_lbo", label: "LBO" },
@@ -98,31 +98,31 @@ export const WEAK_TOPICS: { id: string; label: string; severity: "low" | "medium
 
 /** Contract-shaped heat rows (0–1 intensity). */
 export const TOPIC_HEAT: TopicHeat[] = [
-  { firm_id: "firm_gs", topic_id: "topic_lbo", intensity: 0.55, sample_size: 42, method: "glassdoor_occurrence" },
-  { firm_id: "firm_gs", topic_id: "topic_dcf", intensity: 0.9, sample_size: 61, method: "glassdoor_occurrence" },
-  { firm_id: "firm_gs", topic_id: "topic_ma", intensity: 0.7, sample_size: 48, method: "glassdoor_occurrence" },
-  { firm_id: "firm_gs", topic_id: "topic_acct", intensity: 0.85, sample_size: 55, method: "glassdoor_occurrence" },
-  { firm_id: "firm_gs", topic_id: "topic_beh", intensity: 0.4, sample_size: 30, method: "glassdoor_occurrence" },
-  { firm_id: "firm_ms", topic_id: "topic_lbo", intensity: 0.35, sample_size: 22, method: "glassdoor_occurrence" },
-  { firm_id: "firm_ms", topic_id: "topic_dcf", intensity: 0.75, sample_size: 40, method: "glassdoor_occurrence" },
-  { firm_id: "firm_ms", topic_id: "topic_ma", intensity: 0.95, sample_size: 70, method: "glassdoor_occurrence" },
-  { firm_id: "firm_ms", topic_id: "topic_acct", intensity: 0.6, sample_size: 33, method: "glassdoor_occurrence" },
-  { firm_id: "firm_ms", topic_id: "topic_beh", intensity: 0.5, sample_size: 28, method: "glassdoor_occurrence" },
-  { firm_id: "firm_bx", topic_id: "topic_lbo", intensity: 0.98, sample_size: 80, method: "glassdoor_occurrence" },
-  { firm_id: "firm_bx", topic_id: "topic_dcf", intensity: 0.45, sample_size: 25, method: "glassdoor_occurrence" },
-  { firm_id: "firm_bx", topic_id: "topic_ma", intensity: 0.3, sample_size: 18, method: "glassdoor_occurrence" },
-  { firm_id: "firm_bx", topic_id: "topic_acct", intensity: 0.5, sample_size: 20, method: "glassdoor_occurrence" },
-  { firm_id: "firm_bx", topic_id: "topic_beh", intensity: 0.55, sample_size: 24, method: "glassdoor_occurrence" },
+  { firm_id: "firm_goldman-sachs", topic_id: "topic_lbo", intensity: 0.55, sample_size: 42, method: "glassdoor_occurrence" },
+  { firm_id: "firm_goldman-sachs", topic_id: "topic_dcf", intensity: 0.9, sample_size: 61, method: "glassdoor_occurrence" },
+  { firm_id: "firm_goldman-sachs", topic_id: "topic_ma", intensity: 0.7, sample_size: 48, method: "glassdoor_occurrence" },
+  { firm_id: "firm_goldman-sachs", topic_id: "topic_acct", intensity: 0.85, sample_size: 55, method: "glassdoor_occurrence" },
+  { firm_id: "firm_goldman-sachs", topic_id: "topic_beh", intensity: 0.4, sample_size: 30, method: "glassdoor_occurrence" },
+  { firm_id: "firm_morgan-stanley", topic_id: "topic_lbo", intensity: 0.35, sample_size: 22, method: "glassdoor_occurrence" },
+  { firm_id: "firm_morgan-stanley", topic_id: "topic_dcf", intensity: 0.75, sample_size: 40, method: "glassdoor_occurrence" },
+  { firm_id: "firm_morgan-stanley", topic_id: "topic_ma", intensity: 0.95, sample_size: 70, method: "glassdoor_occurrence" },
+  { firm_id: "firm_morgan-stanley", topic_id: "topic_acct", intensity: 0.6, sample_size: 33, method: "glassdoor_occurrence" },
+  { firm_id: "firm_morgan-stanley", topic_id: "topic_beh", intensity: 0.5, sample_size: 28, method: "glassdoor_occurrence" },
+  { firm_id: "firm_the-blackstone-group", topic_id: "topic_lbo", intensity: 0.98, sample_size: 80, method: "glassdoor_occurrence" },
+  { firm_id: "firm_the-blackstone-group", topic_id: "topic_dcf", intensity: 0.45, sample_size: 25, method: "glassdoor_occurrence" },
+  { firm_id: "firm_the-blackstone-group", topic_id: "topic_ma", intensity: 0.3, sample_size: 18, method: "glassdoor_occurrence" },
+  { firm_id: "firm_the-blackstone-group", topic_id: "topic_acct", intensity: 0.5, sample_size: 20, method: "glassdoor_occurrence" },
+  { firm_id: "firm_the-blackstone-group", topic_id: "topic_beh", intensity: 0.55, sample_size: 24, method: "glassdoor_occurrence" },
   { firm_id: "firm_kkr", topic_id: "topic_lbo", intensity: 0.92, sample_size: 65, method: "glassdoor_occurrence" },
   { firm_id: "firm_kkr", topic_id: "topic_dcf", intensity: 0.4, sample_size: 19, method: "glassdoor_occurrence" },
   { firm_id: "firm_kkr", topic_id: "topic_ma", intensity: 0.35, sample_size: 16, method: "glassdoor_occurrence" },
   { firm_id: "firm_kkr", topic_id: "topic_acct", intensity: 0.45, sample_size: 17, method: "glassdoor_occurrence" },
   { firm_id: "firm_kkr", topic_id: "topic_beh", intensity: 0.48, sample_size: 21, method: "glassdoor_occurrence" },
-  { firm_id: "firm_ev", topic_id: "topic_lbo", intensity: 0.25, sample_size: 12, method: "glassdoor_occurrence" },
-  { firm_id: "firm_ev", topic_id: "topic_dcf", intensity: 0.65, sample_size: 28, method: "glassdoor_occurrence" },
-  { firm_id: "firm_ev", topic_id: "topic_ma", intensity: 0.88, sample_size: 52, method: "glassdoor_occurrence" },
-  { firm_id: "firm_ev", topic_id: "topic_acct", intensity: 0.55, sample_size: 23, method: "glassdoor_occurrence" },
-  { firm_id: "firm_ev", topic_id: "topic_beh", intensity: 0.6, sample_size: 26, method: "glassdoor_occurrence" },
+  { firm_id: "firm_evercore", topic_id: "topic_lbo", intensity: 0.25, sample_size: 12, method: "glassdoor_occurrence" },
+  { firm_id: "firm_evercore", topic_id: "topic_dcf", intensity: 0.65, sample_size: 28, method: "glassdoor_occurrence" },
+  { firm_id: "firm_evercore", topic_id: "topic_ma", intensity: 0.88, sample_size: 52, method: "glassdoor_occurrence" },
+  { firm_id: "firm_evercore", topic_id: "topic_acct", intensity: 0.55, sample_size: 23, method: "glassdoor_occurrence" },
+  { firm_id: "firm_evercore", topic_id: "topic_beh", intensity: 0.6, sample_size: 26, method: "glassdoor_occurrence" },
 ]
 
 export function intensityToHeatLevel(intensity: number): HeatLevel {
@@ -170,7 +170,7 @@ export const CONCEPTS: Concept[] = [
     slug: "leveraged-buyouts",
     title: "Leveraged buyouts",
     prerequisites: ["concept_acct"],
-    firm_relevance: { firm_bx: 0.98, firm_kkr: 0.95, firm_gs: 0.4 },
+    firm_relevance: { "firm_the-blackstone-group": 0.98, firm_kkr: 0.95, "firm_goldman-sachs": 0.4 },
     domain: "pe",
     summary: "Sources & uses, debt schedule, returns to equity at exit.",
   },
@@ -179,7 +179,7 @@ export const CONCEPTS: Concept[] = [
     slug: "dcf-valuation",
     title: "DCF valuation",
     prerequisites: ["concept_acct"],
-    firm_relevance: { firm_gs: 0.9, firm_ms: 0.8, firm_ev: 0.7 },
+    firm_relevance: { "firm_goldman-sachs": 0.9, "firm_morgan-stanley": 0.8, "firm_evercore": 0.7 },
     domain: "both",
     summary: "Unlevered free cash flow, WACC build-up, terminal value.",
   },
@@ -188,7 +188,7 @@ export const CONCEPTS: Concept[] = [
     slug: "three-statement-linkages",
     title: "Three-statement linkages",
     prerequisites: [],
-    firm_relevance: { firm_gs: 0.85, firm_ms: 0.8 },
+    firm_relevance: { "firm_goldman-sachs": 0.85, "firm_morgan-stanley": 0.8 },
     domain: "ib",
     summary: "How IS, BS, and CFS articulate and constrain each other.",
   },
@@ -197,7 +197,7 @@ export const CONCEPTS: Concept[] = [
     slug: "enterprise-to-equity",
     title: "Enterprise value → equity value",
     prerequisites: ["concept_acct"],
-    firm_relevance: { firm_gs: 0.75, firm_ms: 0.7, firm_ev: 0.8 },
+    firm_relevance: { "firm_goldman-sachs": 0.75, "firm_morgan-stanley": 0.7, "firm_evercore": 0.8 },
     domain: "ib",
     summary: "Bridge from EV to equity via net debt and other claims.",
   },
@@ -215,7 +215,7 @@ export const RESOURCES: LearningResource[] = [
     kind: "internal",
     provenance: "editorial",
     concept_ids: ["concept_lbo"],
-    firm_ids: ["firm_bx", "firm_kkr"],
+    firm_ids: ["firm_the-blackstone-group", "firm_kkr"],
   },
   {
     id: "res_damodaran",
