@@ -3,7 +3,12 @@
 import * as React from "react"
 import { AlertTriangle } from "lucide-react"
 
-import { Annotate, SemanticPill } from "@/components/paper"
+import {
+  Annotate,
+  PaperSheet,
+  SemanticPill,
+  WarrenCallout,
+} from "@/components/paper"
 import { readStoredTargets } from "@/components/target-select-island"
 import { topicLabel } from "@/lib/topics"
 
@@ -47,7 +52,10 @@ function computeInsights(payload: HeatPayload): Insights {
   const firmSamples = new Map<string, number>()
 
   for (const row of payload.topics) {
-    firmSamples.set(row.firm_id, (firmSamples.get(row.firm_id) ?? 0) + row.sample_size)
+    firmSamples.set(
+      row.firm_id,
+      (firmSamples.get(row.firm_id) ?? 0) + row.sample_size
+    )
     if (row.topic_id === "untagged") continue
     const firms = byTopic.get(row.topic_id) ?? new Map<string, number>()
     firms.set(row.firm_id, Math.max(firms.get(row.firm_id) ?? 0, row.intensity))
@@ -68,18 +76,27 @@ function computeInsights(payload: HeatPayload): Insights {
   }
 
   shared.sort(
-    (a, b) => b.hits.length - a.hits.length || (b.hits[0]?.intensity ?? 0) - (a.hits[0]?.intensity ?? 0),
+    (a, b) =>
+      b.hits.length - a.hits.length ||
+      (b.hits[0]?.intensity ?? 0) - (a.hits[0]?.intensity ?? 0)
   )
   unique.sort((a, b) => b.intensity - a.intensity)
 
   const sparse = payload.firms
-    .map((firm) => ({ id: firm.id, name: firm.name, n: firmSamples.get(firm.id) ?? 0 }))
+    .map((firm) => ({
+      id: firm.id,
+      name: firm.name,
+      n: firmSamples.get(firm.id) ?? 0,
+    }))
     .filter((firm) => firm.n < SPARSE_SAMPLE_N)
 
   return {
     shared,
     unique,
-    sparse: sparse.map((firm) => ({ ...firm, name: firmName.get(firm.id) ?? firm.name })),
+    sparse: sparse.map((firm) => ({
+      ...firm,
+      name: firmName.get(firm.id) ?? firm.name,
+    })),
   }
 }
 
@@ -97,7 +114,9 @@ export function HeatInsightsIsland({
 }) {
   const [ids, setIds] = React.useState<string[]>(firmIds ?? [])
   const [payload, setPayload] = React.useState<HeatPayload | null>(null)
-  const [status, setStatus] = React.useState<"idle" | "loading" | "ready" | "error">("idle")
+  const [status, setStatus] = React.useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle")
 
   React.useEffect(() => {
     if (firmIds?.length) {
@@ -121,7 +140,8 @@ export function HeatInsightsIsland({
     setStatus("loading")
     fetch(`/api/prep/heat?${params.toString()}`, { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error(`Heat insights failed (${response.status})`)
+        if (!response.ok)
+          throw new Error(`Heat insights failed (${response.status})`)
         return (await response.json()) as HeatPayload
       })
       .then((next) => {
@@ -139,7 +159,7 @@ export function HeatInsightsIsland({
 
   const insights = React.useMemo(
     () => (payload ? computeInsights(payload) : null),
-    [payload],
+    [payload]
   )
 
   if (ids.length === 0 || status === "idle") return null
@@ -155,7 +175,8 @@ export function HeatInsightsIsland({
   if (status === "error") {
     return (
       <p className="border border-dashed border-border px-4 py-4 text-sm text-muted-foreground">
-        Could not load compare insights — the matrix above still shows the raw signals.
+        Could not load compare insights — the matrix above still shows the raw
+        signals.
       </p>
     )
   }
@@ -167,30 +188,44 @@ export function HeatInsightsIsland({
   const uniqueVisible = insights.unique.slice(0, LIST_LIMIT)
 
   return (
-    <section className={className} aria-label="Shared and firm-unique heat insights">
+    <section
+      className={className}
+      aria-label="Shared and firm-unique heat insights"
+    >
       <div className="space-y-6">
         {insights.sparse.length > 0 ? (
-          <div className="space-y-2">
-            <SemanticPill tone="streak" icon={false}>
-              <AlertTriangle className="size-3" aria-hidden />
-              <span
-                aria-hidden
-                className="inline-block size-2 bg-[repeating-linear-gradient(-45deg,var(--streak-foreground),var(--streak-foreground)_1px,transparent_1px,transparent_3px)]"
-              />
-              Low signal volume — treat heat as directional
-            </SemanticPill>
-            <p className="font-mono text-[11px] tracking-wide text-muted-foreground">
-              {insights.sparse.map((firm) => `${firm.name} n=${firm.n}`).join(" · ")} — fewer
-              than {SPARSE_SAMPLE_N} tagged signals per firm. Patterns here can move with a
-              single import.
-            </p>
-          </div>
+          <PaperSheet seedKey="heat-insights-sparse" torn={false}>
+            <div className="space-y-2">
+              <SemanticPill tone="streak" icon={false}>
+                <AlertTriangle className="size-3" aria-hidden />
+                <span
+                  aria-hidden
+                  className="inline-block size-2 bg-[repeating-linear-gradient(-45deg,var(--streak-foreground),var(--streak-foreground)_1px,transparent_1px,transparent_3px)]"
+                />
+                Low signal volume — treat heat as directional
+              </SemanticPill>
+              <p className="font-mono text-[11px] tracking-wide text-muted-foreground">
+                {insights.sparse
+                  .map((firm) => `${firm.name} n=${firm.n}`)
+                  .join(" · ")}{" "}
+                — fewer than {SPARSE_SAMPLE_N} tagged signals per firm. Patterns
+                here can move with a single import.
+              </p>
+            </div>
+          </PaperSheet>
         ) : null}
 
-        <div className="grid gap-8 md:grid-cols-2">
-          <div>
+        <WarrenCallout mood="thinking" bracket>
+          Shared heat becomes one efficient pack; firm-unique heat becomes
+          targeted reps for the interviewer most likely to press that topic.
+        </WarrenCallout>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <PaperSheet seedKey="heat-insights-shared" torn={false}>
             <div className="flex flex-wrap items-center gap-2 border-b border-border pb-2">
-              <SemanticPill tone="success">Shared heat · {insights.shared.length} topics</SemanticPill>
+              <SemanticPill tone="success">
+                Shared heat · {insights.shared.length} topics
+              </SemanticPill>
               <span className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
                 intensity ≥ {SHARED_INTENSITY.toFixed(2)} at 2+ firms
               </span>
@@ -202,12 +237,21 @@ export function HeatInsightsIsland({
                     key={entry.topic}
                     className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-stone/60 py-2.5"
                   >
-                    <Annotate type="underline" color="var(--success)" padding={2}>
-                      <span className="text-sm text-foreground">{topicLabel(entry.topic)}</span>
+                    <Annotate
+                      type="underline"
+                      color="var(--success)"
+                      padding={2}
+                    >
+                      <span className="text-sm text-foreground">
+                        {topicLabel(entry.topic)}
+                      </span>
                     </Annotate>
                     <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
                       {entry.hits
-                        .map((hit) => `${firmName.get(hit.firmId) ?? hit.firmId} ${hit.intensity.toFixed(2)}`)
+                        .map(
+                          (hit) =>
+                            `${firmName.get(hit.firmId) ?? hit.firmId} ${hit.intensity.toFixed(2)}`
+                        )
                         .join(" · ")}
                     </span>
                   </li>
@@ -215,18 +259,19 @@ export function HeatInsightsIsland({
               </ul>
             ) : (
               <p className="py-3 text-sm text-muted-foreground">
-                No topic reaches {SHARED_INTENSITY.toFixed(2)} at two firms yet — one drill will
-                not cover the whole set.
+                No topic reaches {SHARED_INTENSITY.toFixed(2)} at two firms yet
+                — one drill will not cover the whole set.
               </p>
             )}
             {insights.shared.length > sharedVisible.length ? (
               <p className="pt-2 font-mono text-[10px] tracking-wide text-muted-foreground/80 uppercase">
-                + {insights.shared.length - sharedVisible.length} more shared topics
+                + {insights.shared.length - sharedVisible.length} more shared
+                topics
               </p>
             ) : null}
-          </div>
+          </PaperSheet>
 
-          <div>
+          <PaperSheet seedKey="heat-insights-unique" torn={false}>
             <div className="flex flex-wrap items-center gap-2 border-b border-border pb-2">
               <h3 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
                 Firm-unique heat
@@ -242,9 +287,14 @@ export function HeatInsightsIsland({
                     key={`${entry.topic}-${entry.firmId}`}
                     className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-stone/60 py-2.5"
                   >
-                    <Annotate type="bracket" color="var(--graphite)" padding={3}>
+                    <Annotate
+                      type="bracket"
+                      color="var(--graphite)"
+                      padding={3}
+                    >
                       <span className="text-sm text-foreground">
-                        {topicLabel(entry.topic)} — {firmName.get(entry.firmId) ?? entry.firmId}
+                        {topicLabel(entry.topic)} —{" "}
+                        {firmName.get(entry.firmId) ?? entry.firmId}
                       </span>
                     </Annotate>
                     <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
@@ -255,15 +305,17 @@ export function HeatInsightsIsland({
               </ul>
             ) : (
               <p className="py-3 text-sm text-muted-foreground">
-                No single-firm outliers yet — everything hot is hot across the set.
+                No single-firm outliers yet — everything hot is hot across the
+                set.
               </p>
             )}
             {insights.unique.length > uniqueVisible.length ? (
               <p className="pt-2 font-mono text-[10px] tracking-wide text-muted-foreground/80 uppercase">
-                + {insights.unique.length - uniqueVisible.length} more firm-unique topics
+                + {insights.unique.length - uniqueVisible.length} more
+                firm-unique topics
               </p>
             ) : null}
-          </div>
+          </PaperSheet>
         </div>
       </div>
     </section>

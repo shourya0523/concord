@@ -1,17 +1,19 @@
 # Status: frontend
 
-State: DESIGN.md gap-close integrate (dark mode + §10.5/10.3/10.4/10.12/10.13)
+State: DESIGN.md gap-close integrate + paper-kit visual cohesion
 Wave: 2
 Updated: 2026-08-01
-Branch: `local/design-frontend-continue-bb32`
+Branch: `local/ws-paper-cohesion-bb32`
 
 ## Verification
 
 - `npm run typecheck -w @ibpe/web` — green (per workstream branches; re-run on integrate)
+- `npm run typecheck -w @ibpe/web` — green on `local/ws-paper-cohesion-bb32`
 
 ## Notes
 
 - Workstream C Wave 2 — Mode A/B product routes on Editorial Finance Terminal
+- Workstream C paper cohesion pass: landing hero handwriting + rough CTAs, onboarding target/heat paper inserts, company index paper firm rows, and heat compare paper matrix/insight callouts
 - Dark mode: cream paper + black ink preserved under `.dark` (chrome deepens only); Settings theme control; PaperSheet/diagram tokenised
 - DESIGN.md §10.5 P0 Pseudo-RAG is now a real flagship session: `/prep/rag` keeps the frozen brief + citation-card pack preview, then starts an inline layered study loop over retrieved pack item ids.
 - The loop is shared with `/study` via `StudyLoopIsland`, so Mode A reuses the signature answer-before-reveal flow, keyboard shortcuts, concept diagram/heat peek rail, sources, notes/bookmarks, and session close pattern.

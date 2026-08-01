@@ -5,6 +5,7 @@
 export { PaperSheet } from "@/components/mockups/paper-sheet"
 export { NotionCallout } from "@/components/mockups/journey-shell"
 export { Warren, type WarrenMood } from "@/components/mockups/warren"
+export { HandwritingHeadline } from "@/components/mockups/handwriting"
 export { Annotate, type AnnotationType } from "@/components/mockups/annotate"
 export { RoughFrame } from "@/components/mockups/rough-frame"
 export { RoughHover, InkHoverScope } from "@/components/mockups/rough-hover"
