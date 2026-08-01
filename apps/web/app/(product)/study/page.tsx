@@ -86,7 +86,13 @@ export default function StudyPage() {
   const typing = answer.trim().length > 0
 
   React.useEffect(() => {
-    setFirstTarget(readStoredTargets()[0] ?? null)
+    const params = new URLSearchParams(window.location.search)
+    const firmIds = params
+      .get("firms")
+      ?.split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+    setFirstTarget(firmIds?.[0] ?? readStoredTargets()[0] ?? null)
     fetch("/api/mastery")
       .then(async (response) =>
         response.ok
@@ -233,10 +239,32 @@ export default function StudyPage() {
 
   React.useEffect(() => {
     const controller = new AbortController()
-    const requested = new URLSearchParams(window.location.search).get("question")
+    const params = new URLSearchParams(window.location.search)
+    const requested = params.get("question")
+    const requestedQueue = params
+      .get("questions")
+      ?.split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+    const requestedFirms =
+      params
+        .get("firms")
+        ?.split(",")
+        .map((item) => item.trim())
+        .filter(Boolean) ?? []
+    const requestedMode =
+      params.get("mode") === "pseudo_rag" ? "pseudo_rag" : "adaptive_weak"
+    const requestedLearningMode =
+      params.get("learning_mode") === "company_prep"
+        ? "company_prep"
+        : "concept_learn"
     async function initialise() {
       try {
-        let ids = requested ? [requested] : []
+        let ids = requestedQueue?.length
+          ? requestedQueue
+          : requested
+            ? [requested]
+            : []
         if (ids.length === 0) {
           const listResponse = await fetch("/api/questions?limit=8", {
             signal: controller.signal,
@@ -252,9 +280,9 @@ export default function StudyPage() {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            mode: "adaptive_weak",
-            learning_mode: "concept_learn",
-            firm_ids: [],
+            mode: requestedMode,
+            learning_mode: requestedLearningMode,
+            firm_ids: requestedFirms,
             concept_ids: [],
             question_ids: ids,
             limit: ids.length,
@@ -274,7 +302,13 @@ export default function StudyPage() {
   }, [loadQuestion])
 
   async function submitAttempt() {
-    if (!detail || !sessionId) return
+    if (!detail) return
+    if (!sessionId) {
+      setSubmitted(true)
+      setRevealed(Math.min(1, layers.length))
+      setStatus("Anonymous reveal unlocked. Sign in to save mastery for this pack.")
+      return
+    }
     setStatus("Saving attempt…")
     const response = await fetch(`/api/practice/sessions/${sessionId}/attempts`, {
       method: "POST",
@@ -288,7 +322,9 @@ export default function StudyPage() {
       }),
     })
     if (!response.ok) {
-      setStatus(`Attempt could not be saved (${response.status}).`)
+      setSubmitted(true)
+      setRevealed(Math.min(1, layers.length))
+      setStatus(`Attempt could not be saved (${response.status}); answer layers unlocked anonymously.`)
       return
     }
     setSubmitted(true)
@@ -483,10 +519,10 @@ export default function StudyPage() {
               />
             </label>
             <Button
-              disabled={!answer.trim() || !sessionId || layers.length === 0 || submitted}
+              disabled={!answer.trim() || layers.length === 0 || submitted}
               onClick={() => void submitAttempt()}
             >
-              {submitted ? "Attempt saved" : "Submit and reveal"}
+              {submitted ? (sessionId ? "Attempt saved" : "Revealed anonymously") : sessionId ? "Submit and reveal" : "Reveal anonymously"}
             </Button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">{RATING_GUIDE}</p>
