@@ -21,6 +21,11 @@ db.py METADATA.create_all            020_neon_published.sql
                                      030_neon_rls.sql
                                      031_neon_auth_user_id.sql
                                      032_learning_flows.sql
+                                     033_rag_embeddings.sql
+                                     034_occurrence_topic_backfill.sql
+                                     035_diagram_resources_seed.sql
+                                     036_keyword_rules_v2_backfill.sql
+                                     037_heat_view_occurrence_topic.sql
 ```
 
 Corpus table names stay stable for Python (`interview_occurrences`, `source_artefacts`, …). Neon uses the §17 product names (`question_occurrences`, `source_artifacts`, …) with a documented mapping in `packages/database/README.md`.

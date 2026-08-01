@@ -175,13 +175,24 @@ promote manually, or pull secrets. Git-linked deployment remains operational.
 - `node-packages` — `npm ci` + `npm run build --workspace=@ibpe/web` + stub checks
 - `worker-schedule` — manual `workflow_dispatch` stub only (no Glassdoor crawl)
 
+## Integration audit (2026-08-01)
+
+See `reports/integration-audit-2026-08-01.md`.
+
+| Issue | Status |
+|-------|--------|
+| `published.v_firm_topic_heat` ignored `occurrence.topic` → all `untagged` | **Fixed** on Neon + `migrations/037_heat_view_occurrence_topic.sql` |
+| Smoke scripts assumed stub-auth anonymous 200s on `/prep/*` | **Updated** auth-aware expectations |
+| Learn checkpoint `question_ids` empty; occurrence↔teaching join null | Still open |
+| Authenticated E2E test user | Still open |
+
 ## Remaining blockers
 
 1. **Vercel CLI token** — the supplied token is rejected as `User not found` → cannot `env ls`, `inspect`, or promote via CLI.
 2. **Authenticated smoke identity** — Neon Auth is configured, but this run has no test user/session for protected end-to-end checks.
 3. **Monitoring productization** — Sentry/OTEL DSN not set; example YAML only.
 4. **Blob token verification** — storage docs ready; token presence not confirmed without CLI/`env pull`.
-5. **Smoke auth semantics** — `scripts/prod_smoke.sh` still expects anonymous success from protected endpoints.
+5. **Mode B drill linkage** — module checkpoints still ship with empty `question_ids`.
 
 ## Incident / fix (2026-07-30, earlier)
 
