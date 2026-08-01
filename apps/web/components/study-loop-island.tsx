@@ -57,7 +57,7 @@ export function StudyLoopIsland({
 
   return (
     <div className="space-y-4">
-      <PaperSheet seedKey={`study-loop-${ragContext?.packId ?? "default"}`} torn={false}>
+      <PaperSheet seedKey={`study-loop-${ragContext?.packId ?? "default"}`}>
         <div className="space-y-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="min-w-0 space-y-1">

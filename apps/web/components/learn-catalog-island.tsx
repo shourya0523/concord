@@ -139,7 +139,7 @@ export function LearnCatalogIsland({ modules }: { modules: CatalogModule[] }) {
             const percent = progress === null ? null : moduleProgressPercent(progress, module.id)
             return (
               <li key={module.id}>
-                <PaperSheet seedKey={`module-${module.id}`} torn={false} className="h-full">
+                <PaperSheet seedKey={`module-${module.id}`} className="h-full">
                   <div className="flex h-full flex-col">
                     <div className="flex flex-wrap items-center gap-2">
                       <MetadataPill>{module.domain.toUpperCase()}</MetadataPill>

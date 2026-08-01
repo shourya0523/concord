@@ -321,7 +321,7 @@ export function DashboardIsland() {
             <RoughHover>Open full heat compare →</RoughHover>
           </Link>
 
-          <PaperSheet seedKey="dashboard-plan-peek" torn={false} className="mt-2">
+          <section className="mt-2 border border-border bg-background/30 px-4 py-4">
             <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
               Today&apos;s plan peek
             </h2>
@@ -355,7 +355,7 @@ export function DashboardIsland() {
             >
               <RoughHover>Open roadmap →</RoughHover>
             </Link>
-          </PaperSheet>
+          </section>
         </section>
 
         <aside className="space-y-8 border-t border-border pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
@@ -502,7 +502,7 @@ export function DashboardIsland() {
             </section>
           ) : null}
 
-          <PaperSheet seedKey="dashboard-suggested-next" torn={false}>
+          <PaperSheet seedKey="dashboard-suggested-next">
             <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
               Suggested next
             </p>
