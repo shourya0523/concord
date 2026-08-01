@@ -7,17 +7,20 @@ import { Button } from "@ibpe/ui/components/button"
 import { Input } from "@ibpe/ui/components/input"
 import { Label } from "@ibpe/ui/components/label"
 
-import { HandwritingHeadline } from "@/components/mockups/handwriting"
 import {
   Annotate,
   CircledNumber,
+  HandwritingHeadline,
   HeatStrip,
   PaperSheet,
   Warren,
   WarrenCallout,
 } from "@/components/paper"
-import { TargetSelectIsland, readStoredTargets } from "@/components/target-select-island"
-import { sortTopicSlugs, topicLabel } from "@/lib/topics"
+import {
+  TargetSelectIsland,
+  readStoredTargets,
+} from "@/components/target-select-island"
+import { sortTopicSlugs } from "@/lib/topics"
 
 type LearningMode = "company_prep" | "concept_learn"
 type Track = "IB" | "PE" | "Both"
@@ -25,13 +28,21 @@ type Track = "IB" | "PE" | "Both"
 const STEPS = ["Welcome", "Path", "Track", "Firms", "Date", "Focus"] as const
 
 type HeatPayload = {
-  topics: Array<{ firm_id: string; topic_id: string; intensity: number; sample_size: number }>
+  topics: Array<{
+    firm_id: string
+    topic_id: string
+    intensity: number
+    sample_size: number
+  }>
 }
 
 export function OnboardingForm() {
   const router = useRouter()
   const [step, setStep] = React.useState(0)
-  const [modes, setModes] = React.useState<LearningMode[]>(["company_prep", "concept_learn"])
+  const [modes, setModes] = React.useState<LearningMode[]>([
+    "company_prep",
+    "concept_learn",
+  ])
   const [track, setTrack] = React.useState<Track>("IB")
   const [role, setRole] = React.useState("Investment Banking Analyst")
   const [targets, setTargets] = React.useState<string[]>([])
@@ -64,10 +75,16 @@ export function OnboardingForm() {
       })
       .then((payload) => {
         if (!payload) return
-        const aggregate = new Map<string, { intensity: number; sampleSize: number }>()
+        const aggregate = new Map<
+          string,
+          { intensity: number; sampleSize: number }
+        >()
         for (const row of payload.topics) {
           if (row.topic_id === "untagged") continue
-          const entry = aggregate.get(row.topic_id) ?? { intensity: 0, sampleSize: 0 }
+          const entry = aggregate.get(row.topic_id) ?? {
+            intensity: 0,
+            sampleSize: 0,
+          }
           entry.intensity = Math.max(entry.intensity, row.intensity)
           entry.sampleSize += row.sample_size
           aggregate.set(row.topic_id, entry)
@@ -75,7 +92,7 @@ export function OnboardingForm() {
         setHeatPreview(
           sortTopicSlugs(aggregate.keys())
             .slice(0, 6)
-            .map((topic) => ({ topic, ...aggregate.get(topic)! })),
+            .map((topic) => ({ topic, ...aggregate.get(topic)! }))
         )
       })
       .catch(() => undefined)
@@ -84,12 +101,17 @@ export function OnboardingForm() {
 
   const needsFirms = modes.includes("company_prep")
   const daysUntil = interviewDate
-    ? Math.max(0, Math.ceil((Date.parse(`${interviewDate}T00:00:00Z`) - Date.now()) / 86_400_000))
+    ? Math.max(
+        0,
+        Math.ceil(
+          (Date.parse(`${interviewDate}T00:00:00Z`) - Date.now()) / 86_400_000
+        )
+      )
     : null
 
   function toggleMode(mode: LearningMode) {
     setModes((prev) =>
-      prev.includes(mode) ? prev.filter((m) => m !== mode) : [...prev, mode],
+      prev.includes(mode) ? prev.filter((m) => m !== mode) : [...prev, mode]
     )
   }
 
@@ -106,7 +128,10 @@ export function OnboardingForm() {
         await fetch("/api/targets", {
           method: "PUT",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ firm_ids: targets, primary_firm_id: targets[0] }),
+          body: JSON.stringify({
+            firm_ids: targets,
+            primary_firm_id: targets[0],
+          }),
         })
       }
       await fetch("/api/profile", {
@@ -152,22 +177,34 @@ export function OnboardingForm() {
           <Warren mood="encouraging" size={88} />
           <HandwritingHeadline phrase="Let's build your prep" />
           <p className="max-w-lg text-[15px] leading-relaxed text-muted-foreground">
-            Concord pairs <strong className="text-foreground">company rooms</strong> — what your
-            target firms actually ask, from occurrence signals — with{" "}
-            <strong className="text-foreground">concept labs</strong> that teach the underlying
-            finance. Six quick answers tune your dashboard, study plan, and session packs.
+            Concord pairs{" "}
+            <strong className="text-foreground">company rooms</strong> — what
+            your target firms actually ask, from occurrence signals — with{" "}
+            <strong className="text-foreground">concept labs</strong> that teach
+            the underlying finance. Six quick answers tune your dashboard, study
+            plan, and session packs.
           </p>
         </div>
       ) : null}
 
       {step === 1 ? (
         <div className="space-y-5">
-          <h1 className="font-display text-3xl tracking-tight">Which way do you prep?</h1>
+          <h1 className="font-display text-3xl tracking-tight">
+            Which way do you prep?
+          </h1>
           <div className="grid gap-3 sm:grid-cols-3">
             {(
               [
-                ["company_prep", "Company prep", "Heat-ranked drills for your target firms."],
-                ["concept_learn", "Learn", "Modules and diagram labs that build concepts."],
+                [
+                  "company_prep",
+                  "Company prep",
+                  "Heat-ranked drills for your target firms.",
+                ],
+                [
+                  "concept_learn",
+                  "Learn",
+                  "Modules and diagram labs that build concepts.",
+                ],
               ] as const
             ).map(([id, label, blurb]) => {
               const on = modes.includes(id)
@@ -184,23 +221,43 @@ export function OnboardingForm() {
                     torn={false}
                     className={on ? "outline-2 outline-ink" : "opacity-75"}
                   >
-                    <p className="font-medium">{label}</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{blurb}</p>
+                    <p className="font-medium">
+                      {on ? (
+                        <Annotate
+                          type="underline"
+                          color="var(--lime)"
+                          padding={2}
+                        >
+                          <span>{label}</span>
+                        </Annotate>
+                      ) : (
+                        label
+                      )}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      {blurb}
+                    </p>
                     {on ? (
-                      <p className="mt-2 font-mono text-[10px] tracking-wide uppercase">Selected</p>
+                      <p className="mt-2 font-mono text-[10px] tracking-wide uppercase">
+                        Selected
+                      </p>
                     ) : null}
                   </PaperSheet>
                 </button>
               )
             })}
           </div>
-          <p className="text-xs text-muted-foreground">Pick at least one — both is recommended.</p>
+          <p className="text-xs text-muted-foreground">
+            Pick at least one — both is recommended.
+          </p>
         </div>
       ) : null}
 
       {step === 2 ? (
         <div className="space-y-5">
-          <h1 className="font-display text-3xl tracking-tight">Track and role</h1>
+          <h1 className="font-display text-3xl tracking-tight">
+            Track and role
+          </h1>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Track">
             {(["IB", "PE", "Both"] as const).map((value) => (
               <button
@@ -228,36 +285,70 @@ export function OnboardingForm() {
               onBlur={() => setTyping(false)}
             />
           </div>
-          <Warren mood="idle" userFocused={typing} size={48} aside="Analyst or Associate — I'll calibrate drill depth to it." />
+          <Warren
+            mood="idle"
+            userFocused={typing}
+            size={48}
+            aside="Analyst or Associate — I'll calibrate drill depth to it."
+          />
         </div>
       ) : null}
 
       {step === 3 ? (
         <div className="space-y-5">
           <h1 className="font-display text-3xl tracking-tight">Target firms</h1>
-          <TargetSelectIsland value={targets} onChange={setTargets} />
+          <PaperSheet
+            seedKey="onboarding-target-select"
+            torn={false}
+            className="max-w-xl"
+          >
+            <div className="space-y-3">
+              <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+                Multi-select target set
+              </p>
+              <TargetSelectIsland
+                value={targets}
+                onChange={setTargets}
+                className="max-w-full"
+              />
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Selected firms stay as removable paper chips; Concord weights
+                heat and packs against the full set, with the first firm saved
+                as primary.
+              </p>
+            </div>
+          </PaperSheet>
           {needsFirms && targets.length === 0 ? (
-            <p role="alert" className="border border-dashed border-error px-3 py-2 text-sm">
-              Company prep needs at least one target firm — heat and packs key off this set.
+            <p
+              role="alert"
+              className="border border-dashed border-error px-3 py-2 text-sm"
+            >
+              Company prep needs at least one target firm — heat and packs key
+              off this set.
             </p>
           ) : null}
           {heatPreview.length > 0 ? (
-            <div className="space-y-2">
-              <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-                Signal preview · reported occurrence heat
-              </p>
-              <HeatStrip entries={heatPreview} />
-              <p className="text-xs text-muted-foreground">
-                Directional firm signals only — teaching answers come from the corpus.
-              </p>
-            </div>
+            <PaperSheet seedKey="onboarding-heat-preview" torn={false}>
+              <div className="space-y-2">
+                <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+                  Signal preview · reported occurrence heat
+                </p>
+                <HeatStrip entries={heatPreview} />
+                <p className="text-xs text-muted-foreground">
+                  Directional firm signals only — teaching answers come from the
+                  corpus.
+                </p>
+              </div>
+            </PaperSheet>
           ) : null}
         </div>
       ) : null}
 
       {step === 4 ? (
         <div className="space-y-5">
-          <h1 className="font-display text-3xl tracking-tight">Interview date and time budget</h1>
+          <h1 className="font-display text-3xl tracking-tight">
+            Interview date and time budget
+          </h1>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="interview">Interview date</Label>
@@ -282,15 +373,20 @@ export function OnboardingForm() {
           </div>
           {daysUntil !== null ? (
             <div className="flex items-center gap-4">
-              <CircledNumber value={String(daysUntil)} label="days remaining" size="sm" />
+              <CircledNumber
+                value={String(daysUntil)}
+                label="days remaining"
+                size="sm"
+              />
               <p className="max-w-xs text-sm text-muted-foreground">
-                Your roadmap mixes firm drills and module checkpoints against this date — urgency
-                rises calmly as it approaches.
+                Your roadmap mixes firm drills and module checkpoints against
+                this date — urgency rises calmly as it approaches.
               </p>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              No date yet — the plan still sequences modules and drills, without urgency.
+              No date yet — the plan still sequences modules and drills, without
+              urgency.
             </p>
           )}
         </div>
@@ -298,7 +394,9 @@ export function OnboardingForm() {
 
       {step === 5 ? (
         <div className="space-y-5">
-          <h1 className="font-display text-3xl tracking-tight">Anything specific coming up?</h1>
+          <h1 className="font-display text-3xl tracking-tight">
+            Anything specific coming up?
+          </h1>
           <div className="space-y-2">
             <Label htmlFor="focus">Focus prompt (optional)</Label>
             <Input
@@ -320,16 +418,28 @@ export function OnboardingForm() {
 
       <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
         {step > 0 ? (
-          <Button type="button" variant="ghost" onClick={() => setStep((value) => value - 1)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setStep((value) => value - 1)}
+          >
             Back
           </Button>
         ) : null}
         {step < STEPS.length - 1 ? (
-          <Button type="button" disabled={!canAdvance()} onClick={() => setStep((value) => value + 1)}>
+          <Button
+            type="button"
+            disabled={!canAdvance()}
+            onClick={() => setStep((value) => value + 1)}
+          >
             Continue
           </Button>
         ) : (
-          <Button type="button" disabled={saving || (needsFirms && targets.length === 0)} onClick={() => void finish()}>
+          <Button
+            type="button"
+            disabled={saving || (needsFirms && targets.length === 0)}
+            onClick={() => void finish()}
+          >
             {saving ? "Saving…" : "Enter Concord"}
           </Button>
         )}

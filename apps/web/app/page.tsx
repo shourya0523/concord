@@ -3,7 +3,13 @@ import Link from "next/link"
 import { Button } from "@ibpe/ui/components/button"
 
 import { MockupSvgFilters } from "@/components/mockups/svg-filters"
-import { PaperSheet, Warren } from "@/components/paper"
+import {
+  HandwritingHeadline,
+  InkHoverScope,
+  PaperSheet,
+  RoughHover,
+  Warren,
+} from "@/components/paper"
 
 /**
  * Landing — cream paper document on true-black chrome (DESIGN.md §2).
@@ -32,7 +38,7 @@ function HeatMatrixSketch() {
             stroke="#111"
             strokeWidth="1.2"
           />
-        )),
+        ))
       )}
     </svg>
   )
@@ -49,9 +55,32 @@ function RoadmapSketch() {
         strokeDasharray="4 4"
         strokeLinecap="round"
       />
-      <circle cx="14" cy="56" r="5.5" fill="#f7f1e4" stroke="#111" strokeWidth="1.4" />
-      <circle cx="56" cy="38" r="5.5" fill="#d4cec0" stroke="#111" strokeWidth="1.4" />
-      <rect x="91" y="13" width="14" height="14" rx="2" fill="#f7f1e4" stroke="#111" strokeWidth="1.4" />
+      <circle
+        cx="14"
+        cy="56"
+        r="5.5"
+        fill="#f7f1e4"
+        stroke="#111"
+        strokeWidth="1.4"
+      />
+      <circle
+        cx="56"
+        cy="38"
+        r="5.5"
+        fill="#d4cec0"
+        stroke="#111"
+        strokeWidth="1.4"
+      />
+      <rect
+        x="91"
+        y="13"
+        width="14"
+        height="14"
+        rx="2"
+        fill="#f7f1e4"
+        stroke="#111"
+        strokeWidth="1.4"
+      />
     </svg>
   )
 }
@@ -59,11 +88,38 @@ function RoadmapSketch() {
 function InterviewerSketch() {
   return (
     <svg viewBox="0 0 112 76" className="h-16 w-full" aria-hidden>
-      <circle cx="56" cy="28" r="14" fill="#f7f1e4" stroke="#111" strokeWidth="1.4" />
-      <circle cx="50.5" cy="26" r="4" fill="none" stroke="#111" strokeWidth="1.2" />
-      <circle cx="61.5" cy="26" r="4" fill="none" stroke="#111" strokeWidth="1.2" />
+      <circle
+        cx="56"
+        cy="28"
+        r="14"
+        fill="#f7f1e4"
+        stroke="#111"
+        strokeWidth="1.4"
+      />
+      <circle
+        cx="50.5"
+        cy="26"
+        r="4"
+        fill="none"
+        stroke="#111"
+        strokeWidth="1.2"
+      />
+      <circle
+        cx="61.5"
+        cy="26"
+        r="4"
+        fill="none"
+        stroke="#111"
+        strokeWidth="1.2"
+      />
       <path d="M54.5 26 h3" stroke="#111" strokeWidth="1.2" />
-      <path d="M51 35 q5 3 10 0" fill="none" stroke="#111" strokeWidth="1.2" strokeLinecap="round" />
+      <path
+        d="M51 35 q5 3 10 0"
+        fill="none"
+        stroke="#111"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
       <path
         d="M34 66 C 38 50, 46 46, 56 46 S 74 50, 78 66"
         fill="#d4cec0"
@@ -114,31 +170,41 @@ export default function HomePage() {
           </p>
           <h1 className="max-w-4xl font-display text-5xl leading-[0.98] tracking-tight md:text-7xl">
             Learn the concept.
-            <br />
-            Practise where it matters.
           </h1>
+          <HandwritingHeadline
+            phrase="Practise where it matters"
+            className="mt-2 max-w-4xl [&_p]:text-5xl [&_p]:leading-[0.98] md:[&_p]:text-7xl"
+          />
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-[#555]">
-            Mode A reads firm occurrence heat so you drill what your targets actually ask. Mode B
-            teaches the finance through modules and concept labs. The two never blur: signals stay
-            directional, teaching answers come from the curated corpus — labelled as such,
-            everywhere.
+            Mode A reads firm occurrence heat so you drill what your targets
+            actually ask. Mode B teaches the finance through modules and concept
+            labs. The two never blur: signals stay directional, teaching answers
+            come from the curated corpus — labelled as such, everywhere.
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-3">
-            <Link href="/onboarding">
-              <Button size="lg">Start company prep</Button>
-            </Link>
-            <Link href="/learn">
-              <Button size="lg" variant="outline">
-                Browse modules
-              </Button>
-            </Link>
+          <InkHoverScope
+            selector="a[data-ink-hover]"
+            className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-3"
+          >
+            <RoughHover padding={5}>
+              <Link href="/onboarding">
+                <Button size="lg">Start company prep</Button>
+              </Link>
+            </RoughHover>
+            <RoughHover padding={5}>
+              <Link href="/learn">
+                <Button size="lg" variant="outline">
+                  Browse modules
+                </Button>
+              </Link>
+            </RoughHover>
             <Link
               href="/companies"
+              data-ink-hover
               className="px-1 text-sm text-[#555] underline-offset-4 transition-colors hover:text-[#111] hover:underline"
             >
               See a company room →
             </Link>
-          </div>
+          </InkHoverScope>
         </div>
 
         <div className="mt-auto space-y-4">
@@ -156,14 +222,16 @@ export default function HomePage() {
                     <pillar.Sketch />
                   </div>
                   <p className="font-medium">{pillar.title}</p>
-                  <p className="text-xs leading-relaxed text-[#555]">{pillar.body}</p>
+                  <p className="text-xs leading-relaxed text-[#555]">
+                    {pillar.body}
+                  </p>
                 </li>
               ))}
             </ul>
           </PaperSheet>
           <p className="text-xs leading-relaxed text-[#666]">
-            Teaching corpus: curated public sources and validated enrichment. Glassdoor:
-            directional firm-signal only.
+            Teaching corpus: curated public sources and validated enrichment.
+            Glassdoor: directional firm-signal only.
           </p>
         </div>
       </article>

@@ -11,6 +11,7 @@ import {
   Annotate,
   CircledNumber,
   PaperSheet,
+  RoughHover,
   SemanticPill,
   Warren,
   WarrenCallout,
@@ -139,21 +140,21 @@ function writeStoredCompleted(map: Record<string, boolean>) {
 
 /** Prereq-first module ordering (catalog order breaks ties, cycle-safe). */
 function orderModulesByPrereq(list: ModuleItem[]): ModuleItem[] {
-  const byId = new Map(list.map((module) => [module.id, module]))
+  const byId = new Map(list.map((moduleItem) => [moduleItem.id, moduleItem]))
   const seen = new Set<string>()
   const out: ModuleItem[] = []
-  function visit(module: ModuleItem, guard: Set<string>) {
-    if (seen.has(module.id) || guard.has(module.id)) return
-    guard.add(module.id)
-    for (const prereqId of module.prereq_module_ids ?? []) {
+  function visit(moduleItem: ModuleItem, guard: Set<string>) {
+    if (seen.has(moduleItem.id) || guard.has(moduleItem.id)) return
+    guard.add(moduleItem.id)
+    for (const prereqId of moduleItem.prereq_module_ids ?? []) {
       const prereq = byId.get(prereqId)
       if (prereq) visit(prereq, guard)
     }
-    guard.delete(module.id)
-    seen.add(module.id)
-    out.push(module)
+    guard.delete(moduleItem.id)
+    seen.add(moduleItem.id)
+    out.push(moduleItem)
   }
-  for (const module of list) visit(module, new Set())
+  for (const moduleItem of list) visit(moduleItem, new Set())
   return out
 }
 
@@ -163,16 +164,16 @@ function orderModulesByPrereq(list: ModuleItem[]): ModuleItem[] {
  * signal whenever the catalog is available.
  */
 function moduleCompletion(
-  module: ModuleItem,
+  moduleItem: ModuleItem,
   progress: ModuleProgressRow | undefined
 ): { complete: boolean; ratio: number } {
-  if (module.checkpoints.length > 0) {
+  if (moduleItem.checkpoints.length > 0) {
     const done = progress
-      ? module.checkpoints.filter((c) =>
+      ? moduleItem.checkpoints.filter((c) =>
           progress.completed_checkpoint_ids.includes(c.id)
         ).length
       : 0
-    const ratio = done / module.checkpoints.length
+    const ratio = done / moduleItem.checkpoints.length
     return { complete: ratio >= 1, ratio }
   }
   const ratio = progress ? Math.min(1, Math.max(0, progress.percent)) : 0
@@ -195,11 +196,12 @@ function formatDue(dueAt: string): string {
 function planUrgency(
   days: number,
   overloaded: boolean
-): { label: string; detail: string } {
+): { label: string; detail: string; tone: "milestone" | "streak" | "weak" } {
   if (overloaded) {
     return {
       label: "Over budget",
       detail: "Drop to the core path before adding more firm reps.",
+      tone: "weak",
     }
   }
   if (days <= 7) {
@@ -207,6 +209,7 @@ function planUrgency(
       label: "Final stretch",
       detail:
         "Keep only the highest-leverage drills, weak labs, and one mock loop.",
+      tone: "weak",
     }
   }
   if (days <= 14) {
@@ -214,6 +217,7 @@ function planUrgency(
       label: "Close window",
       detail:
         "Prioritize hot firm topics and the next unlocked module checkpoint.",
+      tone: "streak",
     }
   }
   if (days <= 30) {
@@ -221,12 +225,14 @@ function planUrgency(
       label: "Build cadence",
       detail:
         "Use this runway to clear prerequisites before firm-specific reps get dense.",
+      tone: "streak",
     }
   }
   return {
     label: "Date set",
     detail:
       "The roadmap can pace modules, concept labs, and mocks against your interview.",
+    tone: "milestone",
   }
 }
 
@@ -320,11 +326,17 @@ export function StudyPlanIsland() {
 
   React.useEffect(() => {
     const controller = new AbortController()
-    void load(controller.signal)
+    let active = true
+    queueMicrotask(() => {
+      if (active) void load(controller.signal)
+    })
     void fetchFirmOptions().then((options) => {
       setFirmNames(new Map(options.map((firm) => [firm.id, firm.name])))
     })
-    return () => controller.abort()
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [load])
 
   function flashSaved() {
@@ -433,8 +445,9 @@ export function StudyPlanIsland() {
         moduleProgress.map((row) => [row.module_id, row])
       )
       const nextModule = orderModulesByPrereq(modules).find(
-        (module) =>
-          !moduleCompletion(module, progressByModule.get(module.id)).complete
+        (moduleItem) =>
+          !moduleCompletion(moduleItem, progressByModule.get(moduleItem.id))
+            .complete
       )
       if (nextModule) {
         items.push({ kind: "module", id: nextModule.id, due_at: nextDue() })
@@ -559,12 +572,15 @@ export function StudyPlanIsland() {
     }
   }
 
-  const moduleById = new Map(modules.map((module) => [module.id, module]))
+  const moduleById = new Map(
+    modules.map((moduleItem) => [moduleItem.id, moduleItem])
+  )
   const conceptById = new Map(concepts.map((concept) => [concept.id, concept]))
   const checkpointById = new Map(
-    modules.flatMap((module) =>
-      module.checkpoints.map(
-        (checkpoint) => [checkpoint.id, { checkpoint, module }] as const
+    modules.flatMap((moduleItem) =>
+      moduleItem.checkpoints.map(
+        (checkpoint) =>
+          [checkpoint.id, { checkpoint, module: moduleItem }] as const
       )
     )
   )
@@ -574,9 +590,10 @@ export function StudyPlanIsland() {
 
   function serverCompleted(item: PlanItem): boolean {
     if (item.kind === "module") {
-      const module = moduleById.get(item.id)
-      if (!module) return false
-      return moduleCompletion(module, progressByModule.get(item.id)).complete
+      const moduleItem = moduleById.get(item.id)
+      if (!moduleItem) return false
+      return moduleCompletion(moduleItem, progressByModule.get(item.id))
+        .complete
     }
     if (item.kind === "module_checkpoint") {
       const entry = checkpointById.get(item.id)
@@ -595,25 +612,28 @@ export function StudyPlanIsland() {
     title: string
     href: string
     detail?: string
+    isDiagram?: boolean
+    isMock?: boolean
   } {
     if (item.kind === "module") {
-      const module = moduleById.get(item.id)
+      const moduleItem = moduleById.get(item.id)
       return {
         chip: "module",
-        title: module?.title ?? item.id,
-        href: module ? `/learn/${module.slug}` : "/learn",
-        detail: module
-          ? `${module.checkpoints.length} checkpoints · prereq-ordered`
+        title: moduleItem?.title ?? item.id,
+        href: moduleItem ? `/learn/${moduleItem.slug}` : "/learn",
+        detail: moduleItem
+          ? `${moduleItem.checkpoints.length} checkpoints · prereq-ordered`
           : undefined,
       }
     }
     if (item.kind === "module_checkpoint") {
       const entry = checkpointById.get(item.id)
       return {
-        chip: "checkpoint",
+        chip: entry?.checkpoint.kind === "diagram" ? "diagram" : "checkpoint",
         title: entry?.checkpoint.title ?? item.id,
         href: entry ? `/learn/${entry.module.slug}` : "/learn",
         detail: entry ? `Module · ${entry.module.title}` : undefined,
+        isDiagram: entry?.checkpoint.kind === "diagram",
       }
     }
     if (item.kind === "concept") {
@@ -644,6 +664,7 @@ export function StudyPlanIsland() {
         title: "Firm mock interview",
         href: "/simulator",
         detail: "Firm-templated stages · self-rated",
+        isMock: true,
       }
     }
     if (item.kind === "diagram") {
@@ -652,6 +673,7 @@ export function StudyPlanIsland() {
         title: item.id,
         href: "/learn",
         detail: "Diagram checkpoint",
+        isDiagram: true,
       }
     }
     return { chip: item.kind, title: item.id, href: "/study" }
@@ -691,9 +713,12 @@ export function StudyPlanIsland() {
     remaining > 0 &&
     neededPerDay > dailyBudgetItems
   const urgency = daysLeft === null ? null : planUrgency(daysLeft, behind)
-  const orderedModuleRows = orderModulesByPrereq(modules).map((module) => {
-    const completion = moduleCompletion(module, progressByModule.get(module.id))
-    return { module, ...completion }
+  const orderedModuleRows = orderModulesByPrereq(modules).map((moduleItem) => {
+    const completion = moduleCompletion(
+      moduleItem,
+      progressByModule.get(moduleItem.id)
+    )
+    return { module: moduleItem, ...completion }
   })
   const firstOpenModuleIndex = orderedModuleRows.findIndex(
     (row) => !row.complete
@@ -787,11 +812,10 @@ export function StudyPlanIsland() {
                 size="md"
               />
               <div className="max-w-md space-y-2 text-sm">
-                <SemanticPill
-                  tone={behind || daysLeft <= 14 ? "streak" : "milestone"}
-                >
-                  {urgency.label}
-                </SemanticPill>
+                <SemanticPill tone={urgency.tone}>{urgency.label}</SemanticPill>
+                {behind ? (
+                  <SemanticPill tone="weak">catch-up path</SemanticPill>
+                ) : null}
                 <p className="leading-relaxed text-muted-foreground">
                   {urgency.detail}
                 </p>
@@ -953,8 +977,9 @@ export function StudyPlanIsland() {
             {remaining} assignments in {daysLeft} day{daysLeft === 1 ? "" : "s"}{" "}
             is about {neededPerDay}/day — above your ~{dailyBudgetItems}/day
             budget (≈
-            {MINUTES_PER_ASSIGNMENT} min each). I&apos;d drop to the core:
-            module checkpoints, weak concept labs, and the mock slot.
+            {MINUTES_PER_ASSIGNMENT} min each). You are still in range if we
+            protect the core: module checkpoints, weak concept labs, and the
+            mock slot.
           </span>
           <span className="mt-2 inline-block">
             <Button
@@ -970,59 +995,110 @@ export function StudyPlanIsland() {
       ) : null}
 
       {resolved.length > 0 ? (
-        <PaperSheet seedKey="plan-roadmap" torn={false}>
-          <ol className="space-y-1">
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+              Daily roadmap
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              Paper day cells · completed work gets crossed off
+            </span>
+          </div>
+          <ol className="grid gap-3 md:grid-cols-2">
             {resolved.map(({ item, key, completed, view }, index) => (
-              <li key={key} className="relative flex gap-3 py-3">
-                {index < resolved.length - 1 ? (
-                  <span
-                    aria-hidden
-                    className="absolute top-11 bottom-[-0.75rem] left-[0.8125rem] border-l border-dashed border-border"
-                  />
-                ) : null}
-                <button
-                  type="button"
-                  aria-pressed={completed}
-                  aria-label={`${completed ? "Reopen" : "Complete"}: ${view.title}`}
-                  disabled={saving}
-                  onClick={() => void toggleItem(item, completed)}
-                  className="flex size-7 shrink-0 items-center justify-center rounded-full border border-ink bg-paper transition-colors hover:bg-secondary disabled:opacity-60"
+              <li key={key} className="relative">
+                <PaperSheet
+                  seedKey={`plan-day-${index + 1}-${key}`}
+                  torn={false}
+                  className={completed ? "opacity-80" : undefined}
                 >
-                  {completed ? (
-                    <Check className="size-3.5" aria-hidden />
-                  ) : null}
-                </button>
-                <div className="min-w-0 pt-0.5">
-                  <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                    {view.chip}
-                    {item.due_at ? ` · due ${formatDue(item.due_at)}` : ""}
-                  </p>
-                  <Link
-                    href={view.href}
-                    className="text-sm font-medium underline-offset-4 hover:underline"
-                  >
-                    {completed ? (
-                      <Annotate
-                        type="crossed-off"
-                        color="var(--graphite)"
-                        padding={2}
+                  <div className="flex items-start gap-3">
+                    <button
+                      type="button"
+                      aria-pressed={completed}
+                      aria-label={`${completed ? "Reopen" : "Complete"}: ${view.title}`}
+                      disabled={saving}
+                      onClick={() => void toggleItem(item, completed)}
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full border border-ink bg-paper transition-colors hover:bg-secondary disabled:opacity-60"
+                    >
+                      {completed ? (
+                        <Check className="size-3.5" aria-hidden />
+                      ) : null}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                          Day {index + 1}
+                        </span>
+                        <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                          {completed ? (
+                            <Annotate
+                              type="strike-through"
+                              color="var(--error-foreground)"
+                              padding={1}
+                            >
+                              {view.chip}
+                              {item.due_at
+                                ? ` · due ${formatDue(item.due_at)}`
+                                : ""}
+                            </Annotate>
+                          ) : (
+                            <>
+                              {view.chip}
+                              {item.due_at
+                                ? ` · due ${formatDue(item.due_at)}`
+                                : ""}
+                            </>
+                          )}
+                        </span>
+                        {view.isDiagram ? (
+                          <SemanticPill tone="neutral" icon={false}>
+                            diagram
+                          </SemanticPill>
+                        ) : null}
+                      </div>
+                      <Link
+                        href={view.href}
+                        className="mt-2 inline-block text-sm font-medium underline-offset-4 hover:underline"
                       >
-                        {view.title}
-                      </Annotate>
-                    ) : (
-                      view.title
-                    )}
-                  </Link>
-                  {view.detail ? (
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {view.detail}
-                    </p>
-                  ) : null}
-                </div>
+                        {view.isMock ? (
+                          <RoughHover>
+                            {completed ? (
+                              <Annotate
+                                type="crossed-off"
+                                color="var(--graphite)"
+                                padding={2}
+                              >
+                                {view.title}
+                              </Annotate>
+                            ) : (
+                              view.title
+                            )}
+                          </RoughHover>
+                        ) : completed ? (
+                          <Annotate
+                            type="crossed-off"
+                            color="var(--graphite)"
+                            padding={2}
+                          >
+                            {view.title}
+                          </Annotate>
+                        ) : (
+                          view.title
+                        )}
+                      </Link>
+                      {view.detail ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {view.detail}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </PaperSheet>
               </li>
             ))}
           </ol>
-        </PaperSheet>
+        </section>
       ) : (
         <PaperSheet seedKey="plan-empty" torn={false}>
           <div className="flex flex-wrap items-start gap-4">
@@ -1045,7 +1121,7 @@ export function StudyPlanIsland() {
           href="/simulator"
           className="text-foreground underline-offset-4 hover:underline"
         >
-          Open the interview simulator →
+          <RoughHover>Open the interview simulator →</RoughHover>
         </Link>
       </div>
     </div>

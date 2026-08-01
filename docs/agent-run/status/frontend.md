@@ -1,18 +1,32 @@
 # Status: frontend
 
+<<<<<<< HEAD
 State: DESIGN.md gap-close integrate (dark mode + §10.5/10.3/10.4/10.6/10.8/10.9/10.12/10.13)
 Wave: 2
 Updated: 2026-08-01
 Branch: `local/ws-learn-study-depth-bb32`
+=======
+State: DESIGN.md gap-close integrate + paper-kit visual cohesion + Simulator/Study plan paper depth
+Wave: 2
+Updated: 2026-08-01
+Branch: `local/ws-sim-plan-paper-bb32`
+>>>>>>> origin/local/ws-sim-plan-paper-bb32
 
 ## Verification
 
 - `npm run typecheck -w @ibpe/web` — green (per workstream branches; re-run on integrate)
+<<<<<<< HEAD
 - `npm run typecheck -w @ibpe/web` — green on `local/ws-learn-study-depth-bb32`
+=======
+- `npm run typecheck -w @ibpe/web` — green on `local/ws-paper-cohesion-bb32`
+- `npm run typecheck -w @ibpe/web` — green on `local/ws-sim-plan-paper-bb32`
+- `npm run lint -w @ibpe/web -- components/simulator-island.tsx components/study-plan-island.tsx components/paper/index.ts` — green
+>>>>>>> origin/local/ws-sim-plan-paper-bb32
 
 ## Notes
 
 - Workstream C Wave 2 — Mode A/B product routes on Editorial Finance Terminal
+- Workstream C paper cohesion pass: landing hero handwriting + rough CTAs, onboarding target/heat paper inserts, company index paper firm rows, and heat compare paper matrix/insight callouts
 - Dark mode: cream paper + black ink preserved under `.dark` (chrome deepens only); Settings theme control; PaperSheet/diagram tokenised
 - DESIGN.md §10.5 P0 Pseudo-RAG is now a real flagship session: `/prep/rag` keeps the frozen brief + citation-card pack preview, then starts an inline layered study loop over retrieved pack item ids.
 - The loop is shared with `/study` via `StudyLoopIsland`, so Mode A reuses the signature answer-before-reveal flow, keyboard shortcuts, concept diagram/heat peek rail, sources, notes/bookmarks, and session close pattern.
@@ -25,6 +39,7 @@ Branch: `local/ws-learn-study-depth-bb32`
 - DESIGN.md §10.6 Learn depth: module hubs now render lesson PaperSheets with prereq/core/apply notes from concept detail, pitfall callouts, resource provenance links, real-ID module drill/quiz links when available, and saved-target Apply-at-firm RAG CTAs
 - DESIGN.md §10.8-§10.9 Study depth: Again/Hard/Good/Easy self-rating pills map to confidence, hints stay pre-reveal and structure-only, `p` backs up one revealed layer while `Shift+p` moves to the previous question, and close CTAs link to weak-topic practice plus target-firm context
 - Design Phase 2 gap-close Item 4 — dashboard readiness/streak/urgency polish, study-plan urgency + prereq module mini-map, and concept lab prereq/parent-module mini-maps
+- DESIGN.md §10.10-§10.11 paper-kit depth: Simulator has a calm stage countdown/overtime clock, technical-stage diagram prompt rail, handwriting + burst score reveal, annotated weak-stage after-action sheet, and rough-hover CTAs; Study plan roadmap uses paper day cells, strike/cross-off completion marks, weak/streak urgency pills, diagram pills for real diagram checkpoints, and a rough-hover mock slot link
 - Dashboard readiness now derives from target firm heat rows + concept mastery, mirroring the progress readiness tiers with visible numeric scores
 - Neon Auth shells (`/sign-in`, `/sign-up`, `/api/auth/[...path]`) — ADR 0006; stub when env unset
 - Consumes `@ibpe/ui` primitives (TopicHeatmap, PseudoRagCitationCard, TargetCompanyMultiSelect, etc.)
