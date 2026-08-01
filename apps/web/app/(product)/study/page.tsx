@@ -276,7 +276,9 @@ export default function StudyPage() {
         .map((item) => item.trim())
         .filter(Boolean) ?? []
     const requestedMode =
-      params.get("mode") === "pseudo_rag" ? "pseudo_rag" : "adaptive_weak"
+      params.get("mode") === "rag" || params.get("mode") === "pseudo_rag"
+        ? "rag"
+        : "adaptive_weak"
     const requestedTopic = params.get("topic")?.trim() || null
     const requestedLearningMode =
       params.get("learning_mode") === "company_prep"

@@ -21,7 +21,7 @@ type StudyLoopIslandProps = {
   initialFirmIds?: string[]
   title?: string
   eyebrow?: string
-  sessionMode?: "company" | "concept" | "adaptive_weak" | "pseudo_rag" | "simulator"
+  sessionMode?: "company" | "concept" | "adaptive_weak" | "rag" | "pseudo_rag" | "simulator"
   learningMode?: "company_prep" | "concept_learn"
   ragContext?: RagStudyContext
 }

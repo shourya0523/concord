@@ -153,7 +153,9 @@ request (mode, firm_ids?, concept_ids?, limit)
   → attempt → LLM/custom grade (above) → mastery upsert
 ```
 
-**Today's gaps:** mode-blind `listQuestions` fallback; static simulator stages; self-rate only; heat not fed into practice grading; RAG mode still named `pseudo_rag`.
+**Implemented (this pass):** mode pack builders (`practice-packs.ts`); `rag` mode (+`pseudo_rag` alias); firm_context_snapshot on sessions; LLM/deterministic grader with heat citations; diagram seed 040 + embed path for diagram a11y.
+
+**Still open:** prod dense-RAG key reliability; Neon occurrence→teaching join persistence; fail-closed API readiness endpoint; broader diagram↔concept graph.
 
 ### Diagrams (Mode B asset lane)
 

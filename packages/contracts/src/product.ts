@@ -410,6 +410,20 @@ export const StudyPlanItemSchema = z.object({
 });
 export type StudyPlanItem = z.infer<typeof StudyPlanItemSchema>;
 
+export const AttemptScoreSourceEnum = z.enum([
+  "self",
+  "llm",
+  "deterministic",
+]);
+export type AttemptScoreSource = z.infer<typeof AttemptScoreSourceEnum>;
+
+export const AttemptGradeCitationSchema = z.object({
+  id: z.string(),
+  kind: z.enum(["teaching_answer", "heat_topic", "occurrence"]),
+  label: z.string().optional(),
+});
+export type AttemptGradeCitation = z.infer<typeof AttemptGradeCitationSchema>;
+
 export const AttemptSchema = z.object({
   id: z.string(),
   user_id: z.string(),
@@ -423,6 +437,10 @@ export const AttemptSchema = z.object({
   correct: z.boolean().nullable().optional(),
   weak_topics: z.array(z.string()).default([]),
   firm_id: z.string().nullable().optional(),
+  score_source: AttemptScoreSourceEnum.optional(),
+  llm_score: z.number().min(0).max(1).nullable().optional(),
+  rubric_json: z.record(z.unknown()).nullable().optional(),
+  grade_citations: z.array(AttemptGradeCitationSchema).default([]),
   created_at: z.string(),
 });
 export type Attempt = z.infer<typeof AttemptSchema>;

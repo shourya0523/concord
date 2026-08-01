@@ -119,6 +119,47 @@ const STUB_DIAGRAM_BODIES: Record<
     a11y:
       "Sources: sponsor equity and debt facilities fund the buyout. Uses: acquire target equity, refinance debt, and pay fees.",
   },
+  diag_wacc_build: {
+    title: "WACC build-up",
+    mermaid: `flowchart LR
+  Re[Cost of equity] --> WACC[WACC]
+  Rd[After-tax cost of debt] --> WACC
+  W[E/V and D/V weights] --> WACC
+  WACC --> Discount[Discount UFCF]`,
+    a11y:
+      "WACC blends cost of equity and after-tax cost of debt by target capital structure weights.",
+  },
+  diag_accretion_dilution: {
+    title: "Accretion and dilution",
+    mermaid: `flowchart TB
+  Standalone[Standalone EPS] --> Compare{Compare}
+  ProForma[Pro-forma EPS] --> Compare
+  Compare -->|Higher| Acc[Accretive]
+  Compare -->|Lower| Dil[Dilutive]`,
+    a11y:
+      "Compare pro-forma EPS with standalone EPS. Accretive if pro-forma EPS rises; dilutive if it falls.",
+  },
+  diag_moic_irr: {
+    title: "MOIC and IRR",
+    mermaid: `flowchart LR
+  Entry[Entry equity] --> MOIC[MOIC = Exit / Entry]
+  Exit[Exit equity] --> MOIC
+  MOIC --> IRR[IRR ≈ MOIC^(1/n) - 1]`,
+    a11y:
+      "MOIC is exit equity over entry equity. IRR annualises that multiple over the hold period.",
+  },
+  diag_paper_lbo_returns: {
+    title: "Paper LBO returns bridge",
+    mermaid: `flowchart TB
+  EntryEq[Entry equity] --> Bridge[Returns bridge]
+  Delev[Debt paydown] --> Bridge
+  Ebitda[EBITDA growth] --> Bridge
+  Mult[Exit multiple] --> Bridge
+  Bridge --> ExitEq[Exit equity]
+  ExitEq --> Returns[MOIC and IRR]`,
+    a11y:
+      "Entry equity, debt paydown, EBITDA growth, and exit multiple change bridge to exit equity and MOIC/IRR.",
+  },
 }
 
 const STUB_CONCEPTS: Concept[] = [

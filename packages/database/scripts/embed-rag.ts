@@ -174,6 +174,75 @@ async function main() {
       await new Promise((r) => setTimeout(r, 15_000));
     }
 
+    // Diagram a11y / titles → rag_documents (concept retrieval, not Glassdoor).
+    type DiagramRow = {
+      id: string;
+      title: string;
+      a11y_fallback: string | null;
+      body: string | null;
+    };
+    const diagramRes = await pool.query<DiagramRow>(
+      `
+      SELECT d.id, d.title, d.a11y_fallback, v.body
+      FROM canonical.diagrams d
+      LEFT JOIN LATERAL (
+        SELECT body FROM canonical.diagram_versions dv
+        WHERE dv.diagram_id = d.id
+        ORDER BY dv.created_at DESC NULLS LAST
+        LIMIT 1
+      ) v ON true
+      WHERE NOT EXISTS (
+        SELECT 1 FROM canonical.rag_documents r
+        WHERE r.id = ('diagram:' || d.id) AND r.embedding IS NOT NULL
+      )
+      ${limit && limit > 0 ? `LIMIT ${Number(limit)}` : ""}
+      `,
+    );
+    let diagramsUpserted = 0;
+    for (const d of diagramRes.rows) {
+      const body = [d.a11y_fallback ?? "", d.body ?? ""].filter(Boolean).join("\n\n");
+      if (!body.trim()) continue;
+      const text = `${d.title}\n\n${body}`;
+      let vectors: number[][] | null = null;
+      try {
+        vectors = await embedTexts([text]);
+      } catch (err) {
+        console.warn(`[embed-rag] diagram ${d.id} failed`, err);
+        continue;
+      }
+      const emb = vectors[0];
+      if (!emb) continue;
+      const contentHash = createHash("sha256").update(text).digest("hex");
+      const literal = toPgVectorLiteral(emb);
+      await pool.query(
+        `
+        INSERT INTO canonical.rag_documents (
+          id, kind, canonical_question_id, title, body, topic, domain, difficulty,
+          provenance, content_hash, embedding, model_id, updated_at
+        ) VALUES (
+          $1, 'diagram', NULL, $2, $3, NULL, NULL, NULL,
+          'editorial', $4, $5::vector, $6, now()
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          title = EXCLUDED.title,
+          body = EXCLUDED.body,
+          content_hash = EXCLUDED.content_hash,
+          embedding = EXCLUDED.embedding,
+          model_id = EXCLUDED.model_id,
+          updated_at = now()
+        `,
+        [
+          `diagram:${d.id}`,
+          d.title,
+          body,
+          contentHash,
+          literal,
+          `google/${DEFAULT_EMBEDDING_MODEL}`,
+        ],
+      );
+      diagramsUpserted++;
+    }
+
     const count = await pool.query(
       `SELECT COUNT(*)::int AS n FROM canonical.rag_documents WHERE embedding IS NOT NULL`,
     );
@@ -181,6 +250,7 @@ async function main() {
       JSON.stringify(
         {
           upserted,
+          diagrams_upserted: diagramsUpserted,
           embedded_rows: count.rows[0]?.n,
           model: DEFAULT_EMBEDDING_MODEL,
         },
