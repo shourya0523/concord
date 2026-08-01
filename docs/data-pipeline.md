@@ -82,30 +82,89 @@ DATABASE_URL=… GEMINI_API_KEY=… npm run embed:rag -w @ibpe/database
 
 ## Practice interviews (Lane P)
 
+### Real RAG is the product path (retire “pseudo-RAG” as a mode)
+
+We already ship **embedding-backed hybrid RAG** (`apps/web/lib/data/rag.ts` → `canonical.rag_documents` + `buildRealRagPack`). Lexical `buildPseudoRagPack` is a **fallback** when embeddings/API keys are missing — not a product mode.
+
+| Today (debt) | Target |
+|--------------|--------|
+| Practice enum value `pseudo_rag` | Rename to `rag` (compat alias for one release) |
+| UI/components named `PseudoRag*` | Cite cards become `RagCitation*` (or keep component id, change copy) |
+| Session mode label implies fake retrieval | Mode means “freeze a cited RAG company pack” |
+
+`company` and `rag` are related but not identical: **`rag`** = retrieval-first pack with citations; **`company`** = heat-ranked firm drill (may call the same retriever under the hood).
+
 ### Modes
 
 | Mode | Intent | Pack source (target) | Completeness gate |
 |------|--------|----------------------|-------------------|
-| `company` | Mode A firm prep | Teaching Qs ranked by firm heat ∩ topic join | Firm has heat topics; ≥N joinable teaching Qs **or** lexical RAG fallback labeled as such |
+| `company` | Mode A firm drills | Teaching Qs via heat × join × RAG re-rank | Firm heat present; pack ≥N teaching Qs |
 | `concept` | Mode B labs | Module checkpoint `question_ids` / concept tags | Module checkpoints non-empty |
-| `adaptive_weak` | Spaced weak topics | Mastery gaps × published bank | User has ≥1 attempt history **or** cold-start concept pack |
-| `pseudo_rag` | Cited company pack | `/api/prep/rag` retrieval freeze | RAG embeddings present for published bank |
-| `simulator` | Timed multi-stage mock | Stage template × firm track (IB/PE) | Stage→topic map resolved; questions per stage ≥1 |
+| `adaptive_weak` | Spaced weak topics | Mastery gaps × published bank (+ optional RAG) | Attempts exist **or** cold-start concept pack |
+| `rag` (`pseudo_rag` alias) | Cited company prep pack | `/api/prep/rag` → `buildRealPrepRagPack` freeze | Dense embeddings green (lexical fallback allowed but labeled) |
+| `simulator` | Timed multi-stage mock | Stage × firm track × heat-biased RAG | ≥1 teaching Q per stage |
+
+### Scoring — LLM + firm context (not self-rate forever)
+
+**Today:** attempts store self-rated `confidence` / `correct`; mastery = rolling score from that boolean. No rubric. No Glassdoor context in the score.
+
+**Target attempt path:**
+
+```text
+response_text
+  → load teaching Answer (concise + expanded + common mistakes)
+  → load firm context pack (signals only):
+        topic heat rows + occurrence snippets for firm_ids
+        + RAG hits for this question/topic (teaching docs only)
+  → Gemini structured grade (rubric):
+        correctness 0–1, coverage of key points, red flags,
+        firm_alignment note ("this firm heat skews to X — you missed…")
+        citations restricted to teaching answer ids + heat topic ids
+  → persist: self_score (optional), llm_score, rubric_json, weak_topics[]
+  → mastery from llm_score (fallback to self if LLM unavailable)
+```
+
+Hard rules for the grader:
+
+1. Glassdoor text is **context for weighting / coaching**, never the gold answer.
+2. Every firm-specific claim in feedback must cite heat topic or occurrence id — same cite-only discipline as `rag-brief.ts`.
+3. Numerical questions prefer deterministic checks from `calculation_representation` before/alongside LLM.
+4. Fail open to self-score with `score_source=self` when `GEMINI_API_KEY` missing; never invent firm facts.
+
+### Glassdoor leverage (efficient use)
+
+Stop treating “messy join” as the only Mode A path. Use signals in three layers:
+
+| Layer | Use | Not for |
+|-------|-----|---------|
+| Topic heat | Rank / bias packs + simulator stages | Answer wording |
+| Occurrence snippets | Grader “firm asks a lot of X” coaching | Teaching truth |
+| Join to teaching canonical | Deep link study cards when wording matches | Required for every pack item |
+
+RAG already accepts `heat` into `searchCorpus` / `buildRealRagPack`. Wire that into **practice pack builders and the grader context**, not only `/prep/rag`.
 
 ### Session lifecycle
 
 ```text
 request (mode, firm_ids?, concept_ids?, limit)
   → completeness gate (fail closed with typed ApiError if mode not ready)
-  → pack builder (mode-specific; never bare listQuestions default for named modes)
-  → freeze question_ids + stage metadata on study_sessions.metadata_json
-  → attempts (response_text, confidence, correct?, time_spent_ms)
-  → mastery upsert
+  → pack builder (mode-specific; never bare listQuestions for named modes)
+  → freeze question_ids + stage metadata + firm_context_snapshot on session
+  → attempt → LLM/custom grade (above) → mastery upsert
 ```
 
-**Today's gap:** `createPracticeSession` falls back to `listQuestions` for any empty `question_ids`, so mode labels do not change selection. Simulator stages are a static IB/PE template. Attempts are mostly self-rated confidence.
+**Today's gaps:** mode-blind `listQuestions` fallback; static simulator stages; self-rate only; heat not fed into practice grading; RAG mode still named `pseudo_rag`.
 
-**Target:** each mode has a dedicated pack builder in `apps/web/lib/data/` (or `@ibpe/search` recommenders). Freeze membership at start. Simulator may keep self-rating until an optional rubric scorer lands — but stages must pull real topic-tagged teaching Qs.
+### Diagrams (Mode B asset lane)
+
+Schema exists: `canonical.diagrams` + `diagram_versions` (`format=mermaid|interactive-json`, body text). Seed is thin (~few mermaid flows in `035_diagram_resources_seed.sql`).
+
+| Gap | Target |
+|-----|--------|
+| Few diagrams / weak concept links | Every core concept (DCF, LBO, 3-statement, WACC, …) has ≥1 published mermaid version |
+| Enrich may invent diagrams without publish gate | Gemini diagram drafts → review → `diagram_versions` with provenance |
+| Checkpoints reference empty `diagram_id` / drills | Module checkpoints point at real `diagram_id` + question_ids |
+| RAG index ignores diagram a11y text | Embed diagram title + a11y_fallback into `rag_documents` for concept retrieval |
 
 ## Completeness model
 
@@ -118,11 +177,13 @@ Completeness is **product-aware**, not “row count went up.”
 | C1 | Teaching answer coverage | 100% of publishable Qs have non-rejected answers | `reports/answer-coverage-report.md` |
 | C2 | Teaching taxonomy | ≥80% publishable Qs have topic + domain ∈ {ib,pe,both} | DQ report / Neon SQL |
 | C3 | Signal topic coverage | ≥70% occurrences topic-tagged (not `untagged`) | Heat + bank backfill metrics |
-| C4 | Signal↔teaching join | ≥25% occurrences link a teaching canonical **or** explicit “heat-only” product path | Join audits + Neon `canonical_question_id` |
+| C4 | Signal↔teaching join | ≥25% occurrences link a teaching canonical **or** heat-biased RAG pack path live | Join audits + Neon `canonical_question_id` |
 | C5 | PE breadth | Thresholds in `config/pe_target_matrix.yml` | `reports/pe-coverage-report.md` |
 | C6 | Mode B drills | Every published module checkpoint has ≥3 `question_ids` | Neon `learning_module_checkpoints` |
-| C7 | Practice mode readiness | Gates in the mode table above pass | Integration audit + API readiness endpoint |
+| C7 | Practice mode readiness | Gates in the mode table above pass; `rag` uses dense backend in prod | Integration audit + API readiness |
 | C8 | License | High-priority GitHub sources cleared | `reports/license-review.md` |
+| C9 | LLM practice scoring | ≥1 firm simulator/company attempt path returns `score_source=llm` with citations | Attempt API / eval fixture |
+| C10 | Diagram coverage | Core concepts each have ≥1 mermaid `diagram_versions` row linked from modules | Neon diagram + checkpoint SQL |
 
 ### Scoreboard
 

@@ -5,97 +5,113 @@ product_contract_source: ce-brainstorm
 execution: code
 title: Data Pipeline Rethink - Plan
 date: 2026-08-01
+updated: 2026-08-01
 ---
 
 # Data Pipeline Rethink - Plan
 
 ## Goal Capsule
 
-**Objective:** Make question processing, practice interviews, and completeness one coherent product pipeline — three lanes (teaching, firm signals, practice) with explicit gates — instead of a single implied conveyor that the code already outgrew.
+**Objective:** Make question processing, practice interviews, and completeness one coherent product pipeline — three lanes (teaching, firm signals, practice) — with **real RAG**, **LLM/custom scoring**, and **Glassdoor-as-firm-context** (not pseudo-mode theater).
 
-**Product authority:** ADR 0002 data thesis; Modes A (company prep) and B (concept labs); `docs/data-pipeline.md` is the operational source of truth after this plan.
+**Product authority:** ADR 0002; Modes A/B; `docs/data-pipeline.md`.
 
 **Open blockers:**
 
-- Neon occurrences largely unlinked to teaching canonicals (`canonical_question_id` null) — Mode A join packs weak.
-- Learn module checkpoints seeded empty — Mode B drills not practice-ready.
-- Practice session creation ignores mode when `question_ids` empty.
-- License review still BLOCKING for some GitHub sources before corpus expansion.
+- Neon occurrences largely unlinked to teaching canonicals — join weak; heat-biased RAG must carry Mode A until joins catch up.
+- Learn module checkpoints empty; diagram graph thin.
+- Practice sessions mode-blind; attempts self-rated only.
+- Practice enum still named `pseudo_rag` despite `buildRealRagPack` / `rag_documents`.
+- License BLOCKING for some GitHub sources.
 
 ## Product Contract
 
 ### Summary
 
-Rethink the pipeline as **Lane T (teaching)**, **Lane S (signals)**, and **Lane P (practice)**. Questions are processed differently by lane. Practice modes only start when their completeness gate passes. A living completeness scoreboard replaces ad-hoc “row counts look fine.”
+Three lanes (T / S / P). **Real embedding RAG is the default retrieval path**; lexical pseudo-RAG is fallback only. Practice grading uses teaching answers as gold + Glassdoor heat/snippets as firm context via a cite-only LLM rubric. Completeness scoreboard includes scoring (C9) and diagrams (C10).
 
 ### Problem Frame
 
-Docs describe one stage chain (`discover → … → export/publish`). Code runs a collapsed fixture assembly, a parallel Glassdoor scrape, a separate Neon publish, and practice APIs that treat modes as labels. Product gaps (empty drills, null joins, untagged topics) show up as UX holes, not as pipeline failures. Operators cannot answer “are we complete enough for Mode A/B?” with one artifact.
+Docs implied one conveyor; code split teaching/signals/publish. Product still talks “pseudo-RAG” while dense retrieval exists. Practice ignores LLM and firm signals at grade time. Glassdoor volume sits in heat tables but does not coach or score company interviews. Diagrams have a schema and a tiny seed — not a Mode B asset pipeline.
 
 ### Users / Actors
 
 | Actor | Need |
 |-------|------|
-| Candidate (Mode A) | Firm-relevant practice packs grounded in heat × teaching Q/A |
-| Candidate (Mode B) | Concept labs with real drill questions |
-| Corpus operator | Restartable jobs, honest provenance, publish gates |
-| Programme / QA | Completeness scoreboard that matches product readiness |
+| Candidate (Mode A) | Firm-biased packs + feedback that mentions what *this firm* skews toward |
+| Candidate (Mode B) | Concept labs with drills **and** mermaid diagram checkpoints |
+| Corpus operator | Honest provenance; Glassdoor never becomes gold answers |
+| Programme / QA | Scoreboard for RAG backend, scoring, joins, diagrams |
 
 ### Key Decisions
 
 | ID | Decision |
 |----|----------|
-| KD-1 | Adopt three-lane model (T / S / P); abandon single-conveyor mental model in architecture docs. |
-| KD-2 | Practice modes must use mode-specific pack builders; bare `listQuestions` fallback is only for explicit unscoped/dev requests. |
-| KD-3 | Completeness is eight product dimensions (C1–C8 in `docs/data-pipeline.md`); green thresholds gate modes and publish. |
-| KD-4 | Neon publish must not blind-stamp `validation_status=validated` without attesting Python validator results or re-running an equivalent gate. |
-| KD-5 | Signal↔teaching join is a first-class Lane S→T stage; heat-only UX is allowed only when labeled as lexical/RAG fallback. |
-| KD-6 | Unused `JOB_NAMES` entries are wired, renamed, or removed — no shadow catalog. |
+| KD-1 | Three-lane model (T / S / P). |
+| KD-2 | Mode-specific pack builders; no bare `listQuestions` for named modes. |
+| KD-3 | Completeness C1–C10 gate modes and publish. |
+| KD-4 | Neon publish attests validator results — no blind `validated` stamp. |
+| KD-5 | Glassdoor = heat + grader context + optional joins; never teaching answers. Heat-biased **real RAG** is a first-class Mode A path when joins are sparse. |
+| KD-6 | Shadow `JOB_NAMES` wired, renamed, or removed. |
+| KD-7 | **session-settled:** Retire `pseudo_rag` as the product name → `rag`; keep alias one release. Lexical pack is fallback only. |
+| KD-8 | **session-settled:** Practice attempts use LLM (or deterministic numeric) scoring with teaching-answer gold + firm heat context; self-score is fallback, not the design center. |
+| KD-9 | **session-settled:** Firm practice feedback may cite heat topics / occurrence ids; must not quote Glassdoor as correct answers. |
+| KD-10 | Diagram mermaid bodies live in `diagram_versions`; core concepts + module checkpoints must link them; embed a11y text into RAG. |
 
 ### Requirements
 
 | ID | Requirement |
 |----|-------------|
-| R-1 | Document and keep `docs/data-pipeline.md` as the lane/stage/gate contract; architecture links to it. |
-| R-2 | Lane T: every publishable teaching question has a non-rejected answer before Neon publish. |
-| R-3 | Lane S: Glassdoor/bank rows never become teaching answers; topic tagging and heat remain signal-only. |
-| R-4 | Lane S→T: join step persists teaching links where wording matches; report join rate on the scoreboard. |
-| R-5 | Lane P: `company`, `concept`, `adaptive_weak`, `pseudo_rag`, `simulator` each have a defined pack source and fail-closed readiness gate. |
-| R-6 | Session start freezes `question_ids` (and simulator stages) in session metadata. |
-| R-7 | Published learning modules expose checkpoints with ≥3 teaching `question_ids` each before `concept` mode is ready. |
-| R-8 | Regenerate `reports/pipeline-completeness.md` from pipeline export or a dedicated script. |
-| R-9 | Worker hosts long jobs (scrape, pipeline, enrich, publish, embed); never inside Vercel request timeouts. |
+| R-1 | Keep `docs/data-pipeline.md` as lane/stage/gate contract. |
+| R-2 | Lane T: publishable Qs have non-rejected answers before Neon publish. |
+| R-3 | Lane S: bank/Glassdoor never become teaching answers. |
+| R-4 | Persist joins when wording matches; until then ship heat-biased RAG packs labeled honestly. |
+| R-5 | Modes `company`, `concept`, `adaptive_weak`, `rag` (+`pseudo_rag` alias), `simulator` each have pack source + gate. |
+| R-6 | Session freezes `question_ids`, stages, and a `firm_context_snapshot` (heat topics + top occurrence ids). |
+| R-7 | Module checkpoints ≥3 `question_ids`; diagram checkpoints reference real `diagram_id`. |
+| R-8 | Regenerate `reports/pipeline-completeness.md`. |
+| R-9 | Workers host scrape / pipeline / enrich / publish / embed — not Vercel request timeouts. |
+| R-10 | Rename practice mode + user-facing copy from pseudo-RAG → RAG; tests accept alias. |
+| R-11 | Attempt API returns structured grade: `score_source`, `llm_score`/`rubric_json`, `weak_topics`, citations. |
+| R-12 | Grader prompt: teaching Answer layers as gold; firm heat/RAG hits as context; cite-only firm claims. |
+| R-13 | Numeric topics run deterministic validators from `calculation_representation` when present. |
+| R-14 | Core concept set has ≥1 mermaid `diagram_versions` row each; linked from learn modules. |
+| R-15 | Diagram title + a11y_fallback indexed into `rag_documents` on embed. |
 
 ### Non-goals
 
-- Replacing Patchright/manual captcha Glassdoor login with BFF+proxy as the default.
-- Automated rubric grading of free-text simulator answers in this rethink (self-rating may remain).
-- Expanding the teaching corpus past license BLOCKING sources.
-- Redesigning frontend Learn/Simulator chrome (pack builders + data gates only).
+- BFF+proxy as default Glassdoor access.
+- Treating Glassdoor review prose as gold answers or RAG teaching documents.
+- Expanding teaching corpus past license BLOCKING sources.
+- Full UI redesign of Learn/Simulator chrome (API + data contracts first).
 
 ### Success Criteria
 
 | ID | Signal |
 |----|--------|
-| S-1 | An operator can point to `docs/data-pipeline.md` + completeness scoreboard and know Mode A/B readiness. |
-| S-2 | Creating a practice session with `mode=concept` never returns an arbitrary bank slice when checkpoints exist. |
-| S-3 | Creating `mode=company` for a firm with heat either returns heat-ranked teaching Qs or a typed “fallback/not ready” error. |
-| S-4 | C1 stays at 100% for publishable teaching answers; C6 leaves “empty checkpoints” state. |
-| S-5 | Architecture stage list and executed jobs no longer contradict each other. |
+| S-1 | Scoreboard shows Mode A/B readiness including C9/C10. |
+| S-2 | `mode=concept` never returns arbitrary bank slice when checkpoints exist. |
+| S-3 | `mode=company` / `rag` returns heat-biased real-RAG packs (or typed not-ready / labeled lexical fallback). |
+| S-4 | C1 stays 100%; C6 leaves empty checkpoints; at least one core diagram per major concept. |
+| S-5 | Prod attempt on firm session can return `score_source=llm` with teaching + heat citations. |
+| S-6 | User-facing “pseudo-RAG” naming gone from product surfaces. |
 
 ### Outstanding Questions
 
 | ID | Question | Default if unresolved |
 |----|----------|------------------------|
-| OQ-1 | Should anonymous users hit heat/RAG prep, or remain auth-gated? | Stay auth-gated; fix smokes. |
-| OQ-2 | Minimum join rate (C4) 25% vs higher before Mode A drops lexical fallback label? | 25% for v1; raise later. |
-| OQ-3 | Implement `score_quality` job or delete the name? | Delete if no owner in next orchestration pass. |
+| OQ-1 | Anonymous heat/RAG prep vs auth-gated? | Auth-gated; fix smokes. |
+| OQ-2 | C4 join % vs heat-RAG-only for Mode A “green”? | Green if heat-RAG packs ship even when join <25%; join still tracked. |
+| OQ-3 | Delete unused `score_quality` job name? | Delete if no owner. |
+| OQ-4 | Rubric model: flash vs pro for latency/cost? | Flash for interactive grade; pro for offline eval set. |
 
 ### Risks / Assumptions
 
 | ID | Note |
 |----|------|
-| A-1 | Assumes ADR 0002 remains accepted (GitHub teaching / Glassdoor signals). |
-| A-2 | Live Glassdoor volume may stay fixture/bank-led from datacenter IPs. |
-| RSK-1 | Blind `validated` stamp today can hide failed Python validation if exports drift. |
-| RSK-2 | Mode pack builders without UI work still unblock API correctness. |
+| A-1 | ADR 0002 remains accepted. |
+| A-2 | Live Glassdoor may stay bank/fixture-led from datacenter IPs. |
+| A-3 | `GEMINI_API_KEY` on Vercel Production required for dense RAG + LLM grading. |
+| RSK-1 | Blind `validated` stamp can hide export drift. |
+| RSK-2 | LLM grader may overfit heat jargon — cite-only + teaching gold mitigate. |
+| RSK-3 | Renaming `pseudo_rag` needs contract + UI + smoke coordination. |
