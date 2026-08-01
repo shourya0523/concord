@@ -4,18 +4,22 @@ import * as React from "react"
 import Link from "next/link"
 
 import { Button } from "@ibpe/ui/components/button"
+import { TopicHeatmap, type TopicHeatCell } from "@ibpe/ui/components/topic-heatmap"
+import { cn } from "@ibpe/ui/lib/utils"
 
 import {
   Annotate,
+  CircledNumber,
   HeatStrip,
   PaperSheet,
   SemanticPill,
   Warren,
   WarrenCallout,
 } from "@/components/paper"
+import { intensityBand } from "@/components/paper/heat-strip"
 import { fetchFirmOptions, readStoredTargets } from "@/components/target-select-island"
-import { conceptIdForTopic, topicLabel } from "@/lib/topics"
-import { weakTopicsFromMastery } from "@/lib/weak-topics"
+import { conceptIdForTopic, sortTopicSlugs, topicForConceptId, topicLabel } from "@/lib/topics"
+import { WEAK_THRESHOLD, weakTopicsFromMastery } from "@/lib/weak-topics"
 
 /**
  * Progress / analytics (DESIGN.md §10.13). Firm readiness = average mastery
@@ -38,6 +42,12 @@ type ProgressPayload = {
     completed_checkpoint_ids: string[]
   }>
   sessions: Array<{ id: string; mode: string | null; started_at: string; firm_id: string | null }>
+  diagram_completion?: Array<{
+    diagram_id: string
+    title?: string | null
+    completed?: boolean
+    completed_at?: string | null
+  }>
   source: string
   note?: string
 }
@@ -46,11 +56,17 @@ type ModuleItem = {
   id: string
   slug: string
   title: string
-  checkpoints: Array<{ id: string }>
+  checkpoints: Array<{ id: string; kind?: string; title?: string; diagram_id?: string | null }>
 }
 
 type HeatPayload = {
   topics: Array<{ firm_id: string; topic_id: string; intensity: number; sample_size: number }>
+}
+
+type ConceptSummary = {
+  id: string
+  slug: string
+  title: string
 }
 
 type Phase = "loading" | "ready" | "unauthenticated" | "error"
@@ -100,14 +116,16 @@ export function ProgressIsland() {
   const [heat, setHeat] = React.useState<HeatPayload["topics"]>([])
   const [targets, setTargets] = React.useState<string[]>([])
   const [firmNames, setFirmNames] = React.useState<Map<string, string>>(new Map())
+  const [concepts, setConcepts] = React.useState<Map<string, ConceptSummary>>(new Map())
 
   const load = React.useCallback(async (signal: AbortSignal) => {
     setPhase("loading")
     try {
-      const [progressRes, moduleRes, masteryRes] = await Promise.all([
+      const [progressRes, moduleRes, masteryRes, conceptRes] = await Promise.all([
         fetch("/api/progress", { signal }),
         fetch("/api/learn/modules", { signal }),
         fetch("/api/mastery", { signal }),
+        fetch("/api/concepts", { signal }),
       ])
       if (progressRes.status === 401 || masteryRes.status === 401) {
         setPhase("unauthenticated")
@@ -121,6 +139,11 @@ export function ProgressIsland() {
       const modulePayload = (await moduleRes.json()) as { items: ModuleItem[] }
       const masteryPayload = masteryRes.ok
         ? ((await masteryRes.json()) as { items?: MasteryItem[] })
+        : { items: [] }
+      const conceptPayload = conceptRes.ok
+        ? ((await conceptRes.json()) as {
+            items?: Array<{ concept: ConceptSummary }>
+          })
         : { items: [] }
       const storedTargets = readStoredTargets()
 
@@ -136,6 +159,9 @@ export function ProgressIsland() {
       setProgress(progressPayload)
       setModules(modulePayload.items)
       setMastery(masteryPayload.items ?? [])
+      setConcepts(
+        new Map((conceptPayload.items ?? []).map((item) => [item.concept.id, item.concept])),
+      )
       setTargets(storedTargets)
       setHeat(heatTopics)
       setPhase("ready")
@@ -167,6 +193,40 @@ export function ProgressIsland() {
     })),
   )
   const weakTopicSet = new Set(weakTopics.map((weak) => weak.topic))
+  const firmLabel = React.useCallback(
+    (firmId: string) => firmNames.get(firmId) ?? firmId.replace(/^firm_/, "").replace(/-/g, " "),
+    [firmNames],
+  )
+  const heatMatrixTopics = sortTopicSlugs(
+    new Set(heat.map((row) => row.topic_id).filter((topic) => topic !== "untagged")),
+  )
+  const heatMatrixFirms = targets.map((firmId) => ({ id: firmId, label: firmLabel(firmId) }))
+  const heatMatrixCells: TopicHeatCell[] = heat
+    .filter((row) => row.topic_id !== "untagged")
+    .map((row) => ({
+      firmId: row.firm_id,
+      firmLabel: firmLabel(row.firm_id),
+      topicId: row.topic_id,
+      topicLabel: topicLabel(row.topic_id),
+      intensity: intensityBand(row.intensity),
+      weak: weakTopicSet.has(row.topic_id),
+      count: row.sample_size,
+    }))
+  const weakConceptRows = mastery
+    .filter((item) => item.subject_type === "concept" && item.score < WEAK_THRESHOLD)
+    .map((item) => {
+      const concept = concepts.get(item.subject_id)
+      const topic = topicForConceptId(item.subject_id)
+      return {
+        conceptId: item.subject_id,
+        title: concept?.title ?? item.subject_id.replace(/^concept_/, "").replace(/_/g, " "),
+        slug: concept?.slug ?? null,
+        topic,
+        score: item.score,
+      }
+    })
+    .sort((a, b) => a.score - b.score || a.title.localeCompare(b.title))
+  const diagramCompletionRows = progress?.diagram_completion ?? []
 
   const readinessRows = targets.map((firmId) => {
     const hotTopics = heat.filter(
@@ -187,7 +247,7 @@ export function ProgressIsland() {
               conceptIds.length) *
               100,
           )
-    return { firmId, hotTopics, conceptIds, percent }
+    return { firmId, label: firmLabel(firmId), hotTopics, conceptIds, percent }
   })
 
   const progressByModule = new Map(
@@ -219,7 +279,9 @@ export function ProgressIsland() {
   const isEmpty =
     (progress?.total_attempts ?? 0) === 0 &&
     (progress?.module_progress ?? []).length === 0 &&
-    (progress?.sessions ?? []).length === 0
+    (progress?.sessions ?? []).length === 0 &&
+    mastery.length === 0 &&
+    targets.length === 0
 
   if (phase === "loading") {
     return (
@@ -354,18 +416,14 @@ export function ProgressIsland() {
             {readinessRows.map((row) => (
               <li key={row.firmId} className="border border-border px-4 py-3">
                 <div className="flex flex-wrap items-center gap-3">
-                  <p className="min-w-0 flex-1 font-medium">
-                    {firmNames.get(row.firmId) ?? row.firmId.replace(/^firm_/, "").replace(/-/g, " ")}
-                  </p>
+                  <p className="min-w-0 flex-1 font-medium">{row.label}</p>
                   {row.percent === null ? (
                     <span className="text-sm text-muted-foreground">
                       No hot topics with labs yet
                     </span>
                   ) : (
                     <>
-                      <span className="font-display text-2xl tracking-tight tabular-nums">
-                        {row.percent}%
-                      </span>
+                      <CircledNumber value={`${row.percent}%`} label="readiness" size="sm" />
                       <SemanticPill tone={readinessTier(row.percent).tone}>
                         {readinessTier(row.percent).label}
                       </SemanticPill>
@@ -402,6 +460,51 @@ export function ProgressIsland() {
       </section>
 
       <section className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+            Heat ∩ weakness matrix
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Heat level 0-4; hatch marks topics below {Math.round(WEAK_THRESHOLD * 100)}% mastery.
+          </p>
+        </div>
+        {targets.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Pick target firms in{" "}
+            <Link href="/settings" className="text-foreground underline-offset-4 hover:underline">
+              Settings
+            </Link>{" "}
+            to compare firm heat against your weak topics.
+          </p>
+        ) : heatMatrixCells.length === 0 || heatMatrixTopics.length === 0 ? (
+          <p className="border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+            No tagged topic signals are published for this target set yet. Readiness still uses
+            real mastery records when firm hot topics exist; the matrix stays empty until heat
+            rows are available.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <TopicHeatmap
+              firms={heatMatrixFirms}
+              topics={heatMatrixTopics.map((topic) => ({ id: topic, label: topicLabel(topic) }))}
+              cells={heatMatrixCells}
+              compareMode
+            />
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block size-4 rounded-sm border border-black/15 bg-heat-3" />
+                higher firm occurrence heat
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block size-4 rounded-sm border border-black/15 bg-[repeating-linear-gradient(-45deg,transparent,transparent_3px,var(--weak)_3px,var(--weak)_5px)]" />
+                weak mastery hatch
+              </span>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-4">
         <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
           Learn module progress
         </h2>
@@ -432,6 +535,101 @@ export function ProgressIsland() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+            Concept mastery map
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Weak concepts only; the first three get the quiet glow.
+          </p>
+        </div>
+        {weakConceptRows.length === 0 ? (
+          <PaperSheet seedKey="weak-concepts-empty" torn={false}>
+            <p className="text-sm text-muted-foreground">
+              No weak concept mastery records yet. Complete rated drills or module quizzes and
+              concepts below {Math.round(WEAK_THRESHOLD * 100)}% mastery will appear here.
+            </p>
+          </PaperSheet>
+        ) : (
+          <ul className="grid gap-3 md:grid-cols-2">
+            {weakConceptRows.map((row, index) => {
+              const body = (
+                <PaperSheet seedKey={`weak-concept-${row.conceptId}`} torn={false}>
+                  <div
+                    className={cn(
+                      "border border-border px-3 py-3",
+                      index < 3 && "border-weak bg-weak/10 shadow-[0_0_0_1px_var(--weak)]",
+                    )}
+                  >
+                    <div className="flex flex-wrap items-start gap-3">
+                      <CircledNumber
+                        value={`${Math.round(row.score * 100)}%`}
+                        label="mastery"
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{row.title}</p>
+                        <p className="mt-1 font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+                          {row.topic ? topicLabel(row.topic) : "concept mastery"}
+                        </p>
+                        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                          Below proficient threshold; use the lab, then a rated drill, to move it
+                          out of the weak set.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </PaperSheet>
+              )
+              return (
+                <li key={row.conceptId}>
+                  {row.slug ? (
+                    <Link href={`/concepts/${row.slug}`} className="block underline-offset-4 hover:underline">
+                      {body}
+                    </Link>
+                  ) : (
+                    body
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+          Diagram checkpoint completion
+        </h2>
+        {diagramCompletionRows.length === 0 ? (
+          <PaperSheet seedKey="diagram-completion-empty" torn={false}>
+            <p className="text-sm text-muted-foreground">
+              Diagram completion flags are not published by the progress API yet. This stays empty
+              until real checkpoint completion data is available.
+            </p>
+          </PaperSheet>
+        ) : (
+          <ul className="divide-y divide-border border border-border">
+            {diagramCompletionRows.map((diagram) => (
+              <li key={diagram.diagram_id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
+                <span className="min-w-0 flex-1 font-medium">
+                  {diagram.title ?? diagram.diagram_id.replace(/^diag_/, "").replace(/_/g, " ")}
+                </span>
+                <SemanticPill tone={diagram.completed ? "success" : "milestone"}>
+                  {diagram.completed ? "Complete" : "Open"}
+                </SemanticPill>
+                {diagram.completed_at ? (
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {formatDateTime(diagram.completed_at)}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="space-y-4">

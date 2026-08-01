@@ -1,9 +1,9 @@
 # Status: frontend
 
-State: complete
+State: progress/saved P1 closed
 Wave: 2
-Updated: 2026-07-31
-Branch: `local/ws-frontend-polish-bb32`
+Updated: 2026-08-01
+Branch: `local/ws-progress-saved-bb32`
 
 ## Verification
 
@@ -13,6 +13,8 @@ Branch: `local/ws-frontend-polish-bb32`
 ## Notes
 
 - Workstream C Wave 2 — Mode A/B product routes on Editorial Finance Terminal
+- DESIGN.md §10.12-§10.13 P1 gaps closed: Saved now has client search over bookmarks/notes/collections, real bookmark provenance/firm/tag chips when present, and POST-backed collection creation
+- Progress now renders a target-firm heat∩weakness matrix using the shared heatmap hatch overlay, a weak concept mastery map, and a calm empty state for diagram completion while the API has no completion flags
 - Design Phase 2 gap-close Item 4 — dashboard readiness/streak/urgency polish, study-plan urgency + prereq module mini-map, and concept lab prereq/parent-module mini-maps
 - Dashboard readiness now derives from target firm heat rows + concept mastery, mirroring the progress readiness tiers with visible numeric scores
 - Neon Auth shells (`/sign-in`, `/sign-up`, `/api/auth/[...path]`) — ADR 0006; stub when env unset
