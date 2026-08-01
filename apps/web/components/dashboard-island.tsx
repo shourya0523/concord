@@ -12,8 +12,12 @@ import {
 } from "@/components/target-select-island"
 import { TopicHeatIsland } from "@/components/topic-heat-island"
 import {
+  Annotate,
   CircledNumber,
   HeatStrip,
+  InkHoverScope,
+  PaperSheet,
+  RoughHover,
   SemanticPill,
   WarrenCallout,
 } from "@/components/paper"
@@ -307,20 +311,22 @@ export function DashboardIsland() {
             onChange={setTargets}
             syncSearchParam
           />
-          <TopicHeatIsland firmIds={targets} />
+          <InkHoverScope>
+            <TopicHeatIsland firmIds={targets} />
+          </InkHoverScope>
           <Link
             href="/prep/heat"
             className="inline-block text-sm text-foreground underline-offset-4 hover:underline"
           >
-            Open full heat compare →
+            <RoughHover>Open full heat compare →</RoughHover>
           </Link>
 
-          <section className="space-y-3 border-t border-border pt-5">
+          <PaperSheet seedKey="dashboard-plan-peek" torn={false} className="mt-2">
             <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
               Today&apos;s plan peek
             </h2>
             {data.planItems.length > 0 ? (
-              <ul className="space-y-1.5 text-sm">
+              <ul className="mt-3 space-y-1.5 text-sm">
                 {data.planItems.slice(0, 4).map((item, index) => (
                   <li
                     key={`${item.kind}-${item.id}-${index}`}
@@ -338,18 +344,18 @@ export function DashboardIsland() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className="mt-3 text-sm text-muted-foreground">
                 No assignments yet — open the roadmap to build today&apos;s mix
                 of firm drills and module checkpoints.
               </p>
             )}
             <Link
               href="/plan"
-              className="inline-block text-sm text-foreground underline-offset-4 hover:underline"
+              className="mt-3 inline-block text-sm text-foreground underline-offset-4 hover:underline"
             >
-              Open roadmap →
+              <RoughHover>Open roadmap →</RoughHover>
             </Link>
-          </section>
+          </PaperSheet>
         </section>
 
         <aside className="space-y-8 border-t border-border pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
@@ -496,19 +502,23 @@ export function DashboardIsland() {
             </section>
           ) : null}
 
-          <div className="space-y-3">
+          <PaperSheet seedKey="dashboard-suggested-next" torn={false}>
             <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
               Suggested next
             </p>
-            <p className="font-display text-2xl leading-snug tracking-tight">
-              {mode === "company_prep"
-                ? `Grounded pack for ${primary?.name ?? "your targets"}`
-                : (data.modules[0]?.title ?? "Choose a learning module")}
+            <p className="mt-2 font-display text-2xl leading-snug tracking-tight">
+              <Annotate type="underline" color="var(--ink)" padding={2}>
+                {mode === "company_prep"
+                  ? `Grounded pack for ${primary?.name ?? "your targets"}`
+                  : (data.modules[0]?.title ?? "Choose a learning module")}
+              </Annotate>
             </p>
-            <WarrenCallout mood="thinking" bracket size={48}>
-              {suggestedReason}.
-            </WarrenCallout>
-            <div className="flex flex-wrap gap-2">
+            <div className="mt-3">
+              <WarrenCallout mood="thinking" bracket size={48}>
+                {suggestedReason}.
+              </WarrenCallout>
+            </div>
+            <InkHoverScope className="mt-4 flex flex-wrap gap-2">
               <Link href="/prep/rag">
                 <Button>Start pseudo-RAG</Button>
               </Link>
@@ -530,8 +540,8 @@ export function DashboardIsland() {
                   <Button variant="ghost">Company room</Button>
                 </Link>
               ) : null}
-            </div>
-          </div>
+            </InkHoverScope>
+          </PaperSheet>
 
           <nav
             aria-label="Shortcuts"
@@ -541,19 +551,19 @@ export function DashboardIsland() {
               className="block text-muted-foreground hover:text-foreground"
               href="/simulator"
             >
-              Interview simulator →
+              <RoughHover>Interview simulator →</RoughHover>
             </Link>
             <Link
               className="block text-muted-foreground hover:text-foreground"
               href="/learn"
             >
-              Learn catalog →
+              <RoughHover>Learn catalog →</RoughHover>
             </Link>
             <Link
               className="block text-muted-foreground hover:text-foreground"
               href="/progress"
             >
-              Progress →
+              <RoughHover>Progress →</RoughHover>
             </Link>
           </nav>
         </aside>

@@ -1,48 +1,32 @@
 # DESIGN.md frontend gap audit
 
-**Date:** 2026-07-31  
+**Date:** 2026-08-01  
 **Branch:** `local/design-frontend-continue-bb32`  
 **Basis:** `DESIGN.md` §3–§10 vs `apps/web` product surfaces
 
-## Dark mode (P0 — contrast)
+## Closed this programme
 
-| Issue | Detail |
-|-------|--------|
-| Hardcoded cream | `PaperSheet` / mermaid theme use `#f7f1e4` while `.dark` flips `--ink`/`--foreground` → light text on cream |
-| Incomplete `.dark` tokens | Chrome + semantic pastels not fully paired for dark paper |
-| No visible theme control | `d` hotkey only; §10.14 requires theme in Settings |
+| Area | State |
+|------|-------|
+| Dark mode contrast | Done — cream paper + black ink under `.dark`; Settings theme |
+| §10.5 Pseudo-RAG | Done — study loop via `StudyLoopIsland` |
+| §10.3–10.4 Heat nav | Done — cell → scoped RAG + weakness toggle |
+| §10.6 Learn hub | Done — lesson PaperSheets, module drills, Apply-at-firm |
+| §10.8–10.9 Study | Done — Again/Hard/Good/Easy, hint, layer `p`, practice CTAs |
+| §10.10–10.11 Plan/Sim | Done — paper day cells, timers, handwriting burst, diagram prompts |
+| §10.12–10.13 Saved/Progress | Done — search, collections POST, heat∩weakness matrix |
+| Paper cohesiveness | Done — landing, onboarding, companies, heat, dashboard paper wraps |
 
-## §10 screen status
+## Paper kit leverage (product)
 
-| Section | Status | Priority | Top gaps |
-|---------|--------|----------|----------|
-| 10.1 Onboarding | Present | P2 | Paper firm chips; clearer Both path |
-| 10.2 Dashboard | Partial | P1 | Stronger editorial asymmetry; weakest-cell glow |
-| 10.3 Company room | Partial | P1 | Role filter; heat cell → concept/RAG; weakness toggle |
-| 10.4 Heat compare | Partial | P1 | Cell → scoped RAG/concept; per-cell low-N |
-| 10.5 Pseudo-RAG | Partial | **P0** | Pack preview only — needs study loop, mid-rail, close mastery |
-| 10.6 Learn catalog/hub | Partial | P1 | Lesson content; module-scoped drill/quiz; Apply-at-firm |
-| 10.7 Concept lab | Partial | P1 | Step-highlight diagram; richer progressive notes |
-| 10.8 Study reveal | Partial | P1 | Hint; firm occurrence meta; practice-more CTA; layer `p` |
-| 10.9 Adaptive drills | Partial | P1 | Session-type chooser; Again/Hard/Good/Easy |
-| 10.10 Plan | Partial | P1 | Diagram checkpoints in generated plan; richer timeline |
-| 10.11 Simulator | Partial | P1 | Stage timer wiring; diagram prompt; cited AI feedback |
-| 10.12 Saved | Partial | P1 | Search; note edit/delete; collection CRUD; firm chips |
-| 10.13 Progress | Partial | P1 | Heat∩weakness matrix; concept mastery map; diagram completion |
-| 10.14 Settings | Partial | P1 | Theme toggle UI; notifications; mode edit |
+Surfaces heavily use `@/components/paper`: PaperSheet, Annotate, RoughHover, InkHoverScope, HandwritingHeadline, HeatStrip, CircledNumber, PaperBurst, WarrenCallout, SemanticPill, ProvenanceChip, InterviewerAvatar.
 
-## Orchestrator workstreams (this pass)
+Highest usage: study-plan, simulator, progress, study, onboarding, learn module, heat, landing, companies, dashboard.
 
-| Stream | Branch | State |
-|--------|--------|-------|
-| DS / shell dark contrast + Settings theme | integrate `2cd7cd0` | Done — cream paper locked under `.dark` |
-| §10.5 RAG study loop (P0) | `local/ws-rag-session-bb32` | Done — `StudyLoopIsland` |
-| §10.3–10.4 heat → scoped RAG | `local/ws-heat-nav-bb32` | Done — `?firm=&topic=` |
-| §10.12–10.13 progress + saved | `local/ws-progress-saved-bb32` | Done — matrix + search |
-| §10.6/§10.8–10.9 Learn + Study depth | `local/ws-learn-study-depth-bb32` | Done — lesson PaperSheets, module drills, rating pills, hints, weak-topic CTAs |
+## Still open (lower urgency)
 
-## Still open (next pass)
-
-- §10.6 remaining refinement: richer diagram step highlights inside lesson bodies once diagram-step metadata lands
-- §10.11 cited simulator feedback
-- §10.14 notifications; diagram completion API for progress
+- Diagram step-highlight interactivity inside Mermaid host
+- §10.14 notifications preferences
+- Diagram completion flags on `/api/progress`
+- Cited Gemini simulator feedback (key-guarded)
+- Richer Verticals filter on Learn catalog

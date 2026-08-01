@@ -1,27 +1,13 @@
 # Status: frontend
 
-<<<<<<< HEAD
-State: DESIGN.md gap-close integrate (dark mode + §10.5/10.3/10.4/10.6/10.8/10.9/10.12/10.13)
+State: DESIGN.md depth + paper-kit cohesion integrate
 Wave: 2
 Updated: 2026-08-01
-Branch: `local/ws-learn-study-depth-bb32`
-=======
-State: DESIGN.md gap-close integrate + paper-kit visual cohesion + Simulator/Study plan paper depth
-Wave: 2
-Updated: 2026-08-01
-Branch: `local/ws-sim-plan-paper-bb32`
->>>>>>> origin/local/ws-sim-plan-paper-bb32
+Branch: `local/design-frontend-continue-bb32`
 
 ## Verification
 
 - `npm run typecheck -w @ibpe/web` — green (per workstream branches; re-run on integrate)
-<<<<<<< HEAD
-- `npm run typecheck -w @ibpe/web` — green on `local/ws-learn-study-depth-bb32`
-=======
-- `npm run typecheck -w @ibpe/web` — green on `local/ws-paper-cohesion-bb32`
-- `npm run typecheck -w @ibpe/web` — green on `local/ws-sim-plan-paper-bb32`
-- `npm run lint -w @ibpe/web -- components/simulator-island.tsx components/study-plan-island.tsx components/paper/index.ts` — green
->>>>>>> origin/local/ws-sim-plan-paper-bb32
 
 ## Notes
 
@@ -43,6 +29,7 @@ Branch: `local/ws-sim-plan-paper-bb32`
 - Dashboard readiness now derives from target firm heat rows + concept mastery, mirroring the progress readiness tiers with visible numeric scores
 - Neon Auth shells (`/sign-in`, `/sign-up`, `/api/auth/[...path]`) — ADR 0006; stub when env unset
 - Consumes `@ibpe/ui` primitives (TopicHeatmap, PseudoRagCitationCard, TargetCompanyMultiSelect, etc.)
+- Paper kit (`@/components/paper`) is the product visual language — PaperSheet, Annotate, RoughHover, InkHoverScope, HandwritingHeadline, HeatStrip, CircledNumber, PaperBurst, WarrenCallout, SemanticPill, ProvenanceChip
 - Mock data typed against `@ibpe/contracts` — no Glassdoor browser calls
 - Keeps `/ds` design-system catalogue
 
@@ -58,7 +45,10 @@ Branch: `local/ws-sim-plan-paper-bb32`
 | `/prep/rag`            | Pseudo-RAG prep + citation cards + study loop |
 | `/companies/[firm]`    | Company prep rooms                          |
 | `/concepts/[slug]`     | Concept labs + diagram a11y fallback        |
+| `/learn`               | Module catalog                              |
+| `/learn/[module]`      | Module hub + lessons + apply-at-firm        |
 | `/study`               | Layered reveal study loop                   |
+| `/plan`                | Study roadmap                               |
 | `/saved`               | Bookmarks, notes, collections               |
 | `/progress`            | Readiness + heat∩weakness + mastery         |
 | `/simulator`           | Firm-flavoured simulator shell              |
