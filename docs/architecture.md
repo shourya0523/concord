@@ -95,9 +95,12 @@ Lane S (signals):   scrape/bank → extract (topic_signal) → canonicalise (exa
                     → topic tag → join_firm_signals → heat views
 
 Lane P (practice):  published teaching × heat × mastery → mode pack → session
+                    → LLM/custom grade (teaching gold + firm heat context)
 ```
 
-Jobs are restartable with idempotency keys. Prefer `JobEvent` contracts for progress. Completeness dimensions C1–C8 and mode readiness gates live in the data-pipeline doc.
+**RAG:** embedding-backed hybrid retrieval is the product path; lexical “pseudo-RAG” is fallback only (rename practice mode `pseudo_rag` → `rag`).
+
+Jobs are restartable with idempotency keys. Prefer `JobEvent` contracts for progress. Completeness dimensions C1–C10 and mode readiness gates live in the data-pipeline doc.
 
 ## Contracts
 
