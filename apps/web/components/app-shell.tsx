@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 import { cn } from "@ibpe/ui/lib/utils"
+import { AuthAccountMenu } from "@/components/auth-account-menu"
 import { MockupSvgFilters } from "@/components/mockups/svg-filters"
 
 const NAV = [
@@ -90,12 +91,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="mt-auto space-y-1 px-2 pt-4">
-          <Link
-            href="/sign-in"
-            className="block text-xs text-chrome-muted hover:text-chrome-text"
-          >
-            Neon Auth · Sign in
-          </Link>
+          <AuthAccountMenu />
           <p className="text-[10px] text-chrome-muted">Black · grey · cream · pastel data</p>
         </div>
       </aside>

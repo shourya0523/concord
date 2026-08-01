@@ -108,7 +108,7 @@ export function stubAuthProxy(_request: NextRequest): NextResponse {
 export function createAuthProxy(options?: { loginUrl?: string }) {
   if (auth) {
     return auth.middleware({
-      loginUrl: options?.loginUrl ?? "/auth/sign-in",
+      loginUrl: options?.loginUrl ?? "/sign-in",
     });
   }
   return stubAuthProxy;
