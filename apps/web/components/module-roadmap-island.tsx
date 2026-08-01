@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Button } from "@ibpe/ui/components/button"
 import { cn } from "@ibpe/ui/lib/utils"
 
-import { Annotate, CircledNumber, PaperSheet, RoughHover } from "@/components/paper"
+import { Annotate, CircledNumber, RoughHover } from "@/components/paper"
 import {
   fetchModuleProgress,
   moduleProgressPercent,
@@ -104,7 +104,7 @@ export function ModuleRoadmapIsland({
 
   return (
     <div className="space-y-4">
-      <PaperSheet seedKey={`roadmap-${moduleId}`} torn={false}>
+      <section className="border border-border bg-background/30 px-4 py-4">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
             Module roadmap
@@ -188,7 +188,7 @@ export function ModuleRoadmapIsland({
             )
           })}
         </ol>
-      </PaperSheet>
+      </section>
 
       <div className="flex flex-wrap gap-2">
         <Link href={sessionHref}>

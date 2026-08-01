@@ -2,7 +2,6 @@ import Link from "next/link"
 
 import {
   InkHoverScope,
-  PaperSheet,
   RoughHover,
   SemanticPill,
   WarrenCallout,
@@ -167,7 +166,7 @@ export default async function CompaniesIndexPage() {
                   {group.firms.length} firms · {group.hint}
                 </span>
               </div>
-              <PaperSheet seedKey={`company-index-${group.id}`} torn={false}>
+              <div className="border-y border-border">
                 <ul>
                   {group.firms.map((firm, index) => {
                     rank += 1
@@ -175,7 +174,7 @@ export default async function CompaniesIndexPage() {
                       <li key={firm.id}>
                         <Link
                           href={`/companies/${firm.slug}`}
-                          className={`flex flex-wrap items-baseline gap-x-4 gap-y-2 border-b border-stone/60 px-2 py-3 transition-colors duration-200 ease-out hover:bg-foreground/[0.03] ${
+                          className={`flex flex-wrap items-baseline gap-x-4 gap-y-2 border-b border-border px-2 py-3 transition-colors duration-200 ease-out hover:bg-foreground/[0.03] ${
                             index === group.firms.length - 1 ? "border-b-0" : ""
                           }`}
                         >
@@ -201,7 +200,7 @@ export default async function CompaniesIndexPage() {
                     )
                   })}
                 </ul>
-              </PaperSheet>
+              </div>
             </section>
           ))}
         </InkHoverScope>

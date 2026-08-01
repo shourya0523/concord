@@ -5,7 +5,6 @@ import Link from "next/link"
 
 import { Button } from "@ibpe/ui/components/button"
 import { TopicHeatmap } from "@ibpe/ui/components/topic-heatmap"
-import { PseudoRagCitationCard } from "@ibpe/ui/components/pseudo-rag-citation-card"
 import {
   FIRMS,
   RAG_CITATIONS,
@@ -19,6 +18,7 @@ import { JourneyShell, NotionCallout } from "@/components/mockups/journey-shell"
 import { PaperSheet } from "@/components/mockups/paper-sheet"
 import { InkHoverScope, RoughHover } from "@/components/mockups/rough-hover"
 import { Warren } from "@/components/mockups/warren"
+import { RoughCitationCard } from "@/components/rough-citation-card"
 
 const STEPS = ["heat", "pack", "study", "done"] as const
 type Step = (typeof STEPS)[number]
@@ -172,11 +172,12 @@ export function ModeAJourney() {
             </Annotate>
           </p>
 
-          <PaperSheet seedKey="mode-a-pack" torn={false}>
+          <PaperSheet seedKey="mode-a-pack">
             <div className="space-y-2">
               {RAG_CITATIONS.slice(0, 3).map((item) => (
-                <PseudoRagCitationCard
+                <RoughCitationCard
                   key={item.id}
+                  seedKey={`mode-a-citation-${item.id}`}
                   title={item.title}
                   excerpt={item.excerpt}
                   whyRetrieved={item.whyRetrieved}

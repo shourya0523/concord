@@ -1,18 +1,18 @@
 # Status: frontend
 
-State: DESIGN.md depth + paper-kit cohesion integrate
+State: DESIGN.md full paper-system cohesion integrate
 Wave: 2
 Updated: 2026-08-01
 Branch: `local/design-frontend-continue-bb32`
 
 ## Verification
 
-- `npm run typecheck -w @ibpe/web` — green (per workstream branches; re-run on integrate)
+- `npm run typecheck -w @ibpe/web` — green on 2026-08-01 full paper-system pass
 
 ## Notes
 
 - Workstream C Wave 2 — Mode A/B product routes on Editorial Finance Terminal
-- Workstream C paper cohesion pass: landing hero handwriting + rough CTAs, onboarding target/heat paper inserts, company index paper firm rows, and heat compare paper matrix/insight callouts
+- Workstream C full paper-system pass: flagship sheets use rough.js borders + decorative torn strips, score/milestone uses hero torn + handwriting + PaperBurst, heat cells use rough borders + lime hover, RAG citations use rough frames, and non-flagship lists/status/pickers are bordered sections instead of PaperSheet
 - Dark mode: cream paper + black ink preserved under `.dark` (chrome deepens only); Settings theme control; PaperSheet/diagram tokenised
 - DESIGN.md §10.5 P0 Pseudo-RAG is now a real flagship session: `/prep/rag` keeps the frozen brief + citation-card pack preview, then starts an inline layered study loop over retrieved pack item ids.
 - The loop is shared with `/study` via `StudyLoopIsland`, so Mode A reuses the signature answer-before-reveal flow, keyboard shortcuts, concept diagram/heat peek rail, sources, notes/bookmarks, and session close pattern.
@@ -29,7 +29,7 @@ Branch: `local/design-frontend-continue-bb32`
 - Dashboard readiness now derives from target firm heat rows + concept mastery, mirroring the progress readiness tiers with visible numeric scores
 - Neon Auth shells (`/sign-in`, `/sign-up`, `/api/auth/[...path]`) — ADR 0006; stub when env unset
 - Consumes `@ibpe/ui` primitives (TopicHeatmap, PseudoRagCitationCard, TargetCompanyMultiSelect, etc.)
-- Paper kit (`@/components/paper`) is the product visual language — PaperSheet, Annotate, RoughHover, InkHoverScope, HandwritingHeadline, HeatStrip, CircledNumber, PaperBurst, WarrenCallout, SemanticPill, ProvenanceChip
+- Paper kit (`@/components/paper`) is the product visual language — PaperSheet, RoughFrame, RoughCitationCard, RoughHeatBorders, Annotate, RoughHover, InkHoverScope, HandwritingHeadline, HeatStrip, CircledNumber, PaperBurst, WarrenCallout, SemanticPill, ProvenanceChip
 - Mock data typed against `@ibpe/contracts` — no Glassdoor browser calls
 - Keeps `/ds` design-system catalogue
 

@@ -119,7 +119,7 @@ export default async function ConceptLabPage({ params }: Props) {
       </header>
 
       {diagram ? (
-        <PaperSheet seedKey={`concept-diagram-${concept.id}`} torn={false}>
+        <PaperSheet seedKey={`concept-diagram-${concept.id}`}>
           <DiagramIsland
             title={diagram.title}
             source={diagram.body}
@@ -132,7 +132,7 @@ export default async function ConceptLabPage({ params }: Props) {
 
       <section className="space-y-6">
         <h2 className="font-display text-3xl tracking-tight">Lab notes</h2>
-        <PaperSheet seedKey={`concept-prereqs-${concept.id}`} torn={false}>
+        <section className="border border-border bg-background/30 px-4 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
               Prerequisite mini-map
@@ -189,7 +189,7 @@ export default async function ConceptLabPage({ params }: Props) {
               </li>
             ))}
           </ol>
-        </PaperSheet>
+        </section>
         <div>
           <h3 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
             Core

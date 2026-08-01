@@ -10,23 +10,36 @@ type RoughFrameProps = {
   seedKey: string
   children: React.ReactNode
   className?: string
+  contentClassName?: string
   padding?: number
+  /** Ink stroke (default) or lime for interactive emphasis frames. */
+  stroke?: "ink" | "lime" | "graphite"
+  /** Optional hachure fill behind content (drill emphasis only). */
+  hatch?: boolean
   /**
    * @deprecated Never filter text. Kept for API compat; ignored.
-   * Torn edges belong on decorative chrome only, not content.
    */
   torn?: boolean
 }
 
+const STROKE: Record<NonNullable<RoughFrameProps["stroke"]>, string> = {
+  ink: "var(--ink)",
+  lime: "var(--lime)",
+  graphite: "var(--graphite)",
+}
+
 /**
- * Hand-drawn border via rough.js — SVG stroke only.
- * Children stay sharp (no feDisplacement on text).
+ * Hand-drawn border via rough.js — SVG stroke only (DESIGN.md §7).
+ * Fixed seed + ResizeObserver redraw. Children stay sharp (no feDisplacement).
  */
 export function RoughFrame({
   seedKey,
   children,
   className,
+  contentClassName,
   padding = 10,
+  stroke = "ink",
+  hatch = false,
 }: RoughFrameProps) {
   const hostRef = React.useRef<HTMLDivElement>(null)
   const svgRef = React.useRef<SVGSVGElement>(null)
@@ -45,13 +58,20 @@ export function RoughFrame({
       svg.setAttribute("viewBox", `0 0 ${width} ${height}`)
       while (svg.firstChild) svg.removeChild(svg.firstChild)
       const rc = rough.svg(svg)
-      const node = rc.rectangle(padding / 2, padding / 2, width - padding, height - padding, {
+      const x = padding / 2
+      const y = padding / 2
+      const w = Math.max(4, width - padding)
+      const h = Math.max(4, height - padding)
+      const node = rc.rectangle(x, y, w, h, {
         seed,
-        roughness: 0.85,
-        bowing: 0.6,
-        stroke: "var(--ink)",
-        strokeWidth: 1.15,
-        fill: "transparent",
+        roughness: 1.05,
+        bowing: 0.85,
+        stroke: STROKE[stroke],
+        strokeWidth: stroke === "lime" ? 1.35 : 1.2,
+        fill: hatch ? STROKE[stroke] : "transparent",
+        fillStyle: hatch ? "hachure" : "solid",
+        fillWeight: 0.6,
+        hachureGap: 6,
       })
       svg.appendChild(node)
     }
@@ -60,16 +80,18 @@ export function RoughFrame({
     const ro = new ResizeObserver(draw)
     ro.observe(host)
     return () => ro.disconnect()
-  }, [padding, seed])
+  }, [hatch, padding, seed, stroke])
 
   return (
-    <div ref={hostRef} className={cn("relative bg-card", className)}>
+    <div ref={hostRef} className={cn("relative bg-paper text-ink", className)}>
       <svg
         ref={svgRef}
         className="pointer-events-none absolute inset-0 z-0 overflow-visible"
         aria-hidden
       />
-      <div className="relative z-10 p-5 font-sans md:p-6">{children}</div>
+      <div className={cn("relative z-10 p-5 font-sans md:p-6", contentClassName)}>
+        {children}
+      </div>
     </div>
   )
 }

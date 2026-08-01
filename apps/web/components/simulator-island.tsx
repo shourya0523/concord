@@ -476,10 +476,7 @@ export function SimulatorIsland() {
           </div>
         </PaperSheet>
 
-        <PaperSheet
-          seedKey={`sim-after-action-${session?.id ?? "done"}`}
-          torn={false}
-        >
+        <section className="border border-border bg-background/30 px-4 py-4">
           <section className="space-y-4">
             <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
               Recommended next
@@ -567,7 +564,7 @@ export function SimulatorIsland() {
               </RoughHover>
             </div>
           </section>
-        </PaperSheet>
+        </section>
       </div>
     )
   }
@@ -728,10 +725,7 @@ export function SimulatorIsland() {
 
       {phase === "running" ? (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <PaperSheet
-            seedKey={`sim-stage-${session?.id ?? "run"}-${stageIndex}`}
-            torn={false}
-          >
+          <PaperSheet seedKey={`sim-stage-${session?.id ?? "run"}-${stageIndex}`}>
             {questionLoading ? (
               <p className="text-sm text-muted-foreground">
                 Your interviewer is reading the next prompt…
@@ -814,10 +808,7 @@ export function SimulatorIsland() {
             )}
           </PaperSheet>
           {diagramPrompt ? (
-            <PaperSheet
-              seedKey={`sim-diagram-${stage?.id ?? "stage"}`}
-              torn={false}
-            >
+            <PaperSheet seedKey={`sim-diagram-${stage?.id ?? "stage"}`}>
               <div className="space-y-3">
                 <div className="space-y-1">
                   <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
