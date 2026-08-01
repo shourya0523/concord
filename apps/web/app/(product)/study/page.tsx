@@ -557,7 +557,7 @@ export default function StudyPage() {
           </div>
         ) : null}
 
-        <PaperSheet seedKey={`study-${detail?.question.id ?? "loading"}`} torn={false}>
+        <PaperSheet seedKey={`study-${detail?.question.id ?? "loading"}`}>
           <label className="text-xs font-medium text-muted-foreground" htmlFor="study-answer">
             Your answer — Warren waits while you write
           </label>
@@ -752,7 +752,7 @@ export default function StudyPage() {
         </InkHoverScope>
 
         {sessionComplete ? (
-          <PaperSheet seedKey={`study-close-${detail?.question.id}`} torn={false}>
+          <PaperSheet seedKey={`study-close-${detail?.question.id}`}>
             <div className="flex flex-wrap items-center gap-5">
               <PaperBurst play seedKey={`burst-${detail?.question.id}`} />
               <div className="min-w-0 flex-1">

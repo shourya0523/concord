@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@ibpe/ui/components/button"
 import { Input } from "@ibpe/ui/components/input"
 import { Label } from "@ibpe/ui/components/label"
+import { cn } from "@ibpe/ui/lib/utils"
 
 import {
   Annotate,
@@ -216,10 +217,11 @@ export function OnboardingForm() {
                   onClick={() => toggleMode(id)}
                   className="text-left"
                 >
-                  <PaperSheet
-                    seedKey={`path-${id}`}
-                    torn={false}
-                    className={on ? "outline-2 outline-ink" : "opacity-75"}
+                  <div
+                    className={cn(
+                      "border border-border bg-background/30 px-4 py-4",
+                      on ? "outline-2 outline-ink" : "opacity-75",
+                    )}
                   >
                     <p className="font-medium">
                       {on ? (
@@ -242,7 +244,7 @@ export function OnboardingForm() {
                         Selected
                       </p>
                     ) : null}
-                  </PaperSheet>
+                  </div>
                 </button>
               )
             })}
@@ -297,11 +299,7 @@ export function OnboardingForm() {
       {step === 3 ? (
         <div className="space-y-5">
           <h1 className="font-display text-3xl tracking-tight">Target firms</h1>
-          <PaperSheet
-            seedKey="onboarding-target-select"
-            torn={false}
-            className="max-w-xl"
-          >
+          <section className="max-w-xl border border-border bg-background/30 px-4 py-4">
             <div className="space-y-3">
               <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
                 Multi-select target set
@@ -317,7 +315,7 @@ export function OnboardingForm() {
                 as primary.
               </p>
             </div>
-          </PaperSheet>
+          </section>
           {needsFirms && targets.length === 0 ? (
             <p
               role="alert"
@@ -328,7 +326,7 @@ export function OnboardingForm() {
             </p>
           ) : null}
           {heatPreview.length > 0 ? (
-            <PaperSheet seedKey="onboarding-heat-preview" torn={false}>
+            <PaperSheet seedKey="onboarding-heat-preview">
               <div className="space-y-2">
                 <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
                   Signal preview · reported occurrence heat

@@ -5,7 +5,6 @@ import Link from "next/link"
 
 import { Button } from "@ibpe/ui/components/button"
 import { Input } from "@ibpe/ui/components/input"
-import { PseudoRagCitationCard } from "@ibpe/ui/components/pseudo-rag-citation-card"
 
 import { StudyLoopIsland } from "@/components/study-loop-island"
 import {
@@ -15,7 +14,7 @@ import {
   writeStoredTargets,
 } from "@/components/target-select-island"
 import { WeakTopicFocusBar } from "@/components/weak-topic-focus-bar"
-import { Annotate, PaperSheet, WarrenCallout } from "@/components/paper"
+import { Annotate, PaperSheet, RoughCitationCard, WarrenCallout } from "@/components/paper"
 import { conceptSlugForTopic, topicLabel } from "@/lib/topics"
 import { weakTopicsFromMastery } from "@/lib/weak-topics"
 
@@ -277,7 +276,7 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
             </p>
           </header>
           {result.brief ? (
-            <PaperSheet seedKey={`rag-brief-${result.pack.id}`} torn={false}>
+            <PaperSheet seedKey={`rag-brief-${result.pack.id}`}>
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
@@ -311,8 +310,9 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
           ) : null}
           <div className="flex flex-col gap-3">
             {result.hits.map((hit) => (
-              <PseudoRagCitationCard
+              <RoughCitationCard
                 key={hit.id}
+                seedKey={`rag-hit-${hit.id}`}
                 title={hit.title}
                 excerpt={
                   hit.snippet ??
@@ -360,7 +360,7 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
               />
             </section>
           ) : (
-            <PaperSheet seedKey={`rag-close-${result.pack.id}`} torn={false}>
+            <section className="border border-border bg-background/30 px-4 py-4">
               <div className="space-y-2">
                 <p className="font-medium">Ready for the real session.</p>
                 <p className="text-sm text-muted-foreground">
@@ -370,7 +370,7 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
                   reveal and close recommendations.
                 </p>
               </div>
-            </PaperSheet>
+            </section>
           )}
         </section>
       ) : null}

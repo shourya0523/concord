@@ -2,12 +2,7 @@ import Link from "next/link"
 
 import { Button } from "@ibpe/ui/components/button"
 
-import {
-  InkHoverScope,
-  PaperSheet,
-  RoughHover,
-  WarrenCallout,
-} from "@/components/paper"
+import { RoughHover, WarrenCallout } from "@/components/paper"
 import { HeatInsightsIsland } from "@/components/heat-insights-island"
 import { TargetSelectIsland } from "@/components/target-select-island"
 import { TopicHeatIsland } from "@/components/topic-heat-island"
@@ -43,7 +38,8 @@ export default async function HeatComparePage({ searchParams }: Props) {
           <p className="max-w-2xl text-[15px] text-muted-foreground">
             Intensity is occurrence-based firm signal — not teaching truth.
             Hatched cells mark your weak topics overlaid on heat; every cell
-            keeps its numeric intensity and sample count visible.
+            keeps its numeric intensity and sample count visible. Cells use
+            rough.js borders; hover draws a lime box.
           </p>
         </div>
         <Link href="/prep/rag">
@@ -60,23 +56,19 @@ export default async function HeatComparePage({ searchParams }: Props) {
         remove firms and the matrix realigns.
       </WarrenCallout>
 
-      <PaperSheet seedKey="heat-compare-targets" torn={false}>
-        <div className="space-y-3">
-          <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-            Target company set
-          </p>
-          <TargetSelectIsland syncSearchParam className="max-w-full" />
-        </div>
-      </PaperSheet>
-      <PaperSheet seedKey="heat-compare-matrix" torn={false}>
-        <InkHoverScope selector="button:not(:disabled)">
-          <TopicHeatIsland
-            compareMode
-            activateTarget="rag"
-            firmIds={firmIds.length > 0 ? firmIds : undefined}
-          />
-        </InkHoverScope>
-      </PaperSheet>
+      <section className="space-y-3 border-b border-border pb-6">
+        <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+          Target company set
+        </p>
+        <TargetSelectIsland syncSearchParam className="max-w-full" />
+      </section>
+
+      <TopicHeatIsland
+        compareMode
+        activateTarget="rag"
+        firmIds={firmIds.length > 0 ? firmIds : undefined}
+      />
+
       <HeatInsightsIsland firmIds={firmIds.length > 0 ? firmIds : undefined} />
     </div>
   )
