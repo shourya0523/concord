@@ -1,13 +1,14 @@
 # Status: frontend
 
-State: DESIGN.md gap-close integrate (dark mode + §10.5/10.3/10.4/10.12/10.13)
+State: DESIGN.md gap-close integrate (dark mode + §10.5/10.3/10.4/10.6/10.8/10.9/10.12/10.13)
 Wave: 2
 Updated: 2026-08-01
-Branch: `local/design-frontend-continue-bb32`
+Branch: `local/ws-learn-study-depth-bb32`
 
 ## Verification
 
 - `npm run typecheck -w @ibpe/web` — green (per workstream branches; re-run on integrate)
+- `npm run typecheck -w @ibpe/web` — green on `local/ws-learn-study-depth-bb32`
 
 ## Notes
 
@@ -21,6 +22,8 @@ Branch: `local/design-frontend-continue-bb32`
 - Weakness overlay can be toggled on heat matrices; heat cells print both level and sample `n`, with hatch/captions preserving non-color-only low-N and weakness cues
 - DESIGN.md §10.12-§10.13 P1 gaps closed: Saved now has client search over bookmarks/notes/collections, real bookmark provenance/firm/tag chips when present, and POST-backed collection creation
 - Progress now renders a target-firm heat∩weakness matrix using the shared heatmap hatch overlay, a weak concept mastery map, and a calm empty state for diagram completion while the API has no completion flags
+- DESIGN.md §10.6 Learn depth: module hubs now render lesson PaperSheets with prereq/core/apply notes from concept detail, pitfall callouts, resource provenance links, real-ID module drill/quiz links when available, and saved-target Apply-at-firm RAG CTAs
+- DESIGN.md §10.8-§10.9 Study depth: Again/Hard/Good/Easy self-rating pills map to confidence, hints stay pre-reveal and structure-only, `p` backs up one revealed layer while `Shift+p` moves to the previous question, and close CTAs link to weak-topic practice plus target-firm context
 - Design Phase 2 gap-close Item 4 — dashboard readiness/streak/urgency polish, study-plan urgency + prereq module mini-map, and concept lab prereq/parent-module mini-maps
 - Dashboard readiness now derives from target firm heat rows + concept mastery, mirroring the progress readiness tiers with visible numeric scores
 - Neon Auth shells (`/sign-in`, `/sign-up`, `/api/auth/[...path]`) — ADR 0006; stub when env unset

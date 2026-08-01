@@ -39,9 +39,10 @@
 | §10.5 RAG study loop (P0) | `local/ws-rag-session-bb32` | Done — `StudyLoopIsland` |
 | §10.3–10.4 heat → scoped RAG | `local/ws-heat-nav-bb32` | Done — `?firm=&topic=` |
 | §10.12–10.13 progress + saved | `local/ws-progress-saved-bb32` | Done — matrix + search |
+| §10.6/§10.8–10.9 Learn + Study depth | `local/ws-learn-study-depth-bb32` | Done — lesson PaperSheets, module drills, rating pills, hints, weak-topic CTAs |
 
 ## Still open (next pass)
 
-- §10.6 module lesson/quiz depth; §10.8 hint + practice-more CTA
-- §10.9 Again/Hard/Good/Easy; §10.11 cited simulator feedback
+- §10.6 remaining refinement: richer diagram step highlights inside lesson bodies once diagram-step metadata lands
+- §10.11 cited simulator feedback
 - §10.14 notifications; diagram completion API for progress
