@@ -254,18 +254,18 @@ export function SavedIsland() {
 
   if (phase === "loading") {
     return (
-      <PaperSheet seedKey="saved-loading" torn={false}>
+      <section className="border border-border bg-background/30 px-4 py-4">
         <div className="flex items-center gap-4">
           <Warren mood="thinking" size={48} />
           <p className="text-sm text-muted-foreground">Opening your saved pages…</p>
         </div>
-      </PaperSheet>
+      </section>
     )
   }
 
   if (phase === "unauthenticated") {
     return (
-      <PaperSheet seedKey="saved-signed-out" torn={false}>
+      <section className="border border-border bg-background/30 px-4 py-4">
         <div className="flex flex-wrap items-start gap-4">
           <Warren mood="idle" size={56} />
           <div className="min-w-0 flex-1">
@@ -280,17 +280,17 @@ export function SavedIsland() {
             </div>
           </div>
         </div>
-      </PaperSheet>
+      </section>
     )
   }
 
   if (phase === "error") {
     return (
-      <PaperSheet seedKey="saved-error" torn={false}>
+      <section className="border border-dashed border-error px-4 py-4">
         <p role="alert" className="text-sm">
           Saved items could not be read. Reload to try again.
         </p>
-      </PaperSheet>
+      </section>
     )
   }
 
@@ -427,7 +427,7 @@ export function SavedIsland() {
           <ul className="space-y-3">
             {filteredNotes.map((note) => (
               <li key={note.id}>
-                <PaperSheet seedKey={`note-${note.id}`} torn={false}>
+                <PaperSheet seedKey={`note-${note.id}`}>
                   <p className="whitespace-pre-line text-sm leading-relaxed">{note.body}</p>
                   <p className="mt-2 font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
                     {note.updated_at.slice(0, 10)}
@@ -464,7 +464,7 @@ export function SavedIsland() {
           <ul className="grid gap-3 md:grid-cols-2">
             {filteredCollections.map((collection) => (
               <li key={collection.id}>
-                <PaperSheet seedKey={`collection-${collection.id}`} torn={false}>
+                <PaperSheet seedKey={`collection-${collection.id}`}>
                   <p className="font-medium">{collection.title}</p>
                   {collection.description ? (
                     <p className="mt-1 text-sm text-muted-foreground">{collection.description}</p>

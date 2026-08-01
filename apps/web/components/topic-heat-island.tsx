@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { TopicHeatmap, type TopicHeatCell } from "@ibpe/ui/components/topic-heatmap"
 
+import { InkHoverScope, RoughHeatBorders } from "@/components/paper"
 import { readStoredTargets } from "@/components/target-select-island"
 import { sortTopicSlugs, topicLabel } from "@/lib/topics"
 import { weakTopicsFromMastery } from "@/lib/weak-topics"
@@ -201,14 +202,21 @@ export function TopicHeatIsland({
           No weak-topic hatch is available from mastery yet.
         </p>
       ) : null}
-      <TopicHeatmap
-        firms={firms}
-        topics={topics}
-        cells={displayCells}
-        compareMode={compareMode}
-        onCellActivate={onCellActivate}
-        className={className}
-      />
+      <InkHoverScope selector="button:not(:disabled)">
+        <RoughHeatBorders
+          seedKey={`heat-${ids.join("-")}-${displayCells.length}`}
+          deps={displayCells}
+        >
+          <TopicHeatmap
+            firms={firms}
+            topics={topics}
+            cells={displayCells}
+            compareMode={compareMode}
+            onCellActivate={onCellActivate}
+            className={className}
+          />
+        </RoughHeatBorders>
+      </InkHoverScope>
     </div>
   )
 }

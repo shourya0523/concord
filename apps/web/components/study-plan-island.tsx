@@ -6,11 +6,11 @@ import { Check } from "lucide-react"
 
 import { Button } from "@ibpe/ui/components/button"
 import { MetadataPill } from "@ibpe/ui/components/editorial"
+import { cn } from "@ibpe/ui/lib/utils"
 
 import {
   Annotate,
   CircledNumber,
-  PaperSheet,
   RoughHover,
   SemanticPill,
   Warren,
@@ -738,18 +738,18 @@ export function StudyPlanIsland() {
 
   if (phase === "loading") {
     return (
-      <PaperSheet seedKey="plan-loading" torn={false}>
+      <section className="border border-border bg-background/30 px-4 py-4">
         <div className="flex items-center gap-4">
           <Warren mood="thinking" size={48} />
           <p className="text-sm text-muted-foreground">Loading your roadmap…</p>
         </div>
-      </PaperSheet>
+      </section>
     )
   }
 
   if (phase === "error") {
     return (
-      <PaperSheet seedKey="plan-error" torn={false}>
+      <section className="border border-dashed border-error px-4 py-4">
         <div className="flex flex-wrap items-center gap-4">
           <Warren mood="concerned" size={48} />
           <div className="min-w-0 flex-1">
@@ -769,13 +769,13 @@ export function StudyPlanIsland() {
             Retry
           </Button>
         </div>
-      </PaperSheet>
+      </section>
     )
   }
 
   if (phase === "unauthenticated") {
     return (
-      <PaperSheet seedKey="plan-signed-out" torn={false}>
+      <section className="border border-border bg-background/30 px-4 py-4">
         <div className="flex flex-wrap items-start gap-4">
           <Warren mood="idle" size={56} />
           <div className="min-w-0 flex-1">
@@ -796,14 +796,13 @@ export function StudyPlanIsland() {
             </div>
           </div>
         </div>
-      </PaperSheet>
+      </section>
     )
   }
 
   return (
     <div className="space-y-8">
-      <PaperSheet seedKey="plan-urgency-band" torn={false}>
-        <section className="flex flex-wrap items-center gap-x-8 gap-y-4">
+      <section className="flex flex-wrap items-center gap-x-8 gap-y-4 border border-border bg-background/30 px-4 py-4">
           {daysLeft !== null && urgency ? (
             <>
               <CircledNumber
@@ -866,8 +865,7 @@ export function StudyPlanIsland() {
               ) : null}
             </div>
           ) : null}
-        </section>
-      </PaperSheet>
+      </section>
 
       <div className="flex flex-wrap items-center gap-3">
         <Button
@@ -889,7 +887,7 @@ export function StudyPlanIsland() {
       </div>
 
       {moduleMiniMapRows.length > 0 ? (
-        <PaperSheet seedKey="plan-module-minimap" torn={false}>
+        <section className="border border-border bg-background/30 px-4 py-4">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
               Prereq-ordered module path
@@ -968,7 +966,7 @@ export function StudyPlanIsland() {
               {hiddenModuleCount === 1 ? "" : "s"} after this path.
             </p>
           ) : null}
-        </PaperSheet>
+        </section>
       ) : null}
 
       {behind ? (
@@ -1007,10 +1005,11 @@ export function StudyPlanIsland() {
           <ol className="grid gap-3 md:grid-cols-2">
             {resolved.map(({ item, key, completed, view }, index) => (
               <li key={key} className="relative">
-                <PaperSheet
-                  seedKey={`plan-day-${index + 1}-${key}`}
-                  torn={false}
-                  className={completed ? "opacity-80" : undefined}
+                <div
+                  className={cn(
+                    "border border-border bg-background/30 px-4 py-4",
+                    completed && "opacity-80",
+                  )}
                 >
                   <div className="flex items-start gap-3">
                     <button
@@ -1094,13 +1093,13 @@ export function StudyPlanIsland() {
                       ) : null}
                     </div>
                   </div>
-                </PaperSheet>
+                </div>
               </li>
             ))}
           </ol>
         </section>
       ) : (
-        <PaperSheet seedKey="plan-empty" torn={false}>
+        <section className="border border-border bg-background/30 px-4 py-4">
           <div className="flex flex-wrap items-start gap-4">
             <Warren mood="idle" size={56} />
             <div className="min-w-0 flex-1">
@@ -1113,7 +1112,7 @@ export function StudyPlanIsland() {
               </p>
             </div>
           </div>
-        </PaperSheet>
+        </section>
       )}
 
       <div className="border-t border-border pt-5 text-sm">

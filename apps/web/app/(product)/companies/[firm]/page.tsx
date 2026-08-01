@@ -7,7 +7,6 @@ import { ResourceLinkList, type ResourceLink } from "@ibpe/ui/components/resourc
 
 import {
   Annotate,
-  PaperSheet,
   ProvenanceChip,
   WarrenCallout,
 } from "@/components/paper"
@@ -251,7 +250,7 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
       </section>
 
       <section aria-label="Concepts this firm over-indexes">
-        <PaperSheet seedKey={`over-index-${firmId}`} torn={false}>
+        <div className="border border-border bg-background/30 px-4 py-4">
           <div className="flex flex-wrap items-baseline gap-x-3">
             <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
               Concepts this firm over-indexes
@@ -292,7 +291,7 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
               still building. Concept labs stay open from the Learn catalog meanwhile.
             </p>
           )}
-        </PaperSheet>
+        </div>
       </section>
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem]">

@@ -11,7 +11,6 @@ import {
   Annotate,
   CircledNumber,
   HeatStrip,
-  PaperSheet,
   SemanticPill,
   Warren,
   WarrenCallout,
@@ -285,18 +284,18 @@ export function ProgressIsland() {
 
   if (phase === "loading") {
     return (
-      <PaperSheet seedKey="progress-loading" torn={false}>
+      <section className="border border-border bg-background/30 px-4 py-4">
         <div className="flex items-center gap-4">
           <Warren mood="thinking" size={48} />
           <p className="text-sm text-muted-foreground">Reading your practice history…</p>
         </div>
-      </PaperSheet>
+      </section>
     )
   }
 
   if (phase === "error") {
     return (
-      <PaperSheet seedKey="progress-error" torn={false}>
+      <section className="border border-dashed border-error px-4 py-4">
         <div className="flex flex-wrap items-center gap-4">
           <Warren mood="concerned" size={48} />
           <div className="min-w-0 flex-1">
@@ -315,13 +314,13 @@ export function ProgressIsland() {
             Retry
           </Button>
         </div>
-      </PaperSheet>
+      </section>
     )
   }
 
   if (phase === "unauthenticated") {
     return (
-      <PaperSheet seedKey="progress-signed-out" torn={false}>
+      <section className="border border-border bg-background/30 px-4 py-4">
         <div className="flex flex-wrap items-start gap-4">
           <Warren mood="idle" size={56} />
           <div className="min-w-0 flex-1">
@@ -337,13 +336,13 @@ export function ProgressIsland() {
             </div>
           </div>
         </div>
-      </PaperSheet>
+      </section>
     )
   }
 
   if (isEmpty) {
     return (
-      <PaperSheet seedKey="progress-empty" torn={false}>
+      <section className="border border-border bg-background/30 px-4 py-4">
         <div className="flex flex-wrap items-start gap-4">
           <Warren mood="encouraging" size={56} />
           <div className="min-w-0 flex-1">
@@ -362,7 +361,7 @@ export function ProgressIsland() {
             </div>
           </div>
         </div>
-      </PaperSheet>
+      </section>
     )
   }
 
@@ -547,42 +546,40 @@ export function ProgressIsland() {
           </p>
         </div>
         {weakConceptRows.length === 0 ? (
-          <PaperSheet seedKey="weak-concepts-empty" torn={false}>
+          <div className="border border-dashed border-border px-4 py-5">
             <p className="text-sm text-muted-foreground">
               No weak concept mastery records yet. Complete rated drills or module quizzes and
               concepts below {Math.round(WEAK_THRESHOLD * 100)}% mastery will appear here.
             </p>
-          </PaperSheet>
+          </div>
         ) : (
           <ul className="grid gap-3 md:grid-cols-2">
             {weakConceptRows.map((row, index) => {
               const body = (
-                <PaperSheet seedKey={`weak-concept-${row.conceptId}`} torn={false}>
-                  <div
-                    className={cn(
-                      "border border-border px-3 py-3",
-                      index < 3 && "border-weak bg-weak/10 shadow-[0_0_0_1px_var(--weak)]",
-                    )}
-                  >
-                    <div className="flex flex-wrap items-start gap-3">
-                      <CircledNumber
-                        value={`${Math.round(row.score * 100)}%`}
-                        label="mastery"
-                        size="sm"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium">{row.title}</p>
-                        <p className="mt-1 font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
-                          {row.topic ? topicLabel(row.topic) : "concept mastery"}
-                        </p>
-                        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                          Below proficient threshold; use the lab, then a rated drill, to move it
-                          out of the weak set.
-                        </p>
-                      </div>
+                <div
+                  className={cn(
+                    "border border-border px-3 py-3",
+                    index < 3 && "border-weak bg-weak/10 shadow-[0_0_0_1px_var(--weak)]",
+                  )}
+                >
+                  <div className="flex flex-wrap items-start gap-3">
+                    <CircledNumber
+                      value={`${Math.round(row.score * 100)}%`}
+                      label="mastery"
+                      size="sm"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{row.title}</p>
+                      <p className="mt-1 font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+                        {row.topic ? topicLabel(row.topic) : "concept mastery"}
+                      </p>
+                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                        Below proficient threshold; use the lab, then a rated drill, to move it
+                        out of the weak set.
+                      </p>
                     </div>
                   </div>
-                </PaperSheet>
+                </div>
               )
               return (
                 <li key={row.conceptId}>
@@ -605,12 +602,12 @@ export function ProgressIsland() {
           Diagram checkpoint completion
         </h2>
         {diagramCompletionRows.length === 0 ? (
-          <PaperSheet seedKey="diagram-completion-empty" torn={false}>
+          <div className="border border-dashed border-border px-4 py-5">
             <p className="text-sm text-muted-foreground">
               Diagram completion flags are not published by the progress API yet. This stays empty
               until real checkpoint completion data is available.
             </p>
-          </PaperSheet>
+          </div>
         ) : (
           <ul className="divide-y divide-border border border-border">
             {diagramCompletionRows.map((diagram) => (

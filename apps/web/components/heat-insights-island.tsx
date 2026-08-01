@@ -5,7 +5,6 @@ import { AlertTriangle } from "lucide-react"
 
 import {
   Annotate,
-  PaperSheet,
   SemanticPill,
   WarrenCallout,
 } from "@/components/paper"
@@ -194,7 +193,7 @@ export function HeatInsightsIsland({
     >
       <div className="space-y-6">
         {insights.sparse.length > 0 ? (
-          <PaperSheet seedKey="heat-insights-sparse" torn={false}>
+          <section className="border border-border bg-background/30 px-4 py-4">
             <div className="space-y-2">
               <SemanticPill tone="streak" icon={false}>
                 <AlertTriangle className="size-3" aria-hidden />
@@ -212,7 +211,7 @@ export function HeatInsightsIsland({
                 here can move with a single import.
               </p>
             </div>
-          </PaperSheet>
+          </section>
         ) : null}
 
         <WarrenCallout mood="thinking" bracket>
@@ -221,7 +220,7 @@ export function HeatInsightsIsland({
         </WarrenCallout>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <PaperSheet seedKey="heat-insights-shared" torn={false}>
+          <section className="border border-border bg-background/30 px-4 py-4">
             <div className="flex flex-wrap items-center gap-2 border-b border-border pb-2">
               <SemanticPill tone="success">
                 Shared heat · {insights.shared.length} topics
@@ -269,9 +268,9 @@ export function HeatInsightsIsland({
                 topics
               </p>
             ) : null}
-          </PaperSheet>
+          </section>
 
-          <PaperSheet seedKey="heat-insights-unique" torn={false}>
+          <section className="border border-border bg-background/30 px-4 py-4">
             <div className="flex flex-wrap items-center gap-2 border-b border-border pb-2">
               <h3 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
                 Firm-unique heat
@@ -315,7 +314,7 @@ export function HeatInsightsIsland({
                 firm-unique topics
               </p>
             ) : null}
-          </PaperSheet>
+          </section>
         </div>
       </div>
     </section>
