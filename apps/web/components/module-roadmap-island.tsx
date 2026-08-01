@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Button } from "@ibpe/ui/components/button"
 import { cn } from "@ibpe/ui/lib/utils"
 
-import { Annotate, PaperSheet, RoughHover } from "@/components/paper"
+import { Annotate, CircledNumber, PaperSheet, RoughHover } from "@/components/paper"
 import {
   fetchModuleProgress,
   moduleProgressPercent,
@@ -46,9 +46,15 @@ export function ModuleMasteryChip({ moduleId }: { moduleId: string }) {
   }, [moduleId])
 
   return (
-    <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
-      Mastery {percent === null ? "—" : `${percent}%`}
-    </span>
+    <>
+      {percent === 100 ? (
+        <CircledNumber value="100%" label="mastery" size="sm" className="origin-left scale-75" />
+      ) : (
+        <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
+          Mastery {percent === null ? "—" : `${percent}%`}
+        </span>
+      )}
+    </>
   )
 }
 
@@ -150,7 +156,7 @@ export function ModuleRoadmapIsland({
                       <Annotate type="strike-through" color="var(--graphite)" padding={2}>
                         {checkpoint.title}
                       </Annotate>
-                    ) : clickable ? (
+                    ) : clickable || state === "open" || state === "current" ? (
                       <RoughHover>{checkpoint.title}</RoughHover>
                     ) : (
                       checkpoint.title

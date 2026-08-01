@@ -5,20 +5,25 @@ import Link from "next/link"
 
 import { Button } from "@ibpe/ui/components/button"
 import { MetadataPill } from "@ibpe/ui/components/editorial"
+import { cn } from "@ibpe/ui/lib/utils"
 
 import { DiagramIsland } from "@/components/diagram-island"
-import { readStoredTargets } from "@/components/target-select-island"
+import { fetchFirmOptions, readStoredTargets } from "@/components/target-select-island"
 import {
   Annotate,
   HeatStrip,
+  InkHoverScope,
+  NotionCallout,
   PaperBurst,
   PaperSheet,
   ProvenanceChip,
+  RoughHover,
   SemanticPill,
   Warren,
   WarrenCallout,
 } from "@/components/paper"
 import { conceptIdForTopic, topicLabel } from "@/lib/topics"
+import { pitfallForTopic } from "@/lib/pitfalls"
 import { weakTopicsFromMastery } from "@/lib/weak-topics"
 
 type StudyDetail = {
@@ -59,6 +64,12 @@ type Layer =
   | { kind: "concepts"; label: string; slug: string | null; topic: string }
 
 const RATING_GUIDE = "Rate honestly — Again/Hard keeps this in your weak set."
+const RATINGS = [
+  { label: "Again", confidence: 0.25, tone: "error" },
+  { label: "Hard", confidence: 0.5, tone: "weak" },
+  { label: "Good", confidence: 0.75, tone: "success" },
+  { label: "Easy", confidence: 1, tone: "streak" },
+] as const
 
 export default function StudyPage() {
   const [detail, setDetail] = React.useState<StudyDetail | null>(null)
@@ -73,6 +84,7 @@ export default function StudyPage() {
   const [bookmarked, setBookmarked] = React.useState(false)
   const [conceptSlug, setConceptSlug] = React.useState<string | null>(null)
   const [firstTarget, setFirstTarget] = React.useState<string | null>(null)
+  const [firstTargetName, setFirstTargetName] = React.useState<string | null>(null)
   const [weakTopicSet, setWeakTopicSet] = React.useState<Set<string>>(new Set())
   const [elapsedSeconds, setElapsedSeconds] = React.useState(0)
   const [noteOpen, setNoteOpen] = React.useState(false)
@@ -82,11 +94,27 @@ export default function StudyPage() {
     Array<{ topic: string; intensity: number; sampleSize: number }>
   >([])
   const [attemptCount, setAttemptCount] = React.useState(0)
+  const [hintOpen, setHintOpen] = React.useState(false)
   const startedAt = React.useRef(0)
   const typing = answer.trim().length > 0
 
   React.useEffect(() => {
-    setFirstTarget(readStoredTargets()[0] ?? null)
+    const params = new URLSearchParams(window.location.search)
+    const firmIds = params
+      .get("firms")
+      ?.split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+    const target = firmIds?.[0] ?? readStoredTargets()[0] ?? null
+    window.queueMicrotask(() => {
+      setFirstTarget(target)
+      if (!target) setFirstTargetName(null)
+    })
+    if (target) {
+      void fetchFirmOptions().then((options) => {
+        setFirstTargetName(options.find((firm) => firm.id === target)?.name ?? target)
+      })
+    }
     fetch("/api/mastery")
       .then(async (response) =>
         response.ok
@@ -198,6 +226,7 @@ export default function StudyPage() {
     setAnswer("")
     setSubmitted(false)
     setBookmarked(false)
+    setHintOpen(false)
     startedAt.current = Date.now()
     const response = await fetch(`/api/questions/${encodeURIComponent(questionId)}?view=study`)
     if (!response.ok) throw new Error(`Question request failed (${response.status})`)
@@ -233,10 +262,43 @@ export default function StudyPage() {
 
   React.useEffect(() => {
     const controller = new AbortController()
-    const requested = new URLSearchParams(window.location.search).get("question")
+    const params = new URLSearchParams(window.location.search)
+    const requested = params.get("question")
+    const requestedQueue = params
+      .get("questions")
+      ?.split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+    const requestedFirms =
+      params
+        .get("firms")
+        ?.split(",")
+        .map((item) => item.trim())
+        .filter(Boolean) ?? []
+    const requestedMode =
+      params.get("mode") === "pseudo_rag" ? "pseudo_rag" : "adaptive_weak"
+    const requestedTopic = params.get("topic")?.trim() || null
+    const requestedLearningMode =
+      params.get("learning_mode") === "company_prep"
+        ? "company_prep"
+        : "concept_learn"
     async function initialise() {
       try {
-        let ids = requested ? [requested] : []
+        let ids = requestedQueue?.length
+          ? requestedQueue
+          : requested
+            ? [requested]
+            : []
+        if (ids.length === 0 && requestedTopic) {
+          const topicResponse = await fetch(
+            `/api/questions?topic=${encodeURIComponent(requestedTopic)}&limit=8`,
+            { signal: controller.signal },
+          )
+          if (topicResponse.ok) {
+            const listed = (await topicResponse.json()) as QuestionList
+            ids = listed.items.map((item) => item.id)
+          }
+        }
         if (ids.length === 0) {
           const listResponse = await fetch("/api/questions?limit=8", {
             signal: controller.signal,
@@ -252,9 +314,9 @@ export default function StudyPage() {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            mode: "adaptive_weak",
-            learning_mode: "concept_learn",
-            firm_ids: [],
+            mode: requestedMode,
+            learning_mode: requestedLearningMode,
+            firm_ids: requestedFirms,
             concept_ids: [],
             question_ids: ids,
             limit: ids.length,
@@ -274,7 +336,13 @@ export default function StudyPage() {
   }, [loadQuestion])
 
   async function submitAttempt() {
-    if (!detail || !sessionId) return
+    if (!detail) return
+    if (!sessionId) {
+      setSubmitted(true)
+      setRevealed(Math.min(1, layers.length))
+      setStatus("Anonymous reveal unlocked. Sign in to save mastery for this pack.")
+      return
+    }
     setStatus("Saving attempt…")
     const response = await fetch(`/api/practice/sessions/${sessionId}/attempts`, {
       method: "POST",
@@ -288,7 +356,9 @@ export default function StudyPage() {
       }),
     })
     if (!response.ok) {
-      setStatus(`Attempt could not be saved (${response.status}).`)
+      setSubmitted(true)
+      setRevealed(Math.min(1, layers.length))
+      setStatus(`Attempt could not be saved (${response.status}); answer layers unlocked anonymously.`)
       return
     }
     setSubmitted(true)
@@ -356,7 +426,11 @@ export default function StudyPage() {
       }
       if (event.key === "p") {
         event.preventDefault()
-        nextQuestion(-1)
+        if (event.shiftKey) {
+          nextQuestion(-1)
+        } else {
+          setRevealed((value) => Math.max(0, value - 1))
+        }
       }
       if (event.key === "b") {
         event.preventDefault()
@@ -368,11 +442,14 @@ export default function StudyPage() {
   })
 
   const topic = detail?.question.topic ?? null
+  const hintText = topic
+    ? `Structure cue: define ${topicLabel(topic)}, state the moving pieces, then apply the relationship. Warren watch-out: ${pitfallForTopic(topic)}`
+    : "Structure cue: define the terms in the prompt, give the answer path first, then support it with assumptions. Do not reveal details you have not reasoned through."
 
   // Peek rail heat context for this question's topic at the primary target.
   React.useEffect(() => {
     if (!topic || !firstTarget) {
-      setPeekHeat([])
+      window.queueMicrotask(() => setPeekHeat([]))
       return
     }
     const controller = new AbortController()
@@ -416,7 +493,8 @@ export default function StudyPage() {
         <div className="flex flex-wrap gap-2">
           <MetadataPill>r reveal</MetadataPill>
           <MetadataPill>n next</MetadataPill>
-          <MetadataPill>p prev</MetadataPill>
+          <MetadataPill>p layer back</MetadataPill>
+          <MetadataPill>Shift+p prev q</MetadataPill>
           <MetadataPill>b bookmark</MetadataPill>
         </div>
       </div>
@@ -458,6 +536,27 @@ export default function StudyPage() {
           </WarrenCallout>
         ) : null}
 
+        {detail && !submitted ? (
+          <div className="space-y-2">
+            <button
+              type="button"
+              className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              aria-expanded={hintOpen}
+              onClick={() => setHintOpen((open) => !open)}
+            >
+              {hintOpen ? "Hide structure hint" : "Show structure hint"}
+            </button>
+            {hintOpen ? (
+              <NotionCallout>
+                <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                  Hint before reveal
+                </p>
+                <p className="mt-1 text-sm leading-relaxed">{hintText}</p>
+              </NotionCallout>
+            ) : null}
+          </div>
+        ) : null}
+
         <PaperSheet seedKey={`study-${detail?.question.id ?? "loading"}`} torn={false}>
           <label className="text-xs font-medium text-muted-foreground" htmlFor="study-answer">
             Your answer — Warren waits while you write
@@ -469,24 +568,39 @@ export default function StudyPage() {
             className="mt-2 min-h-36 w-full border border-border bg-transparent p-3 text-sm leading-relaxed outline-none focus:border-foreground"
             placeholder="Lead with structure, then support it…"
           />
-          <div className="mt-4 flex flex-wrap items-center gap-4">
-            <label className="min-w-40 flex-1 text-xs font-medium text-muted-foreground">
-              Confidence · {Math.round(confidence * 100)}%
-              <input
-                className="mt-2 block w-full accent-black"
-                type="range"
-                min="0"
-                max="1"
-                step="0.25"
-                value={confidence}
-                onChange={(event) => setConfidence(Number(event.target.value))}
-              />
-            </label>
+          <div className="mt-4 flex flex-wrap items-end gap-4">
+            <fieldset className="min-w-64 flex-1">
+              <legend className="text-xs font-medium text-muted-foreground">
+                Self-rating · {Math.round(confidence * 100)}%
+              </legend>
+              <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Self-rating">
+                {RATINGS.map((rating) => (
+                  <button
+                    key={rating.label}
+                    type="button"
+                    aria-pressed={confidence === rating.confidence}
+                    className={cn(
+                      "rounded-full border border-border bg-paper px-1 py-0.5 transition-colors",
+                      confidence === rating.confidence
+                        ? "border-ink"
+                        : "hover:border-ink/50",
+                    )}
+                    onClick={() => setConfidence(rating.confidence)}
+                  >
+                    <SemanticPill tone={rating.tone} icon={confidence === rating.confidence}>
+                      {rating.label}
+                    </SemanticPill>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
             <Button
-              disabled={!answer.trim() || !sessionId || layers.length === 0 || submitted}
+              disabled={!answer.trim() || layers.length === 0 || submitted}
               onClick={() => void submitAttempt()}
             >
-              {submitted ? "Attempt saved" : "Submit and reveal"}
+              <RoughHover padding={3}>
+                {submitted ? (sessionId ? "Attempt saved" : "Revealed anonymously") : sessionId ? "Submit and reveal" : "Reveal anonymously"}
+              </RoughHover>
             </Button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">{RATING_GUIDE}</p>
@@ -604,7 +718,15 @@ export default function StudyPage() {
           </section>
         ) : null}
 
-        <div className="flex flex-wrap gap-2">
+        <InkHoverScope className="flex flex-wrap gap-2" selector="button:not(:disabled),a[href]">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={revealed === 0}
+            onClick={() => setRevealed((value) => Math.max(0, value - 1))}
+          >
+            Previous layer
+          </Button>
           <Button
             type="button"
             disabled={revealed === 0 || revealed >= layers.length}
@@ -622,10 +744,12 @@ export default function StudyPage() {
           ) : null}
           {topic && firstTarget ? (
             <Link href={`/companies/${firstTarget.replace(/^firm_/, "")}?focus=${topic}`}>
-              <Button variant="ghost">See how your target asks this</Button>
+              <Button variant="ghost">
+                See how {firstTargetName ?? "your target"} asks this
+              </Button>
             </Link>
           ) : null}
-        </div>
+        </InkHoverScope>
 
         {sessionComplete ? (
           <PaperSheet seedKey={`study-close-${detail?.question.id}`} torn={false}>
@@ -640,16 +764,30 @@ export default function StudyPage() {
                   Next: the {topic ? topicLabel(topic) : "concept"} checkpoint in your module
                   roadmap.
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <InkHoverScope className="mt-3 flex flex-wrap gap-2" selector="button:not(:disabled),a[href]">
+                  {topic ? (
+                    <Link href={`/study?topic=${encodeURIComponent(topic)}`}>
+                      <Button size="sm">
+                        Practise more on this weak topic
+                      </Button>
+                    </Link>
+                  ) : null}
+                  {topic && firstTarget ? (
+                    <Link href={`/companies/${firstTarget.replace(/^firm_/, "")}?focus=${topic}`}>
+                      <Button size="sm" variant="outline">
+                        See how {firstTargetName ?? "your target"} asks this
+                      </Button>
+                    </Link>
+                  ) : null}
                   <Link href="/learn">
-                    <Button size="sm">Next module checkpoint</Button>
+                    <Button size="sm" variant={topic ? "outline" : "default"}>Next module checkpoint</Button>
                   </Link>
                   <Link href="/progress">
                     <Button size="sm" variant="outline">
                       See progress
                     </Button>
                   </Link>
-                </div>
+                </InkHoverScope>
               </div>
               <Warren mood="celebrating" size={56} />
             </div>

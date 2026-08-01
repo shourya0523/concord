@@ -5,6 +5,7 @@ import { heatClassName, type HeatLevel } from "@ibpe/ui/lib/tokens"
 
 export type TopicHeatCell = {
   firmId: string
+  firmSlug?: string
   firmLabel: string
   topicId: string
   topicLabel: string
@@ -87,7 +88,9 @@ function TopicHeatmap({
                 const cell = lookup.get(cellKey(firm.id, topic.id))
                 const intensity = cell?.intensity ?? 0
                 const weak = Boolean(cell?.weak)
-                const label = `${topic.label} at ${firm.label}: heat ${intensity}${
+                const countLabel =
+                  typeof cell?.count === "number" ? `, n=${cell.count}` : ""
+                const label = `${topic.label} at ${firm.label}: heat ${intensity}${countLabel}${
                   weak ? ", weak topic" : ""
                 }`
                 return (
@@ -98,7 +101,7 @@ function TopicHeatmap({
                       disabled={!onCellActivate}
                       onClick={() => cell && onCellActivate?.(cell)}
                       className={cn(
-                        "relative flex h-10 w-full items-center justify-center rounded-[8px] font-mono text-[11px] transition-[transform,box-shadow] duration-[var(--duration-micro)] ease-[var(--ease-terminal)]",
+                        "relative flex h-12 w-full flex-col items-center justify-center rounded-[8px] font-mono text-[11px] transition-[transform,box-shadow] duration-[var(--duration-micro)] ease-[var(--ease-terminal)]",
                         heatClassName[intensity],
                         weak &&
                           "bg-[repeating-linear-gradient(-45deg,transparent,transparent_3px,color-mix(in_oklch,var(--weak)_35%,transparent)_3px,color-mix(in_oklch,var(--weak)_35%,transparent)_6px)]",
@@ -110,6 +113,11 @@ function TopicHeatmap({
                       <span className="relative z-[1] text-ink/80 dark:text-ink/90">
                         {intensity}
                       </span>
+                      {typeof cell?.count === "number" ? (
+                        <span className="relative z-[1] text-[9px] leading-none text-ink/65 dark:text-ink/80">
+                          n={cell.count}
+                        </span>
+                      ) : null}
                       {weak ? (
                         <span className="sr-only">Marked as weak topic</span>
                       ) : null}

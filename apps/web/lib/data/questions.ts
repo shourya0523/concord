@@ -69,6 +69,7 @@ function rowToCanonical(row: PublishedQuestionRow): CanonicalQuestion {
 export async function listQuestions(options: {
   q?: string;
   track?: string;
+  topic?: string;
   limit?: number;
   offset?: number;
 }): Promise<QuestionListResponse> {
@@ -79,6 +80,7 @@ export async function listQuestions(options: {
     const { items, total } = await listBankAsCanonical({
       q: options.q,
       track: options.track,
+      topic: options.topic,
       limit,
       offset,
     });
@@ -88,6 +90,7 @@ export async function listQuestions(options: {
   const sql = requireSql();
   const needle = options.q?.trim() || null;
   const track = options.track?.trim() || null;
+  const topic = options.topic?.trim() || null;
 
   const rows = (await sql`
     SELECT
@@ -96,6 +99,7 @@ export async function listQuestions(options: {
     FROM published.v_questions
     WHERE (${needle}::text IS NULL OR canonical_wording ILIKE '%' || ${needle} || '%')
       AND (${track}::text IS NULL OR track = ${track} OR domain = lower(${track}))
+      AND (${topic}::text IS NULL OR topic = ${topic})
     ORDER BY updated_at DESC NULLS LAST, id
     LIMIT ${limit} OFFSET ${offset}
   `) as PublishedQuestionRow[];
@@ -105,6 +109,7 @@ export async function listQuestions(options: {
     FROM published.v_questions
     WHERE (${needle}::text IS NULL OR canonical_wording ILIKE '%' || ${needle} || '%')
       AND (${track}::text IS NULL OR track = ${track} OR domain = lower(${track}))
+      AND (${topic}::text IS NULL OR topic = ${topic})
   `) as { n: number }[];
 
   const items = rows.map(rowToCanonical);
@@ -115,6 +120,7 @@ export async function listQuestions(options: {
     const fallback = await listBankAsCanonical({
       q: options.q,
       track: options.track,
+      topic: options.topic,
       limit,
       offset,
     });

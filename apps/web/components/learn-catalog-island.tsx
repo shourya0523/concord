@@ -7,7 +7,13 @@ import { Button } from "@ibpe/ui/components/button"
 import { MetadataPill } from "@ibpe/ui/components/editorial"
 import { cn } from "@ibpe/ui/lib/utils"
 
-import { Annotate, PaperSheet, WarrenCallout } from "@/components/paper"
+import {
+  CircledNumber,
+  InkHoverScope,
+  PaperSheet,
+  RoughHover,
+  WarrenCallout,
+} from "@/components/paper"
 import {
   fetchModuleProgress,
   moduleProgressPercent,
@@ -127,6 +133,7 @@ export function LearnCatalogIsland({ modules }: { modules: CatalogModule[] }) {
           No modules on this track yet — check back after the next curriculum import.
         </p>
       ) : (
+        <InkHoverScope selector="a[href^='/learn/']">
         <ul className="grid gap-4 md:grid-cols-2">
           {visible.map((module) => {
             const percent = progress === null ? null : moduleProgressPercent(progress, module.id)
@@ -143,24 +150,20 @@ export function LearnCatalogIsland({ modules }: { modules: CatalogModule[] }) {
                       </MetadataPill>
                     </div>
                     <h2 className="mt-4 font-display text-2xl leading-tight tracking-tight">
-                      {module.title}
+                      <RoughHover>{module.title}</RoughHover>
                     </h2>
                     <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
                       {module.summary}
                     </p>
                     <div className="mt-4 flex items-center justify-between gap-3">
-                      <span className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
-                        Progress{" "}
-                        {percent === null ? (
-                          "—"
-                        ) : percent >= 100 ? (
-                          <Annotate type="circle" color="var(--ink)" padding={3}>
-                            <span className="text-foreground">100%</span>
-                          </Annotate>
-                        ) : (
-                          <span className="text-foreground">{percent}%</span>
-                        )}
-                      </span>
+                      {percent !== null && percent >= 100 ? (
+                        <CircledNumber value="100%" label="complete" size="sm" />
+                      ) : (
+                        <span className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
+                          Progress{" "}
+                          {percent === null ? "—" : <span className="text-foreground">{percent}%</span>}
+                        </span>
+                      )}
                       <Link href={`/learn/${module.slug}`}>
                         <Button size="sm">Open roadmap</Button>
                       </Link>
@@ -171,6 +174,7 @@ export function LearnCatalogIsland({ modules }: { modules: CatalogModule[] }) {
             )
           })}
         </ul>
+        </InkHoverScope>
       )}
     </div>
   )

@@ -7,7 +7,14 @@ import { MetadataPill } from "@ibpe/ui/components/editorial"
 import { ConceptFirmBridgesIsland } from "@/components/concept-firm-bridges-island"
 import { ConceptModulePeekIsland } from "@/components/concept-module-peek-island"
 import { DiagramIsland } from "@/components/diagram-island"
-import { PaperSheet, ProvenanceChip, WarrenCallout } from "@/components/paper"
+import {
+  Annotate,
+  PaperSheet,
+  ProvenanceChip,
+  RoughHover,
+  SemanticPill,
+  WarrenCallout,
+} from "@/components/paper"
 import {
   getConceptDetail,
   listConcepts,
@@ -48,10 +55,24 @@ export default async function ConceptLabPage({ params }: Props) {
   const { concept, topic, diagrams, resources } = result.item
   const questions = await listQuestionsForConcept(concept.id, 4)
 
-  const parentModule = modules.items.find((module) => module.concept_ids.includes(concept.id))
+  const parentModule = modules.items.find((module) =>
+    module.concept_ids.includes(concept.id)
+  )
   const prerequisites = concept.prerequisites
-    .map((id) => allConcepts.items.find((item) => item.concept.id === id)?.concept)
-    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
+    .map(
+      (id) => allConcepts.items.find((item) => item.concept.id === id)?.concept
+    )
+    .filter((candidate): candidate is NonNullable<typeof candidate> =>
+      Boolean(candidate)
+    )
+  const prereqPath = [
+    ...prerequisites.map((prerequisite, index) => ({
+      concept: prerequisite,
+      current: false,
+      ordinal: index + 1,
+    })),
+    { concept, current: true, ordinal: prerequisites.length + 1 },
+  ]
   const diagram = diagrams[0]
   const firmEntries = Object.entries(concept.firm_relevance)
     .filter(([, intensity]) => intensity >= 0.5)
@@ -68,7 +89,10 @@ export default async function ConceptLabPage({ params }: Props) {
           {parentModule ? (
             <>
               {" / "}
-              <Link href={`/learn/${parentModule.slug}`} className="hover:text-foreground">
+              <Link
+                href={`/learn/${parentModule.slug}`}
+                className="hover:text-foreground"
+              >
                 {parentModule.title}
               </Link>
             </>
@@ -79,9 +103,13 @@ export default async function ConceptLabPage({ params }: Props) {
           {concept.title}
         </h1>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <MetadataPill>{(concept.domain ?? "both").toUpperCase()}</MetadataPill>
+          <MetadataPill>
+            {(concept.domain ?? "both").toUpperCase()}
+          </MetadataPill>
           {topic ? <MetadataPill>{topicLabel(topic)}</MetadataPill> : null}
-          <MetadataPill tone="muted">mastery builds after your first drill</MetadataPill>
+          <MetadataPill tone="muted">
+            mastery builds after your first drill
+          </MetadataPill>
         </div>
         {concept.summary ? (
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
@@ -95,37 +123,80 @@ export default async function ConceptLabPage({ params }: Props) {
           <DiagramIsland
             title={diagram.title}
             source={diagram.body}
-            a11yFallback={diagram.ref.a11y_fallback ?? concept.summary ?? diagram.title}
+            a11yFallback={
+              diagram.ref.a11y_fallback ?? concept.summary ?? diagram.title
+            }
           />
         </PaperSheet>
       ) : null}
 
       <section className="space-y-6">
         <h2 className="font-display text-3xl tracking-tight">Lab notes</h2>
-        {prerequisites.length > 0 ? (
-          <div>
+        <PaperSheet seedKey={`concept-prereqs-${concept.id}`} torn={false}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-              Prerequisites
+              Prerequisite mini-map
             </h3>
-            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-              {prerequisites.map((prerequisite) => (
-                <li key={prerequisite.id}>
-                  <Link
-                    className="text-sm underline underline-offset-4"
-                    href={`/concepts/${prerequisite.slug}`}
-                  >
-                    {prerequisite.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <SemanticPill
+              tone={prerequisites.length > 0 ? "milestone" : "neutral"}
+              icon={false}
+            >
+              {prerequisites.length > 0
+                ? `${prerequisites.length} before this lab`
+                : "No prereq gate"}
+            </SemanticPill>
           </div>
-        ) : null}
+          <ol
+            className="mt-4 space-y-2"
+            aria-label={`Prerequisite path ending at ${concept.title}`}
+          >
+            {prereqPath.map((entry, index) => (
+              <li key={entry.concept.id} className="relative flex gap-3 py-2">
+                {index < prereqPath.length - 1 ? (
+                  <span
+                    aria-hidden
+                    className="absolute top-9 bottom-[-0.65rem] left-[0.8125rem] border-l border-dashed border-border"
+                  />
+                ) : null}
+                {entry.current ? (
+                  <Annotate type="circle" color="var(--ink)" padding={3}>
+                    <span className="flex size-7 items-center justify-center rounded-full border border-ink bg-ink text-xs text-paper">
+                      {entry.ordinal}
+                    </span>
+                  </Annotate>
+                ) : (
+                  <span className="flex size-7 items-center justify-center rounded-full border border-border text-xs text-muted-foreground">
+                    {entry.ordinal}
+                  </span>
+                )}
+                <div className="min-w-0 pt-0.5">
+                  <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+                    {entry.current ? "current lab" : "prerequisite"}
+                  </p>
+                  {entry.current ? (
+                    <span className="text-sm font-medium">
+                      {entry.concept.title}
+                    </span>
+                  ) : (
+                    <Link
+                      className="text-sm font-medium underline-offset-4 hover:underline"
+                      href={`/concepts/${entry.concept.slug}`}
+                    >
+                      <RoughHover>{entry.concept.title}</RoughHover>
+                    </Link>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </PaperSheet>
         <div>
           <h3 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
             Core
           </h3>
-          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed">{concept.summary}</p>
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed">
+            {concept.summary}
+          </p>
           {diagram?.ref.a11y_fallback ? (
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
               {diagram.ref.a11y_fallback}
@@ -142,8 +213,8 @@ export default async function ConceptLabPage({ params }: Props) {
             </div>
           ) : (
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Firm bridges appear here once occurrence signals are published for this topic —
-              directional heat, never answer text.
+              Firm bridges appear here once occurrence signals are published for
+              this topic — directional heat, never answer text.
             </p>
           )}
         </div>
@@ -158,7 +229,10 @@ export default async function ConceptLabPage({ params }: Props) {
             <>
               <ul className="mt-3 space-y-2">
                 {questions.map((question) => (
-                  <li key={question.id} className="flex flex-wrap items-baseline gap-2 text-sm">
+                  <li
+                    key={question.id}
+                    className="flex flex-wrap items-baseline gap-2 text-sm"
+                  >
                     <Link
                       className="underline underline-offset-4"
                       href={`/study?question=${question.id}`}
@@ -171,14 +245,17 @@ export default async function ConceptLabPage({ params }: Props) {
                   </li>
                 ))}
               </ul>
-              <Link className="mt-4 inline-block" href={`/study?question=${questions[0]!.id}`}>
+              <Link
+                className="mt-4 inline-block"
+                href={`/study?question=${questions[0]!.id}`}
+              >
                 <Button>Start drill</Button>
               </Link>
             </>
           ) : (
             <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-              No published questions for this topic yet — drills appear after the next corpus
-              import.
+              No published questions for this topic yet — drills appear after
+              the next corpus import.
             </p>
           )}
         </section>

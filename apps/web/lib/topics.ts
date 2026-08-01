@@ -1,7 +1,7 @@
 /**
  * Topic taxonomy shared by UI + data layer.
- * Slugs match migrations/034_occurrence_topic_backfill.sql and
- * packages/search/src/topics.ts (keyword_rules_v1).
+ * Slugs match occurrence topic backfill migrations and
+ * packages/search/src/topics.ts (keyword_rules_v2).
  */
 
 export const TOPIC_LABELS: Record<string, string> = {
@@ -15,6 +15,10 @@ export const TOPIC_LABELS: Record<string, string> = {
   investment_thesis: "Investment thesis",
   due_diligence: "Due diligence",
   restructuring: "Restructuring",
+  credit: "Credit",
+  industry_coverage: "Industry / coverage",
+  markets: "Markets / macro",
+  brainteasers: "Brainteasers",
   returns: "Returns",
   value_creation: "Value creation",
   behavioral: "Behavioural",
@@ -28,12 +32,16 @@ export const TOPIC_ORDER = [
   "enterprise_value",
   "merger_models",
   "lbo",
+  "credit",
   "capital_structure",
   "returns",
   "investment_thesis",
   "due_diligence",
+  "industry_coverage",
+  "markets",
   "value_creation",
   "restructuring",
+  "brainteasers",
   "behavioral",
   "untagged",
 ] as const
@@ -60,6 +68,14 @@ const CONCEPT_TOPIC: Record<string, string> = {
   concept_behavioural_story: "behavioral",
 }
 
+const CONCEPT_SLUG: Record<string, string> = {
+  concept_accounting_foundations: "accounting-foundations",
+  concept_ev_equity_value: "ev-equity-value",
+  concept_dcf_wacc: "dcf-wacc",
+  concept_lbo_paper_lbo: "lbo-paper-lbo",
+  concept_behavioural_story: "behavioural-story",
+}
+
 export function topicForConceptId(conceptId: string): string | null {
   return CONCEPT_TOPIC[conceptId] ?? null
 }
@@ -69,4 +85,9 @@ export function conceptIdForTopic(topic: string): string | null {
     if (slug === topic) return conceptId
   }
   return null
+}
+
+export function conceptSlugForTopic(topic: string): string | null {
+  const conceptId = conceptIdForTopic(topic)
+  return conceptId ? (CONCEPT_SLUG[conceptId] ?? null) : null
 }

@@ -22,7 +22,11 @@ export const dynamic = "force-dynamic"
 
 type Props = {
   params: Promise<{ firm: string }>
-  searchParams: Promise<{ focus?: string }>
+  searchParams: Promise<{ focus?: string | string[]; role?: string | string[] }>
+}
+
+function firstParam(value: string | string[] | undefined): string | null {
+  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null)
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -38,14 +42,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CompanyRoomPage({ params, searchParams }: Props) {
   const { firm: slug } = await params
-  const { focus } = await searchParams
+  const query = await searchParams
+  const focus = firstParam(query.focus)
+  const requestedRole = firstParam(query.role)
   const firm = await getFirmBySlugOrId(slug)
   if (!firm) notFound()
+  const firmId = firm.id
+  const firmSlug = firm.slug
 
-  const [heat, concepts, signals] = await Promise.all([
-    getFirmTopicHeat(firm.id),
+  const [heat, concepts, roleScopeSignals] = await Promise.all([
+    getFirmTopicHeat(firmId),
     listConcepts(),
-    getCompanySignals({ firmId: firm.id, topic: focus ?? null, limit: 10 }),
+    getCompanySignals({ firmId, topic: focus ?? null, limit: 100 }),
   ])
 
   const taggedHeat = heat.topics
@@ -57,7 +65,7 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
   const overIndexed = concepts.items
     .map((item) => ({
       item,
-      relevance: item.concept.firm_relevance[firm.id] ?? 0,
+      relevance: item.concept.firm_relevance[firmId] ?? 0,
     }))
     .filter((entry) => entry.relevance >= 0.5)
     .sort((a, b) => b.relevance - a.relevance)
@@ -74,13 +82,43 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
     return conceptSlug ? `/concepts/${conceptSlug}` : null
   }
 
-  const reportedRoles = [
+  const roleOptions = [
     ...new Set(
-      signals.items
+      roleScopeSignals.items
         .map((signal) => signal.role?.trim())
         .filter((role): role is string => Boolean(role)),
     ),
-  ].slice(0, 2)
+  ]
+  const selectedRole =
+    requestedRole && roleOptions.includes(requestedRole) ? requestedRole : null
+  const signals = selectedRole
+    ? await getCompanySignals({
+        firmId,
+        topic: focus ?? null,
+        role: selectedRole,
+        limit: 10,
+      })
+    : {
+        ...roleScopeSignals,
+        items: roleScopeSignals.items.slice(0, 10),
+        limit: 10,
+      }
+
+  function ragHrefForTopic(topic: string | null | undefined) {
+    const params = new URLSearchParams({ firm: firmId })
+    if (topic) params.set("topic", topic)
+    return `/prep/rag?${params.toString()}`
+  }
+
+  function roomHref(next: { focus?: string | null; role?: string | null }) {
+    const params = new URLSearchParams()
+    const nextFocus = next.focus === undefined ? focus : next.focus
+    const nextRole = next.role === undefined ? selectedRole : next.role
+    if (nextFocus) params.set("focus", nextFocus)
+    if (nextRole) params.set("role", nextRole)
+    const search = params.toString()
+    return `/companies/${firmSlug}${search ? `?${search}` : ""}`
+  }
 
   const railResources: ResourceLink[] = [
     {
@@ -93,7 +131,7 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
     {
       id: "rag",
       label: `Pseudo-RAG pack for ${firm.name}`,
-      href: "/prep/rag",
+      href: ragHrefForTopic(topHeat?.topic_id),
       kind: "internal",
       description: "Corpus-grounded pack, frozen at session start",
     },
@@ -120,20 +158,50 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
           </h1>
           <p className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
             {firm.track ?? "IB / PE"} ·{" "}
-            {reportedRoles.length > 0
-              ? `reported roles: ${reportedRoles.join(" · ")}`
+            {roleOptions.length > 0
+              ? `reported roles: ${roleOptions.slice(0, 2).join(" · ")}`
               : "role mix not yet tagged"}{" "}
             · signals {firm.signals}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Link href="/prep/rag">
+          <Link href={ragHrefForTopic(focus ?? topHeat?.topic_id)}>
             <Button>Start pseudo-RAG</Button>
           </Link>
           <Link href="/study">
             <Button variant="outline">Adaptive session</Button>
           </Link>
         </div>
+        {roleOptions.length > 0 ? (
+          <nav className="flex flex-wrap items-center gap-2" aria-label="Role filter">
+            <span className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
+              Role filter
+            </span>
+            <Link
+              href={roomHref({ role: null })}
+              className={`rounded-full border px-3 py-1 font-mono text-[10px] tracking-wide uppercase transition-colors duration-200 ease-out ${
+                selectedRole
+                  ? "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+                  : "border-foreground/60 text-foreground"
+              }`}
+            >
+              All roles
+            </Link>
+            {roleOptions.map((role) => (
+              <Link
+                key={role}
+                href={roomHref({ role })}
+                className={`rounded-full border px-3 py-1 font-mono text-[10px] tracking-wide uppercase transition-colors duration-200 ease-out ${
+                  selectedRole === role
+                    ? "border-foreground/60 text-foreground"
+                    : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+                }`}
+              >
+                {role}
+              </Link>
+            ))}
+          </nav>
+        ) : null}
       </header>
 
       {topHeat ? (
@@ -159,7 +227,21 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
               : (heat.note ?? "No tagged occurrences yet.")}
           </p>
         </div>
-        <TopicHeatIsland firmIds={[firm.id]} compareMode={false} />
+        <TopicHeatIsland firmIds={[firmId]} compareMode={false} activateTarget="rag" />
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href={ragHrefForTopic(focus ?? topHeat?.topic_id)}>
+            <Button size="sm">
+              Start heat-scoped RAG{focus ? ` · ${topicLabel(focus)}` : ""}
+            </Button>
+          </Link>
+          {focus && conceptHrefForTopic(focus) ? (
+            <Link href={conceptHrefForTopic(focus) ?? "#"}>
+              <Button size="sm" variant="outline">
+                Open concept lab
+              </Button>
+            </Link>
+          ) : null}
+        </div>
         {focus ? (
           <p className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
             Focus from heat · {topicLabel(focus)}
@@ -169,7 +251,7 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
       </section>
 
       <section aria-label="Concepts this firm over-indexes">
-        <PaperSheet seedKey={`over-index-${firm.id}`} torn={false}>
+        <PaperSheet seedKey={`over-index-${firmId}`} torn={false}>
           <div className="flex flex-wrap items-baseline gap-x-3">
             <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
               Concepts this firm over-indexes
@@ -229,10 +311,21 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
               <p className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
                 Filtered by {topicLabel(focus)} ·{" "}
                 <Link
-                  href={`/companies/${firm.slug}`}
+                  href={roomHref({ focus: null })}
                   className="text-foreground underline underline-offset-4"
                 >
-                  clear filter
+                  clear topic
+                </Link>
+              </p>
+            ) : null}
+            {selectedRole ? (
+              <p className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
+                Role {selectedRole} ·{" "}
+                <Link
+                  href={roomHref({ role: null })}
+                  className="text-foreground underline underline-offset-4"
+                >
+                  clear role
                 </Link>
               </p>
             ) : null}
@@ -242,6 +335,8 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
             <p className="border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
               {focus
                 ? `No reported occurrences tagged ${topicLabel(focus)} at ${firm.name} yet — clear the filter to see everything reported.`
+                : selectedRole
+                  ? `No reported occurrences tagged ${selectedRole} at ${firm.name} yet — clear the role filter to see everything reported.`
                 : `No reported occurrences for ${firm.name} yet. Volume builds with each import.`}
             </p>
           ) : (
@@ -294,6 +389,7 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
               <p className="font-mono text-[10px] tracking-wide text-muted-foreground/80 uppercase">
                 Showing {signals.items.length} of {signals.total} reported occurrences
                 {focus ? ` · filter: ${topicLabel(focus)}` : ""}
+                {selectedRole ? ` · role: ${selectedRole}` : ""}
               </p>
             </>
           )}
