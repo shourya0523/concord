@@ -49,13 +49,13 @@ This is a **monorepo** containing:
 
 **Imagine Notion, Khan Academy, and Duolingo had a child:**
 
-- **Notion's monochrome editorial discipline** as the resting state (**black / grey chrome · cream paper · black ink** for ~80% of the interface)
+- **Notion's monochrome editorial discipline** as the resting state (**cream paper · black ink · stone borders** for ~80% of the interface)
 - **Notion's information architecture** as the layout base: **left sidebar + single document page**, page title as the only H1, nested pages for flow steps, callouts for Warren — not dashboards, not journey marketing chrome
 - **Khan Academy's tactile hand-drawn warmth** as the illustration texture (rough.js hand-drawn primitives) — used **sparingly** inside content, never as full-page chrome
 - **Duolingo's reward-driven gamification energy** as the emotional engine (streaks, XP, celebrations) — but restrained into a **pastel palette** rather than saturated primaries, so it reads **premium and calm** rather than toy-like
 
 **Layout resting rules (Notion base):**
-1. Sidebar = workspace navigation (Company / Learn / Plan + step pages). Main = **cream document** on **true black / grey** chrome (never warm brown, never light-on-light).
+1. Sidebar = workspace navigation (Company / Learn / Plan + step pages). Main = **full-bleed cream document** — light sidebar + paper canvas, ink nav (no black/grey bezels; never warm brown charcoal).
 2. One page title. Breadcrumb optional and quiet. No stacked marketing headers.
 3. Warren lives in a **paper callout block**, not a competing hero column.
 4. Lists and databases = simple bordered rows. **Paper sheets** (rough frame + torn edge chrome) wrap study cards, packs, and score moments — not the whole app shell.
@@ -68,11 +68,11 @@ This is a **monorepo** containing:
 - Glow remains reserved for rare data callouts (e.g. single weakest heat cell), never for button chrome.
 
 **Paper / torn pages:**
-- Resting chrome = **black sidebar** + **dark grey workspace** against a **cream document**.
+- Resting chrome = **full-bleed cream** with a hairline-bordered light sidebar and ink navigation (Concorde silhouette mark, Lucide nav icons).
 - **Paper UI** inside content: cream sheet, rough.js border, optional **torn edge strips** (filter on decorative edges only — never on body text).
 - Static torn filter for sheets; animated hero torn only on score / milestone reveals.
 
-**Settled palette:** Black · grey · cream, with **lime for line hover accents** and **pastel accents** for heat / rewards / semantics. Do **not** run light-grey chrome behind a white page (light-on-light) — the cream page must sit on dark grey so foreground reads.
+**Settled palette:** Ink · cream · stone, with **lime for line hover accents** and **pastel accents** for heat / rewards / semantics. Shell and document share cream; contrast comes from ink/graphite type and stone borders, not a dark frame.
 
 This is a **banking interview prep platform** — trust reads through precision, not energy. Numbers stay visually calm. No bounce on financial figures. Hand-drawn aesthetic adds **warmth and approachability** to a high-stakes domain without compromising **editorial rigor**.
 
@@ -80,19 +80,19 @@ This is a **banking interview prep platform** — trust reads through precision,
 
 ## 3. Color System
 
-### Settled base — Black / Grey / Cream (+ lime hover lines)
+### Settled base — Ink / Cream / Stone (+ lime hover lines)
 
-Contrast model: **black / grey chrome · cream paper · black ink · lime line-hover · pastel data**.
-Chrome is **true neutral** (chroma 0) — no warm brown charcoal.
+Contrast model: **full-bleed cream shell · black ink · stone borders · lime line-hover · pastel data**.
+Shell and document share cream; chrome tokens map to paper/ink so nav stays readable without a dark frame.
 
 ```css
-/* Chrome — true black / grey (neutral only) */
---chrome: #000000;           /* Black sidebar */
---chrome-hover: #2a2a2a;     /* Grey hover fill */
---chrome-border: #333333;
---chrome-workspace: #1a1a1a; /* Dark grey canvas behind cream */
---chrome-text: #e8e8e8;
---chrome-muted: #888888;
+/* Chrome — full-bleed cream shell (neutral, no warm brown charcoal) */
+--chrome: #f7f1e4;           /* Sidebar / shell fill (= paper) */
+--chrome-hover: #ebe4d4;     /* Hover / active fill */
+--chrome-border: #cfc7b6;    /* Hairline sidebar edge */
+--chrome-workspace: #f7f1e4; /* Full-bleed canvas (= paper) */
+--chrome-text: #111111;      /* Ink on cream */
+--chrome-muted: #555555;     /* Graphite secondary */
 
 /* Document */
 --paper: #f7f1e4;            /* Cream */
