@@ -51,16 +51,16 @@ function TopicHeatmap({
     <div
       data-slot="topic-heatmap"
       data-compare={compareMode || undefined}
-      className={cn("w-full overflow-x-auto", className)}
+      className={cn("relative w-full overflow-x-auto", className)}
       role="grid"
       aria-label="Topic heat by firm"
     >
-      <table className="w-full min-w-[32rem] border-collapse text-sm">
+      <table className="w-full table-fixed border-collapse text-sm">
         <thead>
           <tr role="row">
             <th
               scope="col"
-              className="border-b border-border px-2 py-2 text-left font-mono text-[11px] font-normal tracking-wide text-muted-foreground uppercase"
+              className="w-[9.5rem] border-b border-border px-2 py-2 text-left font-mono text-[11px] font-normal tracking-wide text-muted-foreground uppercase"
             >
               Topic / Firm
             </th>
@@ -68,9 +68,10 @@ function TopicHeatmap({
               <th
                 key={firm.id}
                 scope="col"
-                className="border-b border-border px-2 py-2 text-left font-medium text-foreground"
+                title={firm.label}
+                className="border-b border-border px-1.5 py-2 text-left font-medium text-foreground"
               >
-                {firm.label}
+                <span className="block truncate">{firm.label}</span>
               </th>
             ))}
           </tr>
@@ -80,9 +81,10 @@ function TopicHeatmap({
             <tr key={topic.id} role="row">
               <th
                 scope="row"
+                title={topic.label}
                 className="border-b border-border/70 px-2 py-1.5 text-left font-normal text-muted-foreground"
               >
-                {topic.label}
+                <span className="block truncate">{topic.label}</span>
               </th>
               {firms.map((firm) => {
                 const cell = lookup.get(cellKey(firm.id, topic.id))
@@ -101,7 +103,7 @@ function TopicHeatmap({
                       disabled={!onCellActivate}
                       onClick={() => cell && onCellActivate?.(cell)}
                       className={cn(
-                        "relative flex h-12 w-full flex-col items-center justify-center rounded-[8px] font-mono text-[11px] transition-[transform,box-shadow] duration-[var(--duration-micro)] ease-[var(--ease-terminal)]",
+                        "relative flex h-12 w-full min-w-0 flex-col items-center justify-center rounded-[8px] font-mono text-[11px] transition-[transform,box-shadow] duration-[var(--duration-micro)] ease-[var(--ease-terminal)]",
                         heatClassName[intensity],
                         weak &&
                           "bg-[repeating-linear-gradient(-45deg,transparent,transparent_3px,color-mix(in_oklch,var(--weak)_35%,transparent)_3px,color-mix(in_oklch,var(--weak)_35%,transparent)_6px)]",
