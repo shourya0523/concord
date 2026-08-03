@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { Button } from "@ibpe/ui/components/button"
 
+import { ConcordLogo } from "@/components/concord-logo"
 import { MockupSvgFilters } from "@/components/mockups/svg-filters"
 import {
   HandwritingHeadline,
@@ -12,7 +13,7 @@ import {
 } from "@/components/paper"
 
 /**
- * Landing — cream paper document on true-black chrome (DESIGN.md §2).
+ * Landing — full-bleed cream paper document (DESIGN.md §2).
  * Monochrome + cream; the three pillar cards are static line art with no
  * fabricated numbers.
  */
@@ -151,21 +152,23 @@ const PILLARS = [
 
 export default function HomePage() {
   return (
-    <main className="min-h-svh bg-[#111] px-4 py-6 text-[#111] md:px-10 md:py-10">
+    <main className="min-h-svh bg-paper px-4 py-6 text-ink md:px-10 md:py-10">
       <MockupSvgFilters />
-      <article className="mx-auto flex min-h-[calc(100svh-3rem)] max-w-5xl flex-col border border-black bg-[#f7f1e4] px-6 py-8 shadow-[6px_6px_0_0_rgba(255,255,255,0.12)] md:px-12 md:py-12">
+      <article className="mx-auto flex min-h-[calc(100svh-3rem)] max-w-5xl flex-col px-2 py-4 md:px-4 md:py-6">
         <header className="flex items-center justify-between text-sm">
-          <span className="font-semibold tracking-tight">Concord</span>
+          <Link href="/" aria-label="Concord home">
+            <ConcordLogo size="md" priority />
+          </Link>
           <Link
             href="/sign-in"
-            className="text-[#555] underline-offset-4 transition-colors hover:text-[#111] hover:underline"
+            className="text-graphite underline-offset-4 transition-colors hover:text-ink hover:underline"
           >
             Sign in
           </Link>
         </header>
 
         <div className="py-14 md:py-20">
-          <p className="mb-4 font-mono text-[11px] tracking-[0.14em] text-[#666] uppercase">
+          <p className="mb-4 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
             Interview preparation, drawn clearly
           </p>
           <h1 className="max-w-4xl font-display text-5xl leading-[0.98] tracking-tight md:text-7xl">
@@ -175,7 +178,7 @@ export default function HomePage() {
             phrase="Practise where it matters"
             className="mt-2 max-w-4xl [&_p]:text-5xl [&_p]:leading-[0.98] md:[&_p]:text-7xl"
           />
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-[#555]">
+          <p className="mt-6 max-w-2xl text-base leading-relaxed text-graphite">
             Mode A reads firm occurrence heat so you drill what your targets
             actually ask. Mode B teaches the finance through modules and concept
             labs. The two never blur: signals stay directional, teaching answers
@@ -200,7 +203,7 @@ export default function HomePage() {
             <Link
               href="/companies"
               data-ink-hover
-              className="px-1 text-sm text-[#555] underline-offset-4 transition-colors hover:text-[#111] hover:underline"
+              className="px-1 text-sm text-graphite underline-offset-4 transition-colors hover:text-ink hover:underline"
             >
               See a company room →
             </Link>
@@ -210,7 +213,7 @@ export default function HomePage() {
         <div className="mt-auto space-y-4">
           <div className="flex items-center gap-3">
             <Warren mood="idle" size={44} />
-            <p className="font-mono text-[11px] tracking-[0.14em] text-[#666] uppercase">
+            <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
               Three pillars, one calm document
             </p>
           </div>
@@ -218,18 +221,18 @@ export default function HomePage() {
             <ul className="grid gap-6 md:grid-cols-3">
               {PILLARS.map((pillar) => (
                 <li key={pillar.title} className="space-y-2">
-                  <div className="border border-black/15 bg-[#f7f1e4] px-2 py-1">
+                  <div className="border border-ink/15 bg-paper px-2 py-1">
                     <pillar.Sketch />
                   </div>
                   <p className="font-medium">{pillar.title}</p>
-                  <p className="text-xs leading-relaxed text-[#555]">
+                  <p className="text-xs leading-relaxed text-graphite">
                     {pillar.body}
                   </p>
                 </li>
               ))}
             </ul>
           </PaperSheet>
-          <p className="text-xs leading-relaxed text-[#666]">
+          <p className="text-xs leading-relaxed text-muted-foreground">
             Teaching corpus: curated public sources and validated enrichment.
             Glassdoor: directional firm-signal only.
           </p>

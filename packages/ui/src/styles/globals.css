@@ -9,7 +9,7 @@
 
 /*
   Editorial Finance Terminal
-  Cream paper · true black / grey · restrained pastel data accents
+  Full-bleed cream paper · black ink · stone borders · restrained pastel data
   Display: Instrument Serif · UI: Geist · Mono: Geist Mono
   Fonts must be literal names in @theme inline (Tailwind v4 parse-time).
 */
@@ -103,13 +103,13 @@
   --lime: #8fbc8f;
   --lime-foreground: #111111;
 
-  /* Chrome — true black / grey (neutral only, DESIGN.md §3) */
-  --chrome: #111111;
-  --chrome-hover: #2a2a2a;
-  --chrome-border: #333333;
-  --chrome-workspace: #1a1a1a;
-  --chrome-text: #e8e8e8;
-  --chrome-muted: #888888;
+  /* Chrome — full-bleed cream shell (ink nav on paper, DESIGN.md §2–3) */
+  --chrome: #f7f1e4;
+  --chrome-hover: #ebe4d4;
+  --chrome-border: #cfc7b6;
+  --chrome-workspace: #f7f1e4;
+  --chrome-text: #111111;
+  --chrome-muted: #555555;
 
   --background: var(--paper);
   --foreground: var(--ink);
@@ -167,11 +167,10 @@
 }
 
 /*
-  Dark mode (DESIGN.md §3): keep the product dual-surface —
-  true-black chrome + cream paper + black ink. Only heat/data
-  pastels shift lightness. Inverting paper to charcoal made
-  hardcoded cream inserts + tokenized ink fight each other
-  (light text on cream / muddied muted labels).
+  Dark mode (DESIGN.md §3): product stays cream-first — full-bleed
+  paper shell + black ink. Only heat/data pastels and lime shift.
+  Inverting paper to charcoal made hardcoded cream inserts + tokenized
+  ink fight each other (light text on cream / muddied muted labels).
 */
 .dark {
   --paper: #f7f1e4;
@@ -181,13 +180,13 @@
   --lime: oklch(0.86 0.21 128);
   --lime-foreground: #111111;
 
-  /* Chrome stays true black / grey */
-  --chrome: #111111;
-  --chrome-hover: #2a2a2a;
-  --chrome-border: #333333;
-  --chrome-workspace: #0c0c0c;
-  --chrome-text: #e8e8e8;
-  --chrome-muted: #888888;
+  /* Chrome stays full-bleed cream (same as light) */
+  --chrome: #f7f1e4;
+  --chrome-hover: #ebe4d4;
+  --chrome-border: #cfc7b6;
+  --chrome-workspace: #f7f1e4;
+  --chrome-text: #111111;
+  --chrome-muted: #555555;
 
   --background: var(--paper);
   --foreground: var(--ink);
@@ -212,16 +211,16 @@
   --chart-3: oklch(0.42 0.03 60);
   --chart-4: oklch(0.7 0.08 95);
   --chart-5: oklch(0.32 0.02 55);
-  --sidebar: #111111;
-  --sidebar-foreground: var(--chrome-text);
+  --sidebar: var(--paper);
+  --sidebar-foreground: var(--ink);
   --sidebar-primary: var(--lime);
   --sidebar-primary-foreground: var(--lime-foreground);
-  --sidebar-accent: #2a2a2a;
-  --sidebar-accent-foreground: var(--chrome-text);
-  --sidebar-border: #333333;
+  --sidebar-accent: #ebe4d4;
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: #cfc7b6;
   --sidebar-ring: var(--lime);
 
-  /* Slightly brighter heat cells for dark chrome adjacency */
+  /* Heat cells on cream shell */
   --heat-0: #eee8dc;
   --heat-1: #dce8dc;
   --heat-2: #bfd5bf;
