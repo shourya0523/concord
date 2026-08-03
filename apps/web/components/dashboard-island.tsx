@@ -296,8 +296,8 @@ export function DashboardIsland() {
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <section className="space-y-4">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1.7fr)_minmax(16rem,0.85fr)]">
+        <section className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
               Target companies
@@ -358,7 +358,7 @@ export function DashboardIsland() {
           </section>
         </section>
 
-        <aside className="space-y-8 border-t border-border pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
+        <aside className="min-w-0 space-y-8 border-t border-border pt-6 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-8">
           {daysUntil !== null && urgency ? (
             <section className="flex items-center gap-4 border border-ink/20 bg-streak/10 px-4 py-4">
               <CircledNumber

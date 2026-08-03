@@ -8,6 +8,10 @@ import { seedFrom } from "@/lib/mockups/motion"
 /**
  * Draws memoized rough.js rectangles around each heatmap cell button
  * (DESIGN.md §10.4 / §11 — rough cell borders; hover stays lime InkHoverScope).
+ *
+ * Coordinates are relative to this host (the visible heatmap viewport). Cells
+ * outside the scrollport are skipped, the host clips overflow, and we redraw
+ * on resize + horizontal scroll so strokes stay locked to their cells.
  */
 export function RoughHeatBorders({
   seedKey,
@@ -29,6 +33,8 @@ export function RoughHeatBorders({
     const overlay = overlayRef.current
     if (!host || !overlay) return
 
+    const scrollRoot = host.querySelector<HTMLElement>('[data-slot="topic-heatmap"]')
+
     const draw = () => {
       const hostBox = host.getBoundingClientRect()
       const width = host.offsetWidth
@@ -45,6 +51,15 @@ export function RoughHeatBorders({
       )
       buttons.forEach((btn, index) => {
         const box = btn.getBoundingClientRect()
+        // Skip cells fully outside the visible host (scrolled away).
+        if (
+          box.right < hostBox.left ||
+          box.left > hostBox.right ||
+          box.bottom < hostBox.top ||
+          box.top > hostBox.bottom
+        ) {
+          return
+        }
         const x = box.left - hostBox.left
         const y = box.top - hostBox.top
         const w = box.width
@@ -62,20 +77,34 @@ export function RoughHeatBorders({
       })
     }
 
-    draw()
-    const ro = new ResizeObserver(() => {
+    const scheduleDraw = () => {
       window.requestAnimationFrame(draw)
-    })
+    }
+
+    draw()
+    const ro = new ResizeObserver(scheduleDraw)
     ro.observe(host)
-    return () => ro.disconnect()
+    if (scrollRoot) {
+      ro.observe(scrollRoot)
+      scrollRoot.addEventListener("scroll", scheduleDraw, { passive: true })
+    }
+    window.addEventListener("resize", scheduleDraw)
+    return () => {
+      ro.disconnect()
+      scrollRoot?.removeEventListener("scroll", scheduleDraw)
+      window.removeEventListener("resize", scheduleDraw)
+    }
   }, [deps, seedKey])
 
   return (
-    <div ref={hostRef} className={className ? `relative ${className}` : "relative"}>
+    <div
+      ref={hostRef}
+      className={className ? `relative overflow-hidden ${className}` : "relative overflow-hidden"}
+    >
       {children}
       <svg
         ref={overlayRef}
-        className="pointer-events-none absolute inset-0 z-[2] overflow-visible"
+        className="pointer-events-none absolute inset-0 z-[2] overflow-hidden"
         aria-hidden
       />
     </div>

@@ -3,6 +3,8 @@
 import * as React from "react"
 import { annotate } from "rough-notation"
 
+import { cn } from "@ibpe/ui/lib/utils"
+
 import { prefersReducedMotion } from "@/lib/mockups/motion"
 
 type RoughAnnotationConfig = Parameters<typeof annotate>[1]
@@ -39,6 +41,12 @@ const SEMANTIC_COLORS: Partial<Record<AnnotationType, string>> = {
 
 /**
  * rough-notation wrapper enforcing semantic map + prefers-reduced-motion.
+ *
+ * The library inserts an absolutely-positioned SVG as a sibling of the
+ * annotated node. Without a positioned ancestor, that SVG is anchored to the
+ * initial containing block and drifts when surrounding layout reflows (e.g.
+ * dashboard firm-readiness rows shrinking when fewer targets are selected).
+ * The relative wrapper keeps the mark glued to the annotated content.
  */
 export function Annotate({
   type,
@@ -66,14 +74,36 @@ export function Annotate({
     }
     const annotation = annotate(el, config)
     annotation.show()
+
+    // Library only ResizeObserves the annotated node; parent size changes that
+    // move the node (without resizing it) need an explicit refresh.
+    let refreshTimer = 0
+    const refresh = () => {
+      window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        if (annotation.isShowing()) annotation.show()
+      }, 50)
+    }
+    const ro =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(refresh) : null
+    let ancestor = el.parentElement
+    while (ancestor && ancestor !== document.documentElement) {
+      ro?.observe(ancestor)
+      ancestor = ancestor.parentElement
+    }
+
     return () => {
+      window.clearTimeout(refreshTimer)
+      ro?.disconnect()
       annotation.remove()
     }
   }, [type, show, color, strokeWidth, padding])
 
   return (
-    <span ref={ref} className={className} data-annotation={type}>
-      {children}
+    <span className={cn("relative", className)} data-annotation-root={type}>
+      <span ref={ref} data-annotation={type}>
+        {children}
+      </span>
     </span>
   )
 }
