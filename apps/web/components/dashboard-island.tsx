@@ -10,7 +10,7 @@ import {
   fetchFirmOptions,
   readStoredTargets,
 } from "@/components/target-select-island"
-import { TopicHeatIsland } from "@/components/topic-heat-island"
+import { HeatCompareViews } from "@/components/heat-compare-views"
 import {
   Annotate,
   CircledNumber,
@@ -311,9 +311,12 @@ export function DashboardIsland() {
             onChange={setTargets}
             syncSearchParam
           />
-          <InkHoverScope>
-            <TopicHeatIsland firmIds={targets} />
-          </InkHoverScope>
+          <HeatCompareViews
+            firmIds={targets}
+            showInsights={false}
+            activateTarget="company"
+            idPrefix="dashboard-heat"
+          />
           <Link
             href="/prep/heat"
             className="inline-block text-sm text-foreground underline-offset-4 hover:underline"

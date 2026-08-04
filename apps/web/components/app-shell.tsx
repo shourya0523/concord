@@ -146,7 +146,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             }),
           )}
         </nav>
-        <main className="mx-auto w-full max-w-[1280px] px-5 py-8 text-ink md:px-8 md:py-10">
+        <main className="mx-auto w-full max-w-[1480px] px-4 py-8 text-ink md:px-6 md:py-10">
           {children}
         </main>
       </div>
