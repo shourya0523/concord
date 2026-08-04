@@ -2,10 +2,9 @@ import Link from "next/link"
 
 import { Button } from "@ibpe/ui/components/button"
 
+import { HeatCompareViews } from "@/components/heat-compare-views"
 import { RoughHover, WarrenCallout } from "@/components/paper"
-import { HeatInsightsIsland } from "@/components/heat-insights-island"
 import { TargetSelectIsland } from "@/components/target-select-island"
-import { TopicHeatIsland } from "@/components/topic-heat-island"
 
 export const metadata = {
   title: "Topic heat compare · Concord",
@@ -37,9 +36,9 @@ export default async function HeatComparePage({ searchParams }: Props) {
           </h1>
           <p className="max-w-2xl text-[15px] text-muted-foreground">
             Intensity is occurrence-based firm signal — not teaching truth.
-            Hatched cells mark your weak topics overlaid on heat; every cell
-            keeps its numeric intensity and sample count visible. Cells use
-            rough.js borders; hover draws a lime box.
+            Switch between the heat matrix and the firm spider. Hatched cells
+            mark weak topics; every cell keeps intensity and sample count
+            visible.
           </p>
         </div>
         <Link href="/prep/rag">
@@ -53,7 +52,7 @@ export default async function HeatComparePage({ searchParams }: Props) {
         Compare mode lines the same topics up across your target firms. Shared
         heat is where one drill covers several interviews; firm-unique heat is
         where a single firm over-indexes and deserves its own session. Add or
-        remove firms and the matrix realigns.
+        remove firms and the views realign.
       </WarrenCallout>
 
       <section className="space-y-3 border-b border-border pb-6">
@@ -63,13 +62,7 @@ export default async function HeatComparePage({ searchParams }: Props) {
         <TargetSelectIsland syncSearchParam className="max-w-full" />
       </section>
 
-      <TopicHeatIsland
-        compareMode
-        activateTarget="rag"
-        firmIds={firmIds.length > 0 ? firmIds : undefined}
-      />
-
-      <HeatInsightsIsland firmIds={firmIds.length > 0 ? firmIds : undefined} />
+      <HeatCompareViews firmIds={firmIds.length > 0 ? firmIds : undefined} />
     </div>
   )
 }

@@ -3,7 +3,10 @@
 import * as React from "react"
 import rough from "roughjs"
 
-import { seedFrom } from "@/lib/mockups/motion"
+import { prefersReducedMotion, seedFrom } from "@/lib/mockups/motion"
+
+const REVEAL_MS = 420
+const STAGGER_MS = 80
 
 /**
  * Draws memoized rough.js rectangles around each heatmap cell button
@@ -12,6 +15,9 @@ import { seedFrom } from "@/lib/mockups/motion"
  * Coordinates are relative to this host (the visible heatmap viewport). Cells
  * outside the scrollport are skipped, the host clips overflow, and we redraw
  * on resize + horizontal scroll so strokes stay locked to their cells.
+ *
+ * When the heatmap fades columns L→R, border drawing is deferred until the
+ * sweep finishes so getBoundingClientRect matches settled layout.
  */
 export function RoughHeatBorders({
   seedKey,
@@ -45,9 +51,14 @@ export function RoughHeatBorders({
       overlay.setAttribute("viewBox", `0 0 ${width} ${height}`)
       while (overlay.firstChild) overlay.removeChild(overlay.firstChild)
 
+      const heatmap = host.querySelector<HTMLElement>('[data-slot="topic-heatmap"]')
+      const firmCount = Number(heatmap?.dataset.firmCount || 0)
+      const animateReveal = heatmap?.dataset.reveal != null
+      const reduce = prefersReducedMotion()
+
       const rc = rough.svg(overlay)
       const buttons = host.querySelectorAll<HTMLElement>(
-        '[data-slot="topic-heatmap"] button',
+        '[data-slot="topic-heatmap"] tbody button',
       )
       buttons.forEach((btn, index) => {
         const box = btn.getBoundingClientRect()
@@ -72,7 +83,13 @@ export function RoughHeatBorders({
           stroke: "var(--ink)",
           strokeWidth: 1.05,
           fill: "transparent",
-        })
+        }) as SVGElement
+        if (animateReveal && !reduce && firmCount > 0) {
+          const firmIndex = index % firmCount
+          // Opacity-only — keep stroke geometry on the settled cell box.
+          node.style.opacity = "0"
+          node.style.animation = `heat-reveal-ltr ${REVEAL_MS}ms var(--ease-calm) ${(firmIndex + 1) * STAGGER_MS}ms both`
+        }
         overlay.appendChild(node)
       })
     }
@@ -81,7 +98,11 @@ export function RoughHeatBorders({
       window.requestAnimationFrame(draw)
     }
 
-    draw()
+    // Clear stale strokes immediately, then draw on the next frame so table
+    // layout (and any remount reveal) has settled before we measure.
+    while (overlay.firstChild) overlay.removeChild(overlay.firstChild)
+    const boot = window.setTimeout(scheduleDraw, reduceMotionBootDelay(host))
+
     const ro = new ResizeObserver(scheduleDraw)
     ro.observe(host)
     if (scrollRoot) {
@@ -90,6 +111,7 @@ export function RoughHeatBorders({
     }
     window.addEventListener("resize", scheduleDraw)
     return () => {
+      window.clearTimeout(boot)
       ro.disconnect()
       scrollRoot?.removeEventListener("scroll", scheduleDraw)
       window.removeEventListener("resize", scheduleDraw)
@@ -109,4 +131,12 @@ export function RoughHeatBorders({
       />
     </div>
   )
+}
+
+function reduceMotionBootDelay(host: HTMLElement): number {
+  if (prefersReducedMotion()) return 0
+  const heatmap = host.querySelector<HTMLElement>('[data-slot="topic-heatmap"]')
+  if (heatmap?.dataset.reveal == null) return 0
+  // One frame is enough once transforms are gone; tiny delay lets paint settle.
+  return 32
 }

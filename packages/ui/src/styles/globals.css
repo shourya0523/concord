@@ -299,6 +299,17 @@
   }
 }
 
+/* Heat matrix: columns fade in left → right (opacity only — no transform,
+   so rough.js borders stay locked to cell boxes). */
+@keyframes heat-reveal-ltr {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
