@@ -66,8 +66,9 @@ config/   fixtures/   docs/   exports/   reports/   migrations/   tests/
 
 ## Docs
 
-See `docs/architecture.md`, `docs/operations.md`, `docs/troubleshooting.md`,
-and workstream docs under `docs/`. Cloud agent setup: [`AGENTS.md`](AGENTS.md).
+See `docs/architecture.md`, `docs/data-pipeline.md` (teaching / signals / practice lanes),
+`docs/operations.md`, `docs/troubleshooting.md`, and workstream docs under `docs/`.
+Cloud agent setup: [`AGENTS.md`](AGENTS.md).
 Autonomous build prompt: [`docs/prompts/autonomous-fullstack-build.md`](docs/prompts/autonomous-fullstack-build.md).
 
 ## Honest limitations

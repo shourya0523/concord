@@ -32,6 +32,7 @@ const FILES = [
   "037_heat_view_occurrence_topic.sql",
   "038_topic_rules_v3_and_domains.sql",
   "039_seed_checkpoint_questions.sql",
+  "040_diagram_coverage_expand.sql",
 ] as const;
 
 function splitSql(sqlText: string): string[] {
