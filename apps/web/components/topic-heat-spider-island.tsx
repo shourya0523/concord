@@ -5,6 +5,7 @@ import * as React from "react"
 import { cn } from "@ibpe/ui/lib/utils"
 
 import { readStoredTargets } from "@/components/target-select-island"
+import { prefersReducedMotion } from "@/lib/mockups/motion"
 import { sortTopicSlugs, topicLabel } from "@/lib/topics"
 
 type HeatPayload = {
@@ -57,16 +58,32 @@ function polarToCartesian(
   }
 }
 
-function polygonPoints(values: number[], axisCount: number): string {
+function polygonPoints(
+  values: number[],
+  axisCount: number,
+  scale = 1,
+): string {
   if (axisCount === 0) return ""
   return values
     .map((value, index) => {
       const angle = (index / axisCount) * Math.PI * 2
-      const r = RADIUS * Math.max(0, Math.min(1, value))
+      const r = RADIUS * Math.max(0, Math.min(1, value)) * scale
       const { x, y } = polarToCartesian(angle, r)
       return `${x.toFixed(2)},${y.toFixed(2)}`
     })
     .join(" ")
+}
+
+/** Ease-out cubic — calm grow from center (DESIGN.md motion). */
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3)
+}
+
+/** Stagger each firm slightly so outlines bloom in sequence. */
+function seriesScale(progress: number, index: number): number {
+  const delay = index * 0.1
+  const span = Math.max(0.35, 1 - delay)
+  return Math.max(0, Math.min(1, (progress - delay) / span))
 }
 
 function buildSeries(payload: HeatPayload, firmIds: string[]): {
@@ -166,6 +183,32 @@ export function TopicHeatSpiderIsland({
     return buildSeries(payload, ids)
   }, [payload, ids])
 
+  const chartKey = chart
+    ? `${chart.series.map((firm) => firm.id).join(",")}|${chart.axes.length}`
+    : ""
+
+  /** 0→1 bloom progress; polygons grow from the center outward. */
+  const [bloom, setBloom] = React.useState(1)
+
+  React.useEffect(() => {
+    if (!chartKey) return
+    if (prefersReducedMotion()) {
+      setBloom(1)
+      return
+    }
+    setBloom(0)
+    const started = performance.now()
+    const duration = 780
+    let frame = 0
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - started) / duration)
+      setBloom(easeOutCubic(t))
+      if (t < 1) frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [chartKey])
+
   return (
     <section className={cn("space-y-4", className)}>
       <div className="space-y-1">
@@ -214,22 +257,33 @@ export function TopicHeatSpiderIsland({
               {chart.series.map((firm) => firm.name).join(", ")}.
             </desc>
 
-            {/* Grid rings */}
+            {/* Grid rings — bloom from center */}
             {Array.from({ length: RING_COUNT }, (_, ring) => {
-              const r = (RADIUS * (ring + 1)) / RING_COUNT
-              const points = Array.from({ length: chart.axes.length }, (__, i) => {
-                const angle = (i / chart.axes.length) * Math.PI * 2
-                const { x, y } = polarToCartesian(angle, r)
-                return `${x.toFixed(2)},${y.toFixed(2)}`
-              }).join(" ")
+              const ringReveal = Math.min(
+                1,
+                Math.max(0, bloom * RING_COUNT - ring),
+              )
+              const r = ((RADIUS * (ring + 1)) / RING_COUNT) * ringReveal
+              if (r < 1) return null
+              const points = Array.from(
+                { length: chart.axes.length },
+                (__, i) => {
+                  const angle = (i / chart.axes.length) * Math.PI * 2
+                  const { x, y } = polarToCartesian(angle, r)
+                  return `${x.toFixed(2)},${y.toFixed(2)}`
+                },
+              ).join(" ")
               return (
                 <polygon
                   key={`ring-${ring}`}
                   points={points}
                   fill={ring === RING_COUNT - 1 ? "var(--heat-0)" : "none"}
-                  fillOpacity={ring === RING_COUNT - 1 ? 0.55 : 0}
+                  fillOpacity={
+                    ring === RING_COUNT - 1 ? 0.55 * ringReveal : 0
+                  }
                   stroke="var(--stone)"
                   strokeWidth={1.25}
+                  strokeOpacity={0.35 + 0.65 * ringReveal}
                 />
               )
             })}
@@ -237,7 +291,7 @@ export function TopicHeatSpiderIsland({
             {/* Spokes + labels */}
             {chart.axes.map((axis, index) => {
               const angle = (index / chart.axes.length) * Math.PI * 2
-              const tip = polarToCartesian(angle, RADIUS)
+              const tip = polarToCartesian(angle, RADIUS * bloom)
               const label = polarToCartesian(angle, LABEL_RADIUS)
               const anchor =
                 Math.abs(label.x - CENTER) < 12
@@ -254,6 +308,7 @@ export function TopicHeatSpiderIsland({
                     y2={tip.y}
                     stroke="var(--stone)"
                     strokeWidth={1.25}
+                    strokeOpacity={0.4 + 0.6 * bloom}
                   />
                   <text
                     x={label.x}
@@ -261,7 +316,11 @@ export function TopicHeatSpiderIsland({
                     textAnchor={anchor}
                     dominantBaseline="middle"
                     className="fill-graphite"
-                    style={{ fontSize: 12, fontFamily: "var(--font-sans)" }}
+                    style={{
+                      fontSize: 12,
+                      fontFamily: "var(--font-sans)",
+                      opacity: Math.max(0, (bloom - 0.55) / 0.45),
+                    }}
                   >
                     <title>{axis.label}</title>
                     {shortAxisLabel(axis.label)}
@@ -270,43 +329,56 @@ export function TopicHeatSpiderIsland({
               )
             })}
 
-            {/* Firm polygons */}
-            {chart.series.map((firm) => (
-              <polygon
-                key={firm.id}
-                points={polygonPoints(firm.values, chart.axes.length)}
-                fill={firm.colorVar}
-                fillOpacity={0.16}
-                stroke={firm.colorVar}
-                strokeWidth={2.25}
-                strokeLinejoin="round"
-              />
-            ))}
+            {/* Firm polygons — grow from center outward, staggered */}
+            {chart.series.map((firm, firmIndex) => {
+              const scale = seriesScale(bloom, firmIndex)
+              return (
+                <polygon
+                  key={firm.id}
+                  points={polygonPoints(
+                    firm.values,
+                    chart.axes.length,
+                    scale,
+                  )}
+                  fill={firm.colorVar}
+                  fillOpacity={0.16 * scale}
+                  stroke={firm.colorVar}
+                  strokeWidth={2.25}
+                  strokeLinejoin="round"
+                  strokeOpacity={0.35 + 0.65 * scale}
+                />
+              )
+            })}
 
             {/* Value dots */}
-            {chart.series.map((firm) =>
-              firm.values.map((value, index) => {
+            {chart.series.map((firm, firmIndex) => {
+              const scale = seriesScale(bloom, firmIndex)
+              return firm.values.map((value, index) => {
                 const angle = (index / chart.axes.length) * Math.PI * 2
                 const { x, y } = polarToCartesian(
                   angle,
-                  RADIUS * Math.max(0, Math.min(1, value)),
+                  RADIUS * Math.max(0, Math.min(1, value)) * scale,
                 )
                 return (
                   <circle
                     key={`${firm.id}-${chart.axes[index]?.id ?? index}`}
                     cx={x}
                     cy={y}
-                    r={3.5}
+                    r={3.5 * Math.max(scale, 0.01)}
                     fill="var(--paper)"
                     stroke={firm.colorVar}
                     strokeWidth={1.75}
+                    opacity={scale}
                   />
                 )
-              }),
-            )}
+              })
+            })}
           </svg>
 
-          <ul className="flex w-full max-w-xs flex-col gap-2.5 lg:w-48 lg:shrink-0 lg:pt-2">
+          <ul
+            className="flex w-full max-w-xs flex-col gap-2.5 lg:w-48 lg:shrink-0 lg:pt-2"
+            style={{ opacity: Math.max(0, (bloom - 0.4) / 0.6) }}
+          >
             <li className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
               Firms
             </li>

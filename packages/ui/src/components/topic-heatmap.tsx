@@ -21,10 +21,22 @@ export type TopicHeatmapProps = {
   compareMode?: boolean
   onCellActivate?: (cell: TopicHeatCell) => void
   className?: string
+  /** Left-to-right column reveal on mount (default on). */
+  animateReveal?: boolean
 }
 
 function cellKey(firmId: string, topicId: string) {
   return `${firmId}::${topicId}`
+}
+
+const REVEAL_MS = 420
+const STAGGER_MS = 80
+
+function revealStyle(columnIndex: number, enabled: boolean): React.CSSProperties | undefined {
+  if (!enabled) return undefined
+  return {
+    animation: `heat-reveal-ltr ${REVEAL_MS}ms var(--ease-calm) ${columnIndex * STAGGER_MS}ms both`,
+  }
 }
 
 /**
@@ -38,6 +50,7 @@ function TopicHeatmap({
   compareMode = false,
   onCellActivate,
   className,
+  animateReveal = true,
 }: TopicHeatmapProps) {
   const lookup = React.useMemo(() => {
     const map = new Map<string, TopicHeatCell>()
@@ -51,6 +64,8 @@ function TopicHeatmap({
     <div
       data-slot="topic-heatmap"
       data-compare={compareMode || undefined}
+      data-reveal={animateReveal || undefined}
+      data-firm-count={firms.length || undefined}
       className={cn("relative w-full overflow-x-auto", className)}
       role="grid"
       aria-label="Topic heat by firm"
@@ -61,15 +76,17 @@ function TopicHeatmap({
             <th
               scope="col"
               className="w-[9.5rem] border-b border-border px-2 py-2 text-left font-mono text-[11px] font-normal tracking-wide text-muted-foreground uppercase"
+              style={revealStyle(0, animateReveal)}
             >
               Topic / Firm
             </th>
-            {firms.map((firm) => (
+            {firms.map((firm, firmIndex) => (
               <th
                 key={firm.id}
                 scope="col"
                 title={firm.label}
                 className="border-b border-border px-1.5 py-2 text-left font-medium text-foreground"
+                style={revealStyle(firmIndex + 1, animateReveal)}
               >
                 <span className="block truncate">{firm.label}</span>
               </th>
@@ -83,10 +100,11 @@ function TopicHeatmap({
                 scope="row"
                 title={topic.label}
                 className="border-b border-border/70 px-2 py-1.5 text-left font-normal text-muted-foreground"
+                style={revealStyle(0, animateReveal)}
               >
                 <span className="block truncate">{topic.label}</span>
               </th>
-              {firms.map((firm) => {
+              {firms.map((firm, firmIndex) => {
                 const cell = lookup.get(cellKey(firm.id, topic.id))
                 const intensity = cell?.intensity ?? 0
                 const weak = Boolean(cell?.weak)
@@ -96,7 +114,12 @@ function TopicHeatmap({
                   weak ? ", weak topic" : ""
                 }`
                 return (
-                  <td key={firm.id} className="border-b border-border/70 p-1" role="gridcell">
+                  <td
+                    key={firm.id}
+                    className="border-b border-border/70 p-1"
+                    role="gridcell"
+                    style={revealStyle(firmIndex + 1, animateReveal)}
+                  >
                     <button
                       type="button"
                       aria-label={label}
@@ -109,7 +132,7 @@ function TopicHeatmap({
                           "bg-[repeating-linear-gradient(-45deg,transparent,transparent_3px,color-mix(in_oklch,var(--weak)_35%,transparent)_3px,color-mix(in_oklch,var(--weak)_35%,transparent)_6px)]",
                         onCellActivate &&
                           "cursor-pointer focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-foreground/50",
-                        !onCellActivate && "cursor-default"
+                        !onCellActivate && "cursor-default",
                       )}
                     >
                       <span className="relative z-[1] text-ink/80 dark:text-ink/90">

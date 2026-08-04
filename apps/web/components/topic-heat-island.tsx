@@ -208,6 +208,7 @@ export function TopicHeatIsland({
           deps={displayCells}
         >
           <TopicHeatmap
+            key={`heat-${ids.join("-")}`}
             firms={firms}
             topics={topics}
             cells={displayCells}
