@@ -8,7 +8,8 @@ import { TargetSelectIsland } from "@/components/target-select-island"
 
 export const metadata = {
   title: "Topic heat compare · Concord",
-  description: "Side-by-side firm × topic intensity for selected targets",
+  description:
+    "Compare which topics your target firms ask most — side by side on a heat map or spider chart.",
 }
 
 export const dynamic = "force-dynamic"
@@ -29,35 +30,35 @@ export default async function HeatComparePage({ searchParams }: Props) {
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-2">
           <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-            Mode A · multi-firm
+            Company prep · multi-firm
           </p>
           <h1 className="font-display text-4xl leading-[1.05] tracking-tight text-foreground md:text-6xl">
             Topic heat compare
           </h1>
           <p className="max-w-2xl text-[15px] text-muted-foreground">
-            Intensity is occurrence-based firm signal — not teaching truth.
-            Switch between the heat matrix and the firm spider. Hatched cells
-            mark weak topics; every cell keeps intensity and sample count
-            visible.
+            See which topics come up most at each of your target firms. Switch
+            between the heat map and the spider chart. Hatch marks topics you
+            are weak on. Heat tells you what to prioritise — answers still come
+            from teaching materials.
           </p>
         </div>
         <Link href="/prep/rag">
           <RoughHover padding={5}>
-            <Button>Open pseudo-RAG</Button>
+            <Button>Start firm prep</Button>
           </RoughHover>
         </Link>
       </div>
 
       <WarrenCallout mood="thinking">
-        Compare mode lines the same topics up across your target firms. Shared
-        heat is where one drill covers several interviews; firm-unique heat is
-        where a single firm over-indexes and deserves its own session. Add or
-        remove firms and the views realign.
+        Line the same topics up across your targets. Shared heat means one
+        practice set can cover several firms. Firm-unique heat means one firm
+        asks that topic a lot more — give it its own session. Add or remove
+        firms and the views update.
       </WarrenCallout>
 
       <section className="space-y-3 border-b border-border pb-6">
         <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-          Target company set
+          Your target firms
         </p>
         <TargetSelectIsland syncSearchParam className="max-w-full" />
       </section>

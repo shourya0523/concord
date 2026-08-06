@@ -10,9 +10,9 @@ import { intensityBand } from "@/components/paper/heat-strip"
 import { listFirmCatalog, type FirmCatalogItem } from "@/lib/data/catalog"
 
 export const metadata = {
-  title: "Company rooms · Concord",
+  title: "Companies · Concord",
   description:
-    "Every firm prep room, ranked by reported Glassdoor occurrence signal volume",
+    "Browse firm prep rooms ranked by interview report volume. Open a room for topic heat and what to practise.",
 }
 
 export const dynamic = "force-dynamic"
@@ -46,7 +46,7 @@ function groupBySignalVolume(items: FirmCatalogItem[]): VolumeGroup[] {
       {
         id: "all",
         label: "All firms",
-        hint: "No occurrence volume reported yet",
+        hint: "No interview reports ranked yet",
         firms: sorted,
       },
     ]
@@ -59,20 +59,20 @@ function groupBySignalVolume(items: FirmCatalogItem[]): VolumeGroup[] {
   return [
     {
       id: "deep",
-      label: "Deepest signal coverage",
-      hint: "≥ half of the catalog peak",
+      label: "Most interview reports",
+      hint: "at least half as many as the top firm",
       firms: deep,
     },
     {
       id: "established",
-      label: "Established coverage",
-      hint: "meaningful reported volume",
+      label: "Solid coverage",
+      hint: "enough reports to spot topic patterns",
       firms: established,
     },
     {
       id: "early",
-      label: "Early coverage",
-      hint: "thin volume — treat heat as directional",
+      label: "Thin coverage",
+      hint: "few reports — treat heat as a rough guide",
       firms: early,
     },
   ].filter((group) => group.firms.length > 0)
@@ -82,10 +82,12 @@ function SignalMeter({ signals, max }: { signals: number; max: number }) {
   const ratio = max > 0 ? signals / max : 0
   const band = intensityBand(ratio)
   const width = Math.max(4, Math.round(ratio * 100))
+  const reportsLabel =
+    signals === 1 ? "1 report" : `${signals} reports`
   return (
     <span
       className="flex items-center gap-2"
-      aria-label={`${signals} reported signals`}
+      aria-label={`${reportsLabel} relative to the firm with the most`}
     >
       <span
         aria-hidden
@@ -97,7 +99,10 @@ function SignalMeter({ signals, max }: { signals: number; max: number }) {
         />
       </span>
       <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
-        {signals} <span className="text-muted-foreground/70">signals</span>
+        {signals}{" "}
+        <span className="text-muted-foreground/70">
+          {signals === 1 ? "report" : "reports"}
+        </span>
       </span>
     </span>
   )
@@ -117,38 +122,36 @@ export default async function CompaniesIndexPage() {
     <div className="space-y-10">
       <header className="space-y-3">
         <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-          Company rooms · reported occurrence signals
+          Company prep · firm directory
         </p>
         <h1 className="font-display text-4xl leading-[1.05] tracking-tight text-foreground md:text-6xl">
           Companies
         </h1>
         <p className="max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
-          {catalog.items.length} firm rooms, ranked by how much reported
-          interview volume sits behind each one. Open a room for topic heat,
-          over-indexed concepts, and the reported signal browser.
+          {catalog.items.length} firms, ranked by how many interview reports we
+          have for each. Open a firm to see which topics come up most and what to
+          practise first.
         </p>
       </header>
 
       <WarrenCallout mood="idle">
-        Every room here runs on Glassdoor <em>occurrence</em> signals — which
-        topics show up and how often. They point you at what to drill; teaching
-        answers always come from the corpus, never from scraped interview text.
+        Each firm page shows which topics show up in interviews there, and how
+        often. Use that to decide what to drill. Answers always come from
+        teaching materials — never from the interview write-ups themselves.
       </WarrenCallout>
 
       {catalog.note ? (
-        <p className="font-mono text-[11px] tracking-wide text-muted-foreground">
-          {catalog.note}
-        </p>
+        <p className="text-xs text-muted-foreground">{catalog.note}</p>
       ) : null}
-      <p className="font-mono text-[10px] tracking-wide text-muted-foreground/80 uppercase">
-        Bars show catalog-relative occurrence intensity; every row keeps the raw
-        signal count.
+      <p className="text-xs text-muted-foreground/80">
+        The bar is relative to the firm with the most reports. The number is the
+        raw report count.
       </p>
 
       {catalog.items.length === 0 ? (
         <p className="border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-          No firm rooms are published yet. Run an occurrence import and the
-          rooms will open here, ranked by signal volume.
+          No firms are listed yet. Once interview reports are imported, they
+          will show up here ranked by volume.
         </p>
       ) : (
         <InkHoverScope selector="a" className="space-y-10">
@@ -186,12 +189,18 @@ export default async function CompaniesIndexPage() {
                               {firm.name}
                             </span>
                           </RoughHover>
-                          <SemanticPill
-                            tone={firm.track === "PE" ? "success" : "neutral"}
-                            icon={false}
-                          >
-                            {firm.track ?? "Track tbd"}
-                          </SemanticPill>
+                          {firm.track ? (
+                            <SemanticPill
+                              tone={firm.track === "PE" ? "success" : "neutral"}
+                              icon={false}
+                            >
+                              {firm.track}
+                            </SemanticPill>
+                          ) : (
+                            <SemanticPill tone="neutral" icon={false}>
+                              Track unset
+                            </SemanticPill>
+                          )}
                           <span className="ml-auto">
                             <SignalMeter signals={firm.signals} max={max} />
                           </span>

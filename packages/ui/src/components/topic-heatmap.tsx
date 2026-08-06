@@ -41,7 +41,7 @@ function revealStyle(columnIndex: number, enabled: boolean): React.CSSProperties
 
 /**
  * Firm × topic intensity grid with weakness overlay.
- * Colour is not the only encoding — intensity number + optional hatch for weak.
+ * Colour is not the only encoding — heat level (1–4) + report count + optional hatch for weak.
  */
 function TopicHeatmap({
   firms,
@@ -108,11 +108,21 @@ function TopicHeatmap({
                 const cell = lookup.get(cellKey(firm.id, topic.id))
                 const intensity = cell?.intensity ?? 0
                 const weak = Boolean(cell?.weak)
-                const countLabel =
-                  typeof cell?.count === "number" ? `, n=${cell.count}` : ""
-                const label = `${topic.label} at ${firm.label}: heat ${intensity}${countLabel}${
-                  weak ? ", weak topic" : ""
-                }`
+                const reportCount = cell?.count
+                const reportsLabel =
+                  typeof reportCount === "number"
+                    ? reportCount === 1
+                      ? "1 interview report"
+                      : `${reportCount} interview reports`
+                    : null
+                const label = [
+                  `${topic.label} at ${firm.label}`,
+                  `heat ${intensity} of 4 (how often this topic comes up)`,
+                  reportsLabel,
+                  weak ? "weak topic for you" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
                 return (
                   <td
                     key={firm.id}
@@ -125,6 +135,7 @@ function TopicHeatmap({
                       aria-label={label}
                       disabled={!onCellActivate}
                       onClick={() => cell && onCellActivate?.(cell)}
+                      title={label}
                       className={cn(
                         "relative flex h-12 w-full min-w-0 flex-col items-center justify-center rounded-[8px] font-mono text-[11px] transition-[transform,box-shadow] duration-[var(--duration-micro)] ease-[var(--ease-terminal)]",
                         heatClassName[intensity],
@@ -138,9 +149,9 @@ function TopicHeatmap({
                       <span className="relative z-[1] text-ink/80 dark:text-ink/90">
                         {intensity}
                       </span>
-                      {typeof cell?.count === "number" ? (
+                      {typeof reportCount === "number" ? (
                         <span className="relative z-[1] text-[9px] leading-none text-ink/65 dark:text-ink/80">
-                          n={cell.count}
+                          {reportCount === 1 ? "1 report" : `${reportCount} reports`}
                         </span>
                       ) : null}
                       {weak ? (

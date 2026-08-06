@@ -83,7 +83,9 @@ export function LearnCatalogIsland({ modules }: { modules: CatalogModule[] }) {
       module.prereqModuleIds.includes(candidate.id),
     )
     const why = [
-      candidate.prereqModuleIds.length === 0 ? "No blocking prereqs" : "Prereqs ready",
+      candidate.prereqModuleIds.length === 0
+        ? "No earlier modules required"
+        : "Earlier modules ready",
       dependent ? `builds toward ${dependent.title}` : null,
     ]
       .filter(Boolean)
@@ -116,7 +118,7 @@ export function LearnCatalogIsland({ modules }: { modules: CatalogModule[] }) {
       </div>
 
       {recommendation ? (
-        <WarrenCallout mood="encouraging" bracket size={48}>
+        <WarrenCallout mood="encouraging" size={48}>
           Recommended next:{" "}
           <Link
             className="font-medium underline underline-offset-4"
@@ -130,7 +132,8 @@ export function LearnCatalogIsland({ modules }: { modules: CatalogModule[] }) {
 
       {visible.length === 0 ? (
         <p className="border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-          No modules on this track yet — check back after the next curriculum import.
+          No modules on this track yet — try All, or check back after more
+          curriculum is added.
         </p>
       ) : (
         <InkHoverScope selector="a[href^='/learn/']">
@@ -165,7 +168,7 @@ export function LearnCatalogIsland({ modules }: { modules: CatalogModule[] }) {
                         </span>
                       )}
                       <Link href={`/learn/${module.slug}`}>
-                        <Button size="sm">Open roadmap</Button>
+                        <Button size="sm">Open module</Button>
                       </Link>
                     </div>
                   </div>

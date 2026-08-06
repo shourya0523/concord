@@ -63,7 +63,8 @@ type Layer =
   | { kind: "diagram"; label: string; title: string; body: string; a11y: string }
   | { kind: "concepts"; label: string; slug: string | null; topic: string }
 
-const RATING_GUIDE = "Rate honestly — Again/Hard keeps this in your weak set."
+const RATING_GUIDE =
+  "Rate honestly — Again or Hard keeps this topic in your weak list."
 const RATINGS = [
   { label: "Again", confidence: 0.25, tone: "error" },
   { label: "Hard", confidence: 0.5, tone: "weak" },
@@ -79,7 +80,7 @@ export default function StudyPage() {
   const [answer, setAnswer] = React.useState("")
   const [confidence, setConfidence] = React.useState(0.5)
   const [sessionId, setSessionId] = React.useState<string | null>(null)
-  const [status, setStatus] = React.useState("Loading published teaching answer…")
+  const [status, setStatus] = React.useState("Loading question…")
   const [submitted, setSubmitted] = React.useState(false)
   const [bookmarked, setBookmarked] = React.useState(false)
   const [conceptSlug, setConceptSlug] = React.useState<string | null>(null)
@@ -221,7 +222,7 @@ export default function StudyPage() {
   }, [detail, conceptSlug])
 
   const loadQuestion = React.useCallback(async (questionId: string) => {
-    setStatus("Loading published teaching answer…")
+    setStatus("Loading question…")
     setRevealed(0)
     setAnswer("")
     setSubmitted(false)
@@ -234,8 +235,8 @@ export default function StudyPage() {
     setDetail(payload)
     setStatus(
       payload.study?.direct_answer
-        ? "Teaching answer loaded — reveal layers as you master them"
-        : "Firm signal loaded; no validated teaching answer is published for this item.",
+        ? "Write your answer first, then reveal the teaching version step by step"
+        : "No teaching answer is ready for this question yet.",
     )
     const topic = payload.question.topic
     const conceptId = topic ? conceptIdForTopic(topic) : null
@@ -328,7 +329,7 @@ export default function StudyPage() {
         }
       } catch (caught) {
         if (caught instanceof DOMException && caught.name === "AbortError") return
-        setStatus(caught instanceof Error ? caught.message : "Study loop unavailable.")
+        setStatus(caught instanceof Error ? caught.message : "Could not start study.")
       }
     }
     void initialise()
@@ -340,10 +341,10 @@ export default function StudyPage() {
     if (!sessionId) {
       setSubmitted(true)
       setRevealed(Math.min(1, layers.length))
-      setStatus("Anonymous reveal unlocked. Sign in to save mastery for this pack.")
+      setStatus("Answer revealed. Sign in to save progress.")
       return
     }
-    setStatus("Saving attempt…")
+    setStatus("Saving your attempt…")
     const response = await fetch(`/api/practice/sessions/${sessionId}/attempts`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -358,13 +359,15 @@ export default function StudyPage() {
     if (!response.ok) {
       setSubmitted(true)
       setRevealed(Math.min(1, layers.length))
-      setStatus(`Attempt could not be saved (${response.status}); answer layers unlocked anonymously.`)
+      setStatus(
+        `Could not save this attempt (${response.status}). Answer still revealed.`,
+      )
       return
     }
     setSubmitted(true)
     setAttemptCount((count) => count + 1)
     setRevealed(Math.min(1, layers.length))
-    setStatus("Attempt saved. Answer layers unlocked.")
+    setStatus("Attempt saved. Teaching answer unlocked.")
   }
 
   async function saveNote() {
@@ -443,8 +446,8 @@ export default function StudyPage() {
 
   const topic = detail?.question.topic ?? null
   const hintText = topic
-    ? `Structure cue: define ${topicLabel(topic)}, state the moving pieces, then apply the relationship. Warren watch-out: ${pitfallForTopic(topic)}`
-    : "Structure cue: define the terms in the prompt, give the answer path first, then support it with assumptions. Do not reveal details you have not reasoned through."
+    ? `Structure cue: define ${topicLabel(topic)}, name the moving pieces, then apply the relationship. Watch out: ${pitfallForTopic(topic)}`
+    : "Structure cue: define the terms in the prompt, give the answer path first, then support it with assumptions."
 
   // Peek rail heat context for this question's topic at the primary target.
   React.useEffect(() => {
@@ -486,14 +489,14 @@ export default function StudyPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-            Study · layered reveal
+            Study · answer first, then reveal
           </p>
           <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl">Study</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <MetadataPill>r reveal</MetadataPill>
           <MetadataPill>n next</MetadataPill>
-          <MetadataPill>p layer back</MetadataPill>
+          <MetadataPill>p step back</MetadataPill>
           <MetadataPill>Shift+p prev q</MetadataPill>
           <MetadataPill>b bookmark</MetadataPill>
         </div>
@@ -531,8 +534,9 @@ export default function StudyPage() {
         {detail?.bank_signals.length ? (
           <WarrenCallout mood="idle" bracket size={44}>
             Seen in reported interviews at{" "}
-            {detail.bank_signals.map((signal) => signal.company).join(", ")} — occurrence context
-            only; the teaching answer below comes from the corpus.
+            {detail.bank_signals.map((signal) => signal.company).join(", ")} —
+            useful context for focus; the answer below is from teaching
+            materials.
           </WarrenCallout>
         ) : null}
 
@@ -559,7 +563,7 @@ export default function StudyPage() {
 
         <PaperSheet seedKey={`study-${detail?.question.id ?? "loading"}`}>
           <label className="text-xs font-medium text-muted-foreground" htmlFor="study-answer">
-            Your answer — Warren waits while you write
+            Your answer — take a moment to write it out
           </label>
           <textarea
             id="study-answer"
@@ -571,7 +575,7 @@ export default function StudyPage() {
           <div className="mt-4 flex flex-wrap items-end gap-4">
             <fieldset className="min-w-64 flex-1">
               <legend className="text-xs font-medium text-muted-foreground">
-                Self-rating · {Math.round(confidence * 100)}%
+                How well did you know it · {Math.round(confidence * 100)}%
               </legend>
               <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Self-rating">
                 {RATINGS.map((rating) => (
@@ -599,7 +603,13 @@ export default function StudyPage() {
               onClick={() => void submitAttempt()}
             >
               <RoughHover padding={3}>
-                {submitted ? (sessionId ? "Attempt saved" : "Revealed anonymously") : sessionId ? "Submit and reveal" : "Reveal anonymously"}
+                {submitted
+                  ? sessionId
+                    ? "Attempt saved"
+                    : "Answer revealed"
+                  : sessionId
+                    ? "Submit and reveal"
+                    : "Reveal answer"}
               </RoughHover>
             </Button>
           </div>
@@ -608,7 +618,7 @@ export default function StudyPage() {
             {noteOpen ? (
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground" htmlFor="study-note">
-                  Note — your own wording (Warren prompts, you write)
+                  Note — how you would say this in an interview
                 </label>
                 <textarea
                   id="study-note"
@@ -632,7 +642,7 @@ export default function StudyPage() {
                 className="text-xs text-muted-foreground underline-offset-4 hover:underline"
                 onClick={() => setNoteOpen(true)}
               >
-                Capture your own wording →
+                Add your own wording →
               </button>
             )}
           </div>
@@ -699,7 +709,7 @@ export default function StudyPage() {
         {revealed > 0 && detail?.study?.sources.length ? (
           <section className="border-t border-border pt-4">
             <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
-              Sources · provenance · validation
+              Sources
             </p>
             <ul className="mt-2 space-y-2 text-sm">
               {detail.study.sources.map((source, sourceIndex) => (
@@ -725,7 +735,7 @@ export default function StudyPage() {
             disabled={revealed === 0}
             onClick={() => setRevealed((value) => Math.max(0, value - 1))}
           >
-            Previous layer
+            Previous step
           </Button>
           <Button
             type="button"
@@ -756,19 +766,19 @@ export default function StudyPage() {
             <div className="flex flex-wrap items-center gap-5">
               <PaperBurst play seedKey={`burst-${detail?.question.id}`} />
               <div className="min-w-0 flex-1">
-                <p className="font-medium">Session close</p>
+                <p className="font-medium">Nice work — session wrap</p>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                   {attemptCount > 0
-                    ? `${attemptCount} attempt${attemptCount === 1 ? "" : "s"} saved this session — mastery updated, next pack re-ranked.`
-                    : "All validated layers reviewed."}{" "}
-                  Next: the {topic ? topicLabel(topic) : "concept"} checkpoint in your module
-                  roadmap.
+                    ? `${attemptCount} attempt${attemptCount === 1 ? "" : "s"} saved this session. Your progress is updated.`
+                    : "You have reviewed the full teaching answer."}{" "}
+                  Next: keep going on {topic ? topicLabel(topic) : "this concept"}{" "}
+                  in Learn, or check progress.
                 </p>
                 <InkHoverScope className="mt-3 flex flex-wrap gap-2" selector="button:not(:disabled),a[href]">
                   {topic ? (
                     <Link href={`/study?topic=${encodeURIComponent(topic)}`}>
                       <Button size="sm">
-                        Practise more on this weak topic
+                        Practise more on this topic
                       </Button>
                     </Link>
                   ) : null}
@@ -780,7 +790,7 @@ export default function StudyPage() {
                     </Link>
                   ) : null}
                   <Link href="/learn">
-                    <Button size="sm" variant={topic ? "outline" : "default"}>Next module checkpoint</Button>
+                    <Button size="sm" variant={topic ? "outline" : "default"}>Browse modules</Button>
                   </Link>
                   <Link href="/progress">
                     <Button size="sm" variant="outline">
@@ -811,7 +821,7 @@ export default function StudyPage() {
           {peekHeat.length > 0 ? (
             <div className="space-y-1.5">
               <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
-                Heat context · your target
+                Topic heat · your target
               </p>
               <HeatStrip compact entries={peekHeat} />
             </div>
@@ -821,11 +831,11 @@ export default function StudyPage() {
             <p>
               {[
                 topic ? `${topicLabel(topic)} topic` : null,
-                topic && weakTopicSet.has(topic) ? "in your weak set" : null,
+                topic && weakTopicSet.has(topic) ? "weak for you" : null,
                 detail?.question.difficulty ? `${detail.question.difficulty} difficulty` : null,
               ]
                 .filter(Boolean)
-                .join(" · ") || "Adaptive selection"}
+                .join(" · ") || "Picked for practice"}
             </p>
           </div>
         </aside>

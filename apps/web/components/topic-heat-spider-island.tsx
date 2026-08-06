@@ -216,8 +216,8 @@ export function TopicHeatSpiderIsland({
           Firm spider
         </p>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Topic intensity on each axis, one outline per firm — same occurrence
-          signals as the heat map.
+          Same topic heat as the map, drawn as a spider chart — one outline per
+          firm. Farther from the centre means the topic comes up more often.
         </p>
       </div>
 

@@ -19,7 +19,7 @@ export async function getFirmTopicHeat(firmId: string): Promise<FirmHeatResponse
       firm_id: firmId,
       topics: [],
       source: "stub",
-      note: "DATABASE_URL unset — firm heat stub (empty). Seed bank + publish to populate.",
+      note: "Topic heat is unavailable until the database is connected.",
     };
   }
 
@@ -46,8 +46,6 @@ export async function getFirmTopicHeat(firmId: string): Promise<FirmHeatResponse
     firm_id: firmId,
     topics,
     source: topics.length ? "published" : "empty",
-    note: topics.length
-      ? undefined
-      : "No heat rows yet — import question_bank into staging/occurrences.",
+    note: topics.length ? undefined : "No topic heat for this firm yet.",
   };
 }

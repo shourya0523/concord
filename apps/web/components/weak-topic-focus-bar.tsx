@@ -68,7 +68,8 @@ export function WeakTopicFocusBar({ focusedId, onFocusChange, className, onWeakT
           Practice focus
         </p>
         <p className="text-sm text-muted-foreground">
-          No weak topics yet — complete a study attempt to build your weakness signal.
+          No weak topics yet — practise a few questions and they will show up
+          here.
         </p>
       </div>
     )
@@ -79,7 +80,7 @@ export function WeakTopicFocusBar({ focusedId, onFocusChange, className, onWeakT
   return (
     <div className={className} role="group" aria-label="Practice focus topics">
       <p className="mb-2 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-        Practice focus · from your mastery
+        Practice focus · from your practice history
       </p>
       <div className="flex flex-wrap gap-2">
         {weakTopics.map((topic) => {

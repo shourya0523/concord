@@ -2,7 +2,7 @@ import { SavedIsland } from "@/components/saved-island"
 
 export const metadata = {
   title: "Saved · Concord",
-  description: "Bookmarks, notes, and collections",
+  description: "Bookmarks, notes, and collections for your interview prep",
 }
 
 export default function SavedPage() {
@@ -14,8 +14,8 @@ export default function SavedPage() {
         </p>
         <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl">Saved</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Bookmarked questions, notes in your own wording, and collections — with provenance
-          attached, never detached from the source.
+          Bookmarked questions, notes in your own words, and collections you
+          build — each one stays linked to its source.
         </p>
       </header>
       <SavedIsland />

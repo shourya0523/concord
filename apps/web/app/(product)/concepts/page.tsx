@@ -8,7 +8,8 @@ import { topicLabel } from "@/lib/topics"
 
 export const metadata = {
   title: "Concept labs · Concord",
-  description: "Diagram-first concept labs inside the learning modules",
+  description:
+    "Diagram-led concept labs for IB and PE — open a topic, learn it deeply, then practise.",
 }
 
 export const dynamic = "force-dynamic"
@@ -32,19 +33,23 @@ export default async function ConceptsPage() {
     <div className="space-y-8">
       <header>
         <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-          Mode B · Concept labs
+          Learn · Concept labs
         </p>
         <h1 className="mt-2 font-display text-4xl leading-[1.05] tracking-tight md:text-6xl">
           Concept labs
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Atomic deep dives that live inside learning modules — diagram-first, with prerequisite
-          notes, resource rails, and a drill path back into the question bank.
+          One topic at a time — usually with a diagram — so you can explain the
+          idea clearly. Labs sit inside modules; from here you can jump back to
+          practice questions.
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <MetadataPill tone="muted">{concepts.source}</MetadataPill>
-          <MetadataPill tone="muted">{concepts.items.length} labs</MetadataPill>
-        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {concepts.items.length}{" "}
+          {concepts.items.length === 1 ? "lab" : "labs"}
+          {concepts.source === "stub"
+            ? " · starter set (database not connected)"
+            : ""}
+        </p>
       </header>
 
       <ul className="divide-y divide-border border-y border-border">
@@ -73,8 +78,8 @@ export default async function ConceptsPage() {
                 </p>
               ) : null}
               {parent ? (
-                <p className="mt-2 font-mono text-[11px] tracking-wide text-muted-foreground">
-                  module ·{" "}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  In module ·{" "}
                   <Link
                     className="underline underline-offset-4 hover:text-foreground"
                     href={`/learn/${parent.slug}`}

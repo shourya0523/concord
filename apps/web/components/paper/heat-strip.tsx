@@ -26,9 +26,17 @@ export function intensityBand(intensity: number): 0 | 1 | 2 | 3 | 4 {
   return 4
 }
 
+function heatPercent(intensity: number): number {
+  return Math.round(Math.min(1, Math.max(0, intensity)) * 100)
+}
+
+function reportCountLabel(sampleSize: number): string {
+  return sampleSize === 1 ? "1 report" : `${sampleSize} reports`
+}
+
 /**
  * Mini firm×topic intensity strip (onboarding preview, module heat strip).
- * Numeric intensity + N caption; hatch overlay marks weak topics.
+ * Shows relative heat % + interview-report count; hatch marks weak topics.
  */
 export function HeatStrip({
   entries,
@@ -44,6 +52,9 @@ export function HeatStrip({
     <ul className={cn("flex flex-wrap gap-1.5", className)} aria-label="Topic heat preview">
       {entries.map((entry) => {
         const band = intensityBand(entry.intensity)
+        const pct = heatPercent(entry.intensity)
+        const reports = reportCountLabel(entry.sampleSize)
+        const label = topicLabel(entry.topic)
         return (
           <li
             key={entry.topic}
@@ -52,7 +63,7 @@ export function HeatStrip({
               compact ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-1 text-[11px]",
               HEAT_CLASSES[band],
             )}
-            title={`${topicLabel(entry.topic)} · intensity ${entry.intensity.toFixed(2)} · n=${entry.sampleSize}`}
+            title={`${label}: ${pct}% relative heat (how often this topic shows up vs others) · ${reports} mentioning it`}
           >
             {entry.weak ? (
               <span
@@ -61,8 +72,8 @@ export function HeatStrip({
               />
             ) : null}
             <span className="relative">
-              {topicLabel(entry.topic)} · {entry.intensity.toFixed(2)}
-              <span className="text-muted-foreground/80"> n={entry.sampleSize}</span>
+              {label} · {pct}%
+              <span className="text-muted-foreground/80"> · {reports}</span>
               {entry.weak ? <span className="sr-only"> (weak topic)</span> : null}
             </span>
           </li>

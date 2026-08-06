@@ -5,7 +5,6 @@ import Link from "next/link"
 import { Check } from "lucide-react"
 
 import { Button } from "@ibpe/ui/components/button"
-import { MetadataPill } from "@ibpe/ui/components/editorial"
 import { cn } from "@ibpe/ui/lib/utils"
 
 import {
@@ -781,10 +780,9 @@ export function StudyPlanIsland() {
           <div className="min-w-0 flex-1">
             <p className="font-medium">Sign in to keep a roadmap.</p>
             <p className="mt-1 max-w-lg text-sm leading-relaxed text-muted-foreground">
-              Your study plan — company drills, module checkpoints, concept
-              labs, and mock slots — saves to your account so it survives
-              devices and sessions. Browsing modules and company rooms works
-              without an account.
+              Your study plan — firm practice, module checkpoints, concept labs,
+              and a mock interview — saves to your account. You can still browse
+              modules and company pages without signing in.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href="/sign-in">
@@ -822,8 +820,8 @@ export function StudyPlanIsland() {
             </>
           ) : (
             <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-              No interview date set — the plan still sequences work, without
-              urgency. Add a date in{" "}
+              No interview date set — the plan still orders your work, just
+              without a countdown. Add a date in{" "}
               <Link
                 href="/settings"
                 className="text-foreground underline-offset-4 hover:underline"
@@ -846,24 +844,17 @@ export function StudyPlanIsland() {
               </p>
             ) : (
               <p className="text-muted-foreground">
-                No daily time budget set yet.
+                No daily study time set yet.
               </p>
             )}
             <p className="text-muted-foreground">
               {items.length > 0
-                ? `${remaining} of ${items.length} assignments open`
-                : "No assignments yet"}
+                ? `${remaining} of ${items.length} items still open`
+                : "No plan items yet"}
             </p>
           </div>
-          {plan ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <MetadataPill>{plan.source}</MetadataPill>
-              {plan.note ? (
-                <span className="text-xs text-muted-foreground">
-                  {plan.note}
-                </span>
-              ) : null}
-            </div>
+          {plan?.note ? (
+            <p className="text-xs text-muted-foreground">{plan.note}</p>
           ) : null}
       </section>
 
@@ -873,10 +864,10 @@ export function StudyPlanIsland() {
           onClick={() => void buildFromTargets()}
         >
           {building
-            ? "Composing roadmap…"
+            ? "Building roadmap…"
             : items.length > 0
-              ? "Rebuild from my targets"
-              : "Build from my targets"}
+              ? "Rebuild from my firms"
+              : "Build from my firms"}
         </Button>
         {savedTick ? <SemanticPill tone="success">Saved</SemanticPill> : null}
         {notice ? (
@@ -890,7 +881,7 @@ export function StudyPlanIsland() {
         <section className="border border-border bg-background/30 px-4 py-4">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-              Prereq-ordered module path
+              Module path
             </h2>
             <span className="font-mono text-[11px] text-muted-foreground">
               {firstOpenModuleIndex === -1
@@ -951,9 +942,10 @@ export function StudyPlanIsland() {
                   </Link>
                   {row.module.prereq_module_ids?.length ? (
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Unlocks after {row.module.prereq_module_ids.length}{" "}
-                      prerequisite
-                      {row.module.prereq_module_ids.length === 1 ? "" : "s"}
+                      Unlocks after{" "}
+                      {row.module.prereq_module_ids.length === 1
+                        ? "1 earlier module"
+                        : `${row.module.prereq_module_ids.length} earlier modules`}
                     </p>
                   ) : null}
                 </div>
@@ -970,14 +962,13 @@ export function StudyPlanIsland() {
       ) : null}
 
       {behind ? (
-        <WarrenCallout mood="concerned" bracket>
+        <WarrenCallout mood="concerned">
           <span>
-            {remaining} assignments in {daysLeft} day{daysLeft === 1 ? "" : "s"}{" "}
-            is about {neededPerDay}/day — above your ~{dailyBudgetItems}/day
-            budget (≈
-            {MINUTES_PER_ASSIGNMENT} min each). You are still in range if we
-            protect the core: module checkpoints, weak concept labs, and the
-            mock slot.
+            {remaining} items in {daysLeft} day{daysLeft === 1 ? "" : "s"} is
+            about {neededPerDay}/day — above your ~{dailyBudgetItems}/day pace
+            (≈{MINUTES_PER_ASSIGNMENT} min each). Stay on track by keeping the
+            essentials: module checkpoints, weak concept labs, and one mock
+            interview.
           </span>
           <span className="mt-2 inline-block">
             <Button
@@ -1103,12 +1094,12 @@ export function StudyPlanIsland() {
           <div className="flex flex-wrap items-start gap-4">
             <Warren mood="idle" size={56} />
             <div className="min-w-0 flex-1">
-              <p className="font-medium">No assignments on the roadmap yet.</p>
+              <p className="font-medium">Nothing on the roadmap yet.</p>
               <p className="mt-1 max-w-lg text-sm leading-relaxed text-muted-foreground">
-                Build from your targets and I&apos;ll mix company drills at your
-                hottest firm topics, the next module checkpoint in prereq order,
-                labs for your weak concepts, and a mock interview slot —
-                sequenced against your interview date.
+                Build from your firms and I&apos;ll mix practice on the topics
+                they ask most, the next module checkpoint, labs for topics you
+                are weak on, and a mock interview — paced to your interview date
+                if you set one.
               </p>
             </div>
           </div>

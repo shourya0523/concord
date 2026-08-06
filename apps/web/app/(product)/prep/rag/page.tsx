@@ -4,8 +4,9 @@ import { RagPrepIsland } from "@/components/rag-prep-island"
 import { topicLabel } from "@/lib/topics"
 
 export const metadata = {
-  title: "Pseudo-RAG prep · IBPE",
-  description: "Grounded retrieval pack with citation cards for selected firms",
+  title: "Session pack · Concord",
+  description:
+    "Build a practice pack for your target firms — ranked by what they ask most, your weak topics, and your focus prompt.",
 }
 
 type Props = {
@@ -35,12 +36,14 @@ export default async function PseudoRagPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-8">
-      <EditorialHeading eyebrow="Mode A · grounded prep" as="h1">
-        Pseudo-RAG session
+      <EditorialHeading eyebrow="Company prep · session pack" as="h1">
+        Session pack
       </EditorialHeading>
       <p className="max-w-2xl text-[15px] text-muted-foreground">
-        Retrieve a pack ranked by firm topic heat ∩ weak topics ∩ prompt similarity. Citations
-        stay visible — Glassdoor never becomes the answer text.
+        Build a practice set ranked by what your target firms ask most, topics
+        you are weak on, and your focus prompt. Every question keeps its
+        sources — interview reports only help ranking, never supply the answer
+        text.
         {initialTopic ? ` Focus topic: ${topicLabel(initialTopic)}.` : ""}
       </p>
       <RagPrepIsland initialFirmIds={initialFirmIds} initialTopic={initialTopic} />

@@ -129,7 +129,7 @@ const STUB_CONCEPTS: Concept[] = [
     prerequisites: [],
     firm_relevance: {},
     domain: "ib",
-    summary: "Three-statement linkage and interview-ready accounting.",
+    summary: "Three-statement linkage — how income statement, balance sheet, and cash flow connect in interviews.",
   }),
   ConceptSchema.parse({
     id: "concept_ev_equity_value",
@@ -138,7 +138,7 @@ const STUB_CONCEPTS: Concept[] = [
     prerequisites: ["concept_accounting_foundations"],
     firm_relevance: {},
     domain: "ib",
-    summary: "Bridge from enterprise value to equity value via net debt and other claims.",
+    summary: "How enterprise value connects to equity value through net debt and other claims.",
   }),
   ConceptSchema.parse({
     id: "concept_dcf_wacc",
@@ -147,7 +147,7 @@ const STUB_CONCEPTS: Concept[] = [
     prerequisites: ["concept_accounting_foundations"],
     firm_relevance: {},
     domain: "both",
-    summary: "Unlevered free cash flow, WACC build-up, terminal value.",
+    summary: "Unlevered free cash flow, building WACC, and terminal value.",
   }),
   ConceptSchema.parse({
     id: "concept_lbo_paper_lbo",
@@ -156,7 +156,7 @@ const STUB_CONCEPTS: Concept[] = [
     prerequisites: ["concept_dcf_wacc"],
     firm_relevance: {},
     domain: "pe",
-    summary: "Sources and uses, debt schedule, returns to equity at exit.",
+    summary: "Sources and uses, the debt schedule, and returns to equity at exit.",
   }),
   ConceptSchema.parse({
     id: "concept_behavioural_story",
@@ -165,7 +165,7 @@ const STUB_CONCEPTS: Concept[] = [
     prerequisites: [],
     firm_relevance: {},
     domain: "both",
-    summary: "Fit stories with firm-apply bridges.",
+    summary: "Tell a clear fit story, then practise applying it at your target firms.",
   }),
 ]
 
@@ -514,7 +514,7 @@ export async function listLearningModules(): Promise<LearningModuleListResponse>
     return {
       items: listStubLearningModules(),
       source: "stub",
-      note: "DATABASE_URL unset — static MVP modules.",
+      note: "Showing starter modules (database not connected).",
     };
   }
 
@@ -524,7 +524,7 @@ export async function listLearningModules(): Promise<LearningModuleListResponse>
       return {
         items: listStubLearningModules(),
         source: "stub",
-        note: "No publishable modules in DB — static MVP fallback.",
+        note: "Showing starter modules until the curriculum is published.",
       };
     }
     return { items, source: "published" };
@@ -533,7 +533,7 @@ export async function listLearningModules(): Promise<LearningModuleListResponse>
     return {
       items: listStubLearningModules(),
       source: "stub",
-      note: "DB module read failed — static MVP fallback.",
+      note: "Showing starter modules — could not load the published curriculum.",
     };
   }
 }
@@ -550,7 +550,7 @@ export async function getLearningModule(
       module: learningModule,
       checkpoints: learningModule.checkpoints,
       source: "stub",
-      note: "DATABASE_URL unset — static MVP module.",
+      note: "Showing a starter module (database not connected).",
     };
   }
 
@@ -581,7 +581,7 @@ export async function getLearningModule(
     module: stub,
     checkpoints: stub.checkpoints,
     source: "stub",
-    note: "Module not in DB — static MVP fallback.",
+    note: "Showing a starter module — published curriculum unavailable.",
   };
 }
 

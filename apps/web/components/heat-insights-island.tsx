@@ -165,8 +165,8 @@ export function HeatInsightsIsland({
 
   if (status === "loading") {
     return (
-      <p className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
-        Analysing shared heat…
+      <p className="text-xs text-muted-foreground">
+        Finding shared and firm-unique topics…
       </p>
     )
   }
@@ -174,8 +174,7 @@ export function HeatInsightsIsland({
   if (status === "error") {
     return (
       <p className="border border-dashed border-border px-4 py-4 text-sm text-muted-foreground">
-        Could not load compare insights — the matrix above still shows the raw
-        signals.
+        Could not load compare insights — the heat map above still works.
       </p>
     )
   }
@@ -185,6 +184,7 @@ export function HeatInsightsIsland({
   const firmName = new Map(payload.firms.map((firm) => [firm.id, firm.name]))
   const sharedVisible = insights.shared.slice(0, LIST_LIMIT)
   const uniqueVisible = insights.unique.slice(0, LIST_LIMIT)
+  const sharedPct = Math.round(SHARED_INTENSITY * 100)
 
   return (
     <section
@@ -201,22 +201,26 @@ export function HeatInsightsIsland({
                   aria-hidden
                   className="inline-block size-2 bg-[repeating-linear-gradient(-45deg,var(--streak-foreground),var(--streak-foreground)_1px,transparent_1px,transparent_3px)]"
                 />
-                Low signal volume — treat heat as directional
+                Thin report volume — treat heat as a rough guide
               </SemanticPill>
-              <p className="font-mono text-[11px] tracking-wide text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {insights.sparse
-                  .map((firm) => `${firm.name} n=${firm.n}`)
+                  .map(
+                    (firm) =>
+                      `${firm.name} (${firm.n === 1 ? "1 report" : `${firm.n} reports`})`,
+                  )
                   .join(" · ")}{" "}
-                — fewer than {SPARSE_SAMPLE_N} tagged signals per firm. Patterns
-                here can move with a single import.
+                — fewer than {SPARSE_SAMPLE_N} tagged reports per firm. Patterns
+                here can shift as more reports arrive.
               </p>
             </div>
           </section>
         ) : null}
 
         <WarrenCallout mood="thinking" bracket>
-          Shared heat becomes one efficient pack; firm-unique heat becomes
-          targeted reps for the interviewer most likely to press that topic.
+          Shared heat is efficient: one practice set can cover several firms.
+          Firm-unique heat deserves its own session for the firm most likely to
+          press that topic.
         </WarrenCallout>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -226,7 +230,7 @@ export function HeatInsightsIsland({
                 Shared heat · {insights.shared.length} topics
               </SemanticPill>
               <span className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
-                intensity ≥ {SHARED_INTENSITY.toFixed(2)} at 2+ firms
+                ≥ {sharedPct}% heat at 2+ firms
               </span>
             </div>
             {sharedVisible.length > 0 ? (
@@ -249,7 +253,7 @@ export function HeatInsightsIsland({
                       {entry.hits
                         .map(
                           (hit) =>
-                            `${firmName.get(hit.firmId) ?? hit.firmId} ${hit.intensity.toFixed(2)}`
+                            `${firmName.get(hit.firmId) ?? hit.firmId} ${Math.round(hit.intensity * 100)}%`,
                         )
                         .join(" · ")}
                     </span>
@@ -258,12 +262,12 @@ export function HeatInsightsIsland({
               </ul>
             ) : (
               <p className="py-3 text-sm text-muted-foreground">
-                No topic reaches {SHARED_INTENSITY.toFixed(2)} at two firms yet
-                — one drill will not cover the whole set.
+                No topic reaches {sharedPct}% heat at two firms yet — one
+                practice set will not cover the whole set.
               </p>
             )}
             {insights.shared.length > sharedVisible.length ? (
-              <p className="pt-2 font-mono text-[10px] tracking-wide text-muted-foreground/80 uppercase">
+              <p className="pt-2 text-xs text-muted-foreground/80">
                 + {insights.shared.length - sharedVisible.length} more shared
                 topics
               </p>
@@ -297,7 +301,7 @@ export function HeatInsightsIsland({
                       </span>
                     </Annotate>
                     <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
-                      {entry.intensity.toFixed(2)}
+                      {Math.round(entry.intensity * 100)}%
                     </span>
                   </li>
                 ))}
@@ -309,7 +313,7 @@ export function HeatInsightsIsland({
               </p>
             )}
             {insights.unique.length > uniqueVisible.length ? (
-              <p className="pt-2 font-mono text-[10px] tracking-wide text-muted-foreground/80 uppercase">
+              <p className="pt-2 text-xs text-muted-foreground/80">
                 + {insights.unique.length - uniqueVisible.length} more
                 firm-unique topics
               </p>

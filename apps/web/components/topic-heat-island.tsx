@@ -103,8 +103,10 @@ export function TopicHeatIsland({
           ).map((entry) => entry.topic),
         )
         const slugByFirm = new Map(payload.firms.map((firm) => [firm.id, firm]))
+        // Multi-firm payload includes one row per (firm × topic). Deduplicate topic IDs
+        // so the table renders one row per topic (not one per firm).
         const visibleTopics = sortTopicSlugs(
-          payload.topics.map((row) => row.topic_id),
+          Array.from(new Set(payload.topics.map((row) => row.topic_id))),
         ).filter((topic) => topic !== "untagged")
         const nextCells = payload.topics
           .filter((row) => row.topic_id !== "untagged")
@@ -161,20 +163,20 @@ export function TopicHeatIsland({
   if (ids.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Select at least one target firm to render topic heat.
+        Select at least one target firm to see topic heat.
       </p>
     )
   }
 
   if (status === "loading") {
-    return <p className="text-sm text-muted-foreground">Loading firm occurrence signals…</p>
+    return <p className="text-sm text-muted-foreground">Loading topic heat…</p>
   }
 
   if (status === "error" || (status === "ready" && cells.length === 0)) {
     return (
       <p className="border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-        No tagged topic signals are published for this firm set yet. Occurrence volume still
-        counts toward firm readiness — choose another firm or check back after the next import.
+        No topic heat for these firms yet. Try another firm, or check back after
+        the next data update.
       </p>
     )
   }
@@ -182,10 +184,10 @@ export function TopicHeatIsland({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-mono text-[10px] tracking-wide text-muted-foreground/80 uppercase">
-          Cell click opens{" "}
-          {activateTarget === "rag" ? "a scoped pseudo-RAG pack" : "the company topic focus"}.
-          Heat level and n are printed in every cell; hatch marks weak topics.
+        <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
+          Click a cell to open that topic for the firm. The number is heat 1–4 —
+          how often the topic comes up (4 is hottest). Reports are interview
+          write-ups that mentioned it. Hatch marks topics you are weak on.
         </p>
         <button
           type="button"
@@ -194,12 +196,13 @@ export function TopicHeatIsland({
           onClick={() => setShowWeakOverlay((current) => !current)}
           className="rounded-full border border-border px-3 py-1 font-mono text-[10px] tracking-wide text-muted-foreground uppercase transition-colors duration-200 ease-out hover:border-foreground/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Weakness overlay {showWeakOverlay ? "on" : "off"}
+          Weak topics {showWeakOverlay ? "on" : "off"}
         </button>
       </div>
       {!hasWeakCells ? (
-        <p className="font-mono text-[10px] tracking-wide text-muted-foreground/70 uppercase">
-          No weak-topic hatch is available from mastery yet.
+        <p className="text-xs text-muted-foreground/80">
+          No weak-topic marks yet — practise a few questions and they will show
+          up here.
         </p>
       ) : null}
       <InkHoverScope selector="button:not(:disabled)">

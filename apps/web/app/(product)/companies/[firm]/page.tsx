@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: firm ? `${firm.name} prep · Concord` : "Company prep · Concord",
     description: firm
-      ? `Topic heat, over-indexed concepts, and reported occurrence signals for ${firm.name}`
+      ? `Topic heat and interview-report patterns for ${firm.name} — practise what they ask most.`
       : "Company prep room",
   }
 }
@@ -119,20 +119,23 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
     return `/companies/${firmSlug}${search ? `?${search}` : ""}`
   }
 
+  const reportsLabel =
+    firm.signals === 1 ? "1 report" : `${firm.signals} reports`
+
   const railResources: ResourceLink[] = [
     {
       id: "heat-compare",
       label: "Multi-firm heat compare",
       href: "/prep/heat",
       kind: "internal",
-      description: `Line ${firm.name} up against your target set`,
+      description: `Compare ${firm.name} with your other targets`,
     },
     {
       id: "rag",
-      label: `Pseudo-RAG pack for ${firm.name}`,
+      label: `Prep pack for ${firm.name}`,
       href: ragHrefForTopic(topHeat?.topic_id),
       kind: "internal",
-      description: "Corpus-grounded pack, frozen at session start",
+      description: "Questions ranked for this firm, from teaching materials",
     },
     ...overIndexed.flatMap(({ item }) =>
       item.resources.slice(0, 2).map((resource) => ({
@@ -156,19 +159,19 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
             {firm.name}
           </h1>
           <p className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
-            {firm.track ?? "IB / PE"} ·{" "}
+            {firm.track ?? "Track unset"} ·{" "}
             {roleOptions.length > 0
               ? `reported roles: ${roleOptions.slice(0, 2).join(" · ")}`
               : "role mix not yet tagged"}{" "}
-            · signals {firm.signals}
+            · {reportsLabel}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Link href={ragHrefForTopic(focus ?? topHeat?.topic_id)}>
-            <Button>Start pseudo-RAG</Button>
+            <Button>Start firm prep</Button>
           </Link>
           <Link href="/study">
-            <Button variant="outline">Adaptive session</Button>
+            <Button variant="outline">Practice session</Button>
           </Link>
         </div>
         {roleOptions.length > 0 ? (
@@ -205,13 +208,16 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
 
       {topHeat ? (
         <WarrenCallout mood="thinking" bracket>
-          {firm.name} over-indexes {topicLabel(topHeat.topic_id)} (n={topHeat.sample_size}) —
-          drill those first.
+          {firm.name} asks {topicLabel(topHeat.topic_id)} most often (
+          {topHeat.sample_size === 1
+            ? "1 report"
+            : `${topHeat.sample_size} reports`}
+          ) — start there.
         </WarrenCallout>
       ) : (
         <WarrenCallout mood="idle">
-          No tagged topic heat for {firm.name} yet — occurrence volume still counts toward
-          readiness, and new signals land with each import.
+          Topic patterns for {firm.name} are still thin. You can still browse
+          interview reports below and practise from teaching materials.
         </WarrenCallout>
       )}
 
@@ -220,17 +226,19 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
           <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
             Topic heat · this firm
           </h2>
-          <p className="font-mono text-[10px] tracking-wide text-muted-foreground/80">
+          <p className="text-xs text-muted-foreground/80">
             {taggedHeat.length > 0
-              ? `n=${totalSamples} tagged occurrences across ${taggedHeat.length} topics · intensity 0–4 by relative frequency`
-              : (heat.note ?? "No tagged occurrences yet.")}
+              ? `${totalSamples === 1 ? "1 report" : `${totalSamples} reports`} across ${taggedHeat.length} topics · heat 1–4 = how often each topic comes up`
+              : (heat.note ?? "No topic heat for this firm yet.")}
           </p>
         </div>
         <TopicHeatIsland firmIds={[firmId]} compareMode={false} activateTarget="rag" />
         <div className="flex flex-wrap items-center gap-3">
           <Link href={ragHrefForTopic(focus ?? topHeat?.topic_id)}>
             <Button size="sm">
-              Start heat-scoped RAG{focus ? ` · ${topicLabel(focus)}` : ""}
+              {focus
+                ? `Start prep on this topic · ${topicLabel(focus)}`
+                : "Start firm prep"}
             </Button>
           </Link>
           {focus && conceptHrefForTopic(focus) ? (
@@ -243,20 +251,20 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
         </div>
         {focus ? (
           <p className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
-            Focus from heat · {topicLabel(focus)}
+            Focused on · {topicLabel(focus)}
           </p>
         ) : null}
         <WeakTopicFocusBar focusedId={focus ?? null} />
       </section>
 
-      <section aria-label="Concepts this firm over-indexes">
+      <section aria-label="Concepts that show up often here">
         <div className="border border-border bg-background/30 px-4 py-4">
           <div className="flex flex-wrap items-baseline gap-x-3">
             <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-              Concepts this firm over-indexes
+              Concepts that show up often here
             </h2>
             <span className="font-mono text-[10px] tracking-wide text-muted-foreground/70 uppercase">
-              heat-derived relevance ≥ 50% · top 3
+              Strongest topic matches · top 3
             </span>
           </div>
           {overIndexed.length > 0 ? (
@@ -280,31 +288,32 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
                     </span>
                   ) : null}
                   <span className="ml-auto font-mono text-[11px] text-muted-foreground tabular-nums">
-                    {Math.round(relevance * 100)}% relevance
+                    {Math.round(relevance * 100)}% match
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
             <p className="mt-3 text-sm text-muted-foreground">
-              No concept clears the 50% relevance bar at {firm.name} yet — firm heat coverage is
-              still building. Concept labs stay open from the Learn catalog meanwhile.
+              No strong concept matches for {firm.name} yet. Browse concept labs
+              from Learn meanwhile.
             </p>
           )}
         </div>
       </section>
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <section className="space-y-4" aria-label="Reported signal browser">
+        <section className="space-y-4" aria-label="Interview reports">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-                Reported signals · occurrence explorer
+                Interview reports
               </h2>
               <ProvenanceChip provenance="glassdoor_occurrence" />
             </div>
             <p className="text-sm text-muted-foreground">
-              Signals are reported occurrences — teaching answers live in the corpus.
+              These are topics people reported being asked. Use them to
+              prioritise — answers come from teaching materials.
             </p>
             {focus ? (
               <p className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
@@ -333,10 +342,10 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
           {signals.items.length === 0 ? (
             <p className="border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
               {focus
-                ? `No reported occurrences tagged ${topicLabel(focus)} at ${firm.name} yet — clear the filter to see everything reported.`
+                ? `No reports tagged ${topicLabel(focus)} at ${firm.name} yet — clear the filter to see everything.`
                 : selectedRole
-                  ? `No reported occurrences tagged ${selectedRole} at ${firm.name} yet — clear the role filter to see everything reported.`
-                : `No reported occurrences for ${firm.name} yet. Volume builds with each import.`}
+                  ? `No reports tagged ${selectedRole} at ${firm.name} yet — clear the role filter to see everything.`
+                  : `No interview reports for ${firm.name} yet.`}
             </p>
           ) : (
             <>
@@ -385,8 +394,9 @@ export default async function CompanyRoomPage({ params, searchParams }: Props) {
                   )
                 })}
               </ul>
-              <p className="font-mono text-[10px] tracking-wide text-muted-foreground/80 uppercase">
-                Showing {signals.items.length} of {signals.total} reported occurrences
+              <p className="text-xs text-muted-foreground/80">
+                Showing {signals.items.length} of {signals.total} interview
+                reports
                 {focus ? ` · filter: ${topicLabel(focus)}` : ""}
                 {selectedRole ? ` · role: ${selectedRole}` : ""}
               </p>

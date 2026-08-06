@@ -58,7 +58,7 @@ export async function getStudyPlan(userId: string): Promise<StudyPlanResponse> {
     return {
       plan: defaultStudyPlan(userId),
       source: "stub",
-      note: "DATABASE_URL unset — using default study plan.",
+      note: "Showing a starter plan (database not connected).",
     };
   }
 
@@ -130,7 +130,7 @@ export async function putStudyPlan(options: {
     return {
       plan,
       source: "stub",
-      note: "DATABASE_URL unset — saved study plan in memory.",
+      note: "Saved this plan in memory (database not connected).",
     };
   }
 

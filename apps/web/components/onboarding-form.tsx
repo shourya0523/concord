@@ -302,7 +302,7 @@ export function OnboardingForm() {
           <section className="max-w-xl border border-border bg-background/30 px-4 py-4">
             <div className="space-y-3">
               <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-                Multi-select target set
+                Your target firms
               </p>
               <TargetSelectIsland
                 value={targets}
@@ -310,9 +310,8 @@ export function OnboardingForm() {
                 className="max-w-full"
               />
               <p className="text-xs leading-relaxed text-muted-foreground">
-                Selected firms stay as removable paper chips; Concord weights
-                heat and packs against the full set, with the first firm saved
-                as primary.
+                Pick the firms you are interviewing with. Prep weights topics
+                across all of them; the first firm is your primary.
               </p>
             </div>
           </section>
@@ -321,20 +320,22 @@ export function OnboardingForm() {
               role="alert"
               className="border border-dashed border-error px-3 py-2 text-sm"
             >
-              Company prep needs at least one target firm — heat and packs key
-              off this set.
+              Company prep needs at least one firm so we know what to
+              prioritise.
             </p>
           ) : null}
           {heatPreview.length > 0 ? (
             <PaperSheet seedKey="onboarding-heat-preview">
               <div className="space-y-2">
                 <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-                  Signal preview · reported occurrence heat
+                  What these firms ask most
                 </p>
                 <HeatStrip entries={heatPreview} />
                 <p className="text-xs text-muted-foreground">
-                  Directional firm signals only — teaching answers come from the
-                  corpus.
+                  The percentage is relative heat — how often that topic shows
+                  up versus others. The report count is how many interview
+                  write-ups mentioned it. Use this to prioritise; answers still
+                  come from teaching materials.
                 </p>
               </div>
             </PaperSheet>

@@ -23,11 +23,11 @@ const instrumentSerif = Instrument_Serif({
 
 export const metadata = {
   title: {
-    default: "IBPE — Editorial Finance Terminal",
-    template: "%s · IBPE",
+    default: "Concord — IB, PE & VC interview prep",
+    template: "%s · Concord",
   },
   description:
-    "Company prep with topic heat + pseudo-RAG, and concept labs — Editorial Finance Terminal",
+    "Interview prep for IB, PE, and VC. See what your target firms ask most, then learn the finance with lessons and concept labs.",
 }
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

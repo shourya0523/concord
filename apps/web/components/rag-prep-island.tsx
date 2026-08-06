@@ -124,7 +124,7 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
 
   async function retrieve() {
     if (targets.length === 0) {
-      setError("Choose at least one target firm before retrieving a pack.")
+      setError("Choose at least one target firm before building a pack.")
       setStatus("error")
       return
     }
@@ -149,7 +149,7 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
       setError(
         caught instanceof Error
           ? caught.message
-          : "Could not retrieve a grounded pack."
+          : "Could not build a practice pack."
       )
       setStatus("error")
     }
@@ -186,8 +186,8 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
     <div className="space-y-8">
       <WarrenCallout mood="thinking" bracket>
         {targets.length > 0
-          ? `Packing for ${firmNames.join(" + ") || "your firms"} — heat ∩ your weak topics ∩ the prompt. Pack freezes when retrieved; citations stay attached.`
-          : "Pick target firms first — the pack ranks teaching answers by their interview signals."}
+          ? `Building a pack for ${firmNames.join(" + ") || "your firms"} — ranked by what those firms ask most, topics you are weak on, and your prompt. Once built, the pack stays fixed for this session and every question keeps its sources.`
+          : "Pick your target firms first — the pack ranks teaching questions by what those firms ask most."}
       </WarrenCallout>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
@@ -201,7 +201,7 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
               onChange={(e) => setFocusPrompt(e.target.value)}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
-              aria-label="Pseudo-RAG session brief"
+              aria-label="Session pack focus prompt"
             />
           </label>
           <TargetSelectIsland value={targets} onChange={setTargets} />
@@ -215,7 +215,7 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
       {focusTopic ? (
         <div className="flex flex-wrap items-center gap-3 border border-dashed border-border px-4 py-3">
           <span className="font-mono text-[11px] tracking-wide text-muted-foreground uppercase">
-            Heat focus · {topicLabel(focusTopic)}
+            Focus topic · {topicLabel(focusTopic)}
           </span>
           {focusConceptSlug ? (
             <Link href={`/concepts/${focusConceptSlug}`}>
@@ -233,7 +233,7 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
           disabled={status === "loading" || targets.length === 0}
           onClick={() => void retrieve()}
         >
-          {status === "loading" ? "Retrieving…" : "Retrieve grounded pack"}
+          {status === "loading" ? "Building pack…" : "Build practice pack"}
         </Button>
         <Button
           type="button"
@@ -241,13 +241,13 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
           disabled={!result?.pack.item_ids.length}
           onClick={() => setLoopStarted(true)}
         >
-          {loopStarted ? "Study loop started" : "Start study loop"}
+          {loopStarted ? "Practice started" : "Start practice"}
         </Button>
         {result ? (
           <Annotate type="box" color="var(--graphite)" padding={4}>
             <span className="font-mono text-[11px] text-muted-foreground">
-              Frozen · {result.pack.frozen_at.slice(0, 10)} ·{" "}
-              {result.pack.item_ids.length} items · {result.source}
+              Locked · {result.pack.frozen_at.slice(0, 10)} ·{" "}
+              {result.pack.item_ids.length} questions
             </span>
           </Annotate>
         ) : null}
@@ -269,10 +269,11 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
               Pack preview
             </h2>
             <p className="text-sm text-muted-foreground">
-              Ranked by firm heat ∩ weak topics ∩ brief similarity
+              Ranked by firm topic heat, your weak topics, and how well each
+              question matches your brief
               {firmNames.length ? ` · ${firmNames.join(" · ")}` : ""}. Every
-              card carries its retrieval reasons and citations — Glassdoor rows
-              are signals only.
+              card shows why it was picked and where the answer comes from —
+              interview reports only help ranking.
             </p>
           </header>
           {result.brief ? (
@@ -280,11 +281,11 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-                    Grounded brief
+                    Session brief
                   </span>
                   <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground uppercase">
                     {result.brief_source === "gemini"
-                      ? "Gemini rewrite"
+                      ? "AI rewrite"
                       : "Template"}
                   </span>
                 </div>
@@ -316,11 +317,11 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
                 title={hit.title}
                 excerpt={
                   hit.snippet ??
-                  "Open the study loop for the published teaching answer."
+                  "Open practice to see the published teaching answer."
                 }
                 whyRetrieved={
                   explanationMap.get(hit.id) ??
-                  "Semantic match to your session brief"
+                  "Matches your session brief"
                 }
                 provenance={
                   hit.provenance === "github_source"
@@ -343,8 +344,8 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
           {loopStarted ? (
             <section className="border-t border-border pt-6">
               <StudyLoopIsland
-                title="Pseudo-RAG study loop"
-                eyebrow="Mode A · frozen pack · layered reveal"
+                title="Practice from this pack"
+                eyebrow="Company prep · locked pack"
                 initialQuestionIds={result.pack.item_ids}
                 initialFirmIds={targets}
                 sessionMode="pseudo_rag"
@@ -362,12 +363,11 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
           ) : (
             <section className="border border-border bg-background/30 px-4 py-4">
               <div className="space-y-2">
-                <p className="font-medium">Ready for the real session.</p>
+                <p className="font-medium">Ready to practise.</p>
                 <p className="text-sm text-muted-foreground">
-                  Start study loop freezes this pack into a pseudo-RAG practice
-                  session. Attempts use the existing practice API for mastery
-                  when auth is available; anonymous users still get the layered
-                  reveal and close recommendations.
+                  Start practice locks this pack for the session. You will
+                  answer before seeing the teaching version, with sources and
+                  follow-ups attached.
                 </p>
               </div>
             </section>

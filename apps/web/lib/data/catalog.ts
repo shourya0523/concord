@@ -87,12 +87,12 @@ async function listBankFirmCatalog(): Promise<FirmCatalogResponse> {
       items,
       source: items.length ? "bank_fallback" : "empty",
       note: items.length
-        ? "DATABASE_URL unset — firm catalog from local question bank."
-        : "No firm signals available.",
+        ? "Showing firms from the local interview bank (database not connected)."
+        : "No firm interview reports available yet.",
     };
   } catch (err) {
     console.warn("[catalog] bank firm catalog failed", err);
-    return { items: [], source: "empty", note: "Firm catalog unavailable." };
+    return { items: [], source: "empty", note: "Firm list unavailable right now." };
   }
 }
 

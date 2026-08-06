@@ -300,8 +300,9 @@ export function SavedIsland() {
     <div className="space-y-10">
       {empty ? (
         <WarrenCallout mood="encouraging" bracket>
-          Nothing saved yet. In Study, press <strong className="text-foreground">b</strong> to
-          bookmark a question, or capture your own wording as a note — they land here.
+          Nothing saved yet. In Study, press{" "}
+          <strong className="text-foreground">b</strong> to bookmark a question,
+          or add a note in your own words — they show up here.
         </WarrenCallout>
       ) : null}
 
@@ -314,7 +315,7 @@ export function SavedIsland() {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Filter bookmarks, notes, collections, firms, provenance..."
+            placeholder="Filter by question, note, collection, or firm…"
             aria-label="Search saved items"
           />
         </label>
@@ -332,10 +333,10 @@ export function SavedIsland() {
           </label>
           <div className="flex flex-wrap items-center gap-2">
             <Button type="submit" disabled={!collectionTitle.trim() || creatingCollection}>
-              {creatingCollection ? "Creating..." : "Create"}
+              {creatingCollection ? "Creating…" : "Create"}
             </Button>
             <span className="text-xs text-muted-foreground">
-              Uses `/api/collections` POST; sign-in required.
+              Sign in required to save collections.
             </span>
           </div>
           {collectionStatus ? (
@@ -418,7 +419,7 @@ export function SavedIsland() {
 
       <section className="space-y-3">
         <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-          Notes · your own wording · {filteredNotes.length}
+          Notes · {filteredNotes.length}
           {searchTerm ? ` / ${notes.length}` : ""}
         </h2>
         {filteredNotes.length === 0 ? (
@@ -457,8 +458,8 @@ export function SavedIsland() {
         </h2>
         {filteredCollections.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No collections yet. Create one above; the real collections API requires an authenticated
-            session before it can persist to your account.
+            No collections yet. Create one above — you need to be signed in for
+            it to save to your account.
           </p>
         ) : (
           <ul className="grid gap-3 md:grid-cols-2">

@@ -12,7 +12,7 @@ const PROVENANCE_META: Record<
     tone: "border-foreground/30 text-foreground",
   },
   corpus_matched: {
-    label: "Corpus match",
+    label: "Teaching answer",
     Icon: CheckCircle2,
     tone: "border-foreground/30 text-foreground",
   },

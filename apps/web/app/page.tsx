@@ -134,18 +134,18 @@ function InterviewerSketch() {
 
 const PILLARS = [
   {
-    title: "Heat matrix",
-    body: "What each firm actually asks, from reported occurrence signals. Directional — never answer text.",
+    title: "Firm topic heat",
+    body: "See which topics show up most in interviews at each firm — accounting, LBO, valuation, and the rest. Use it to prioritise. It is a signal of what gets asked, not a bank of answers.",
     Sketch: HeatMatrixSketch,
   },
   {
-    title: "Module roadmap",
-    body: "Prereq-ordered lessons, diagram labs, and checkpoints that teach the underlying finance.",
+    title: "Learn path",
+    body: "Lessons in a sensible order, interactive diagrams, and checkpoints that teach the underlying finance step by step.",
     Sketch: RoadmapSketch,
   },
   {
-    title: "Interviewer cast",
-    body: "Firm-templated mock stages with a fixed cast — same firm, same interviewer every run.",
+    title: "Mock interviewers",
+    body: "Practice interviews shaped around a firm, with the same interviewer each time so the format feels familiar.",
     Sketch: InterviewerSketch,
   },
 ] as const
@@ -169,7 +169,7 @@ export default function HomePage() {
 
         <div className="py-14 md:py-20">
           <p className="mb-4 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-            Interview preparation, drawn clearly
+            IB, PE & VC interview prep
           </p>
           <h1 className="max-w-4xl font-display text-5xl leading-[0.98] tracking-tight md:text-7xl">
             Learn the concept.
@@ -179,10 +179,12 @@ export default function HomePage() {
             className="mt-2 max-w-4xl [&_p]:text-5xl [&_p]:leading-[0.98] md:[&_p]:text-7xl"
           />
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-graphite">
-            Mode A reads firm occurrence heat so you drill what your targets
-            actually ask. Mode B teaches the finance through modules and concept
-            labs. The two never blur: signals stay directional, teaching answers
-            come from the curated corpus — labelled as such, everywhere.
+            Prep two ways. Company prep shows which topics your target firms ask
+            most, so you practise what they actually care about. Learn walks you
+            through the finance — lessons, diagrams, and checkpoints — so you can
+            explain the ideas, not just recognise them. Heat tells you what to
+            prioritise. Answers always come from our teaching materials, never from
+            scraped interview reports.
           </p>
           <InkHoverScope
             selector="a[data-ink-hover]"
@@ -205,7 +207,7 @@ export default function HomePage() {
               data-ink-hover
               className="px-1 text-sm text-graphite underline-offset-4 transition-colors hover:text-ink hover:underline"
             >
-              See a company room →
+              Browse companies →
             </Link>
           </InkHoverScope>
         </div>
@@ -214,7 +216,7 @@ export default function HomePage() {
           <div className="flex items-center gap-3">
             <Warren mood="idle" size={44} />
             <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-              Three pillars, one calm document
+              How Concord works
             </p>
           </div>
           <PaperSheet seedKey="landing-pillars">
@@ -233,8 +235,9 @@ export default function HomePage() {
             </ul>
           </PaperSheet>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Teaching corpus: curated public sources and validated enrichment.
-            Glassdoor: directional firm-signal only.
+            Answers come from curated teaching materials. Firm topic patterns come
+            from public interview reports — useful for focus, not for wording
+            answers.
           </p>
         </div>
       </article>

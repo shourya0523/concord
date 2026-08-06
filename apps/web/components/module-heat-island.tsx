@@ -76,8 +76,9 @@ export function ModuleHeatIsland({ topics }: { topics: string[] }) {
       </h2>
       <HeatStrip entries={entries} />
       <p className="font-mono text-[10px] tracking-wide text-muted-foreground">
-        n={total} reported occurrences across {firmCount} target{" "}
-        {firmCount === 1 ? "firm" : "firms"} · directional signal, not teaching truth
+        {total === 1 ? "1 interview report" : `${total} interview reports`} across{" "}
+        {firmCount} target {firmCount === 1 ? "firm" : "firms"} — a focus
+        signal, not answer text
       </p>
     </section>
   )
