@@ -1,23 +1,26 @@
 /**
- * Practice session stubs — in-memory when DB/auth unavailable; DB insert when ready.
- * Does not run scrapes.
+ * Practice sessions — mode-specific packs, firm context snapshot, DB or stub.
  */
 import { randomUUID } from "node:crypto";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
-import { PracticeSessionSchema, type PracticeSession } from "@ibpe/contracts";
+import {
+  PracticeSessionSchema,
+  normalizePracticeMode,
+  type PracticeSession,
+  type PracticeSessionMode,
+} from "@ibpe/contracts";
 import type {
   CreatePracticeSessionRequest,
   PracticeSessionResponse,
 } from "@/lib/api/schemas";
-import { listQuestions } from "@/lib/data/questions";
+import { buildPracticePack } from "@/lib/data/practice-packs";
 import { ensureAppUserQuery } from "./users";
 
 const stubSessions = new Map<string, PracticeSession>();
 
-/** Persist practice mode on the session row (supports simulator). */
-function practiceModeToDb(input: CreatePracticeSessionRequest): string {
-  return input.mode;
+function practiceModeToDb(mode: PracticeSessionMode): string {
+  return mode;
 }
 
 function simulatorStageTemplate() {
@@ -37,49 +40,44 @@ function simulatorStageTemplate() {
   };
 }
 
-function sessionMetadata(input: CreatePracticeSessionRequest, questionIds: string[]) {
-  return {
-    learning_mode: input.learning_mode ?? null,
-    firm_ids: input.firm_ids,
-    concept_ids: input.concept_ids,
-    question_ids: questionIds,
-    practice_mode: input.mode,
-    ...(input.mode === "simulator"
-      ? {
-          simulator: {
-            stage_template: simulatorStageTemplate(),
-            note:
-              "Stage template is static until firm/stage pattern tables land.",
-          },
-        }
-      : {}),
-  };
-}
-
 export async function createPracticeSession(options: {
   userId: string;
   input: CreatePracticeSessionRequest;
 }): Promise<PracticeSessionResponse> {
   const { userId, input } = options;
-  let questionIds = [...input.question_ids];
-
-  if (questionIds.length === 0) {
-    const listed = await listQuestions({
-      limit: input.limit,
-      offset: 0,
-      track: undefined,
-    });
-    questionIds = listed.items.slice(0, input.limit).map((q) => q.id);
-  }
+  const mode = normalizePracticeMode(input.mode);
+  const pack = await buildPracticePack({
+    userId,
+    input: { ...input, mode },
+  });
+  const questionIds = pack.question_ids;
 
   const startedAt = new Date().toISOString();
   const sessionId = `sess_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
 
-  const metadata = sessionMetadata(input, questionIds);
+  const metadata = {
+    learning_mode: input.learning_mode ?? null,
+    firm_ids: input.firm_ids,
+    concept_ids: input.concept_ids,
+    question_ids: questionIds,
+    practice_mode: mode,
+    firm_context_snapshot: pack.firm_context_snapshot,
+    pack_notes: pack.firm_context_snapshot.notes,
+    ...(mode === "simulator"
+      ? {
+          simulator: {
+            stage_template: simulatorStageTemplate(),
+            stage_topic_map: pack.stage_topic_map ?? {},
+            note: "Stages biased by firm heat topics when available.",
+          },
+        }
+      : {}),
+  };
+
   const session = PracticeSessionSchema.parse({
     id: sessionId,
     user_id: userId,
-    mode: input.mode,
+    mode,
     learning_mode: input.learning_mode,
     firm_ids: input.firm_ids,
     concept_ids: input.concept_ids,
@@ -89,12 +87,18 @@ export async function createPracticeSession(options: {
     metadata: { ...metadata, stub: !isDatabaseConfigured() },
   });
 
+  const noteParts = [
+    `mode=${mode}`,
+    `pack=${pack.firm_context_snapshot.pack_backend ?? "n/a"}`,
+    ...pack.firm_context_snapshot.notes.slice(0, 2),
+  ];
+
   if (!isDatabaseConfigured()) {
     stubSessions.set(sessionId, session);
     return {
       session,
       source: "stub",
-      note: "In-memory practice session (DATABASE_URL unset).",
+      note: `In-memory practice session (DATABASE_URL unset). ${noteParts.join("; ")}`,
     };
   }
 
@@ -107,14 +111,18 @@ export async function createPracticeSession(options: {
         VALUES (
           ${sessionId},
           (SELECT id FROM app.users WHERE neon_auth_user_id = ${userId} LIMIT 1),
-          ${practiceModeToDb(input)},
+          ${practiceModeToDb(mode)},
           ${input.firm_ids[0] ?? null},
           ${startedAt}::timestamptz,
           ${JSON.stringify(metadata)}::jsonb
         )
       `,
     ]);
-    return { session, source: "published" };
+    return {
+      session,
+      source: "published",
+      note: noteParts.join("; "),
+    };
   } catch (err) {
     console.warn("[practice] DB insert failed; returning stub session", err);
     const stubSession = PracticeSessionSchema.parse({
@@ -125,7 +133,7 @@ export async function createPracticeSession(options: {
     return {
       session: stubSession,
       source: "stub",
-      note: "DB write failed — returned ephemeral session.",
+      note: `DB write failed — ephemeral session. ${noteParts.join("; ")}`,
     };
   }
 }
@@ -171,18 +179,15 @@ export async function getPracticeSession(
   const row = rows[0];
   if (!row) return null;
   const meta = row.metadata_json ?? {};
-  const mode =
+  const mode = normalizePracticeMode(
     typeof meta.practice_mode === "string"
       ? meta.practice_mode
       : row.mode === "company_prep"
         ? "company"
         : row.mode === "concept_learn"
           ? "concept"
-          : ["company", "concept", "adaptive_weak", "pseudo_rag", "simulator"].includes(
-                row.mode,
-              )
-            ? row.mode
-            : "adaptive_weak";
+          : row.mode,
+  );
   return PracticeSessionSchema.parse({
     id: row.id,
     user_id: row.user_id,

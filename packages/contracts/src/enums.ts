@@ -115,14 +115,36 @@ export type VariantType = z.infer<typeof VariantTypeEnum>;
 export const ScrapeBackendEnum = z.enum(["browser", "bff"]);
 export type ScrapeBackend = z.infer<typeof ScrapeBackendEnum>;
 
-export const PracticeSessionModeEnum = z.enum([
+/** Canonical practice modes. Legacy `pseudo_rag` normalises to `rag`. */
+export const PracticeSessionModeValues = [
   "company",
   "concept",
   "adaptive_weak",
-  "pseudo_rag",
+  "rag",
   "simulator",
-]);
-export type PracticeSessionMode = z.infer<typeof PracticeSessionModeEnum>;
+] as const;
+
+export type PracticeSessionMode = (typeof PracticeSessionModeValues)[number];
+
+const PracticeSessionModeInner = z.enum(PracticeSessionModeValues);
+
+/**
+ * Accepts canonical modes plus legacy `pseudo_rag` (→ `rag`).
+ * Compatible with `.default(...)` via outer optional/default on request schemas.
+ */
+export const PracticeSessionModeEnum = z
+  .union([PracticeSessionModeInner, z.literal("pseudo_rag")])
+  .transform((value): PracticeSessionMode =>
+    value === "pseudo_rag" ? "rag" : value,
+  );
+
+export function normalizePracticeMode(mode: string): PracticeSessionMode {
+  if (mode === "pseudo_rag") return "rag";
+  if ((PracticeSessionModeValues as readonly string[]).includes(mode)) {
+    return mode as PracticeSessionMode;
+  }
+  return "adaptive_weak";
+}
 
 export const MasteryLevelEnum = z.enum([
   "unseen",

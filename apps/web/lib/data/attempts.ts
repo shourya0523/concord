@@ -8,6 +8,8 @@ import {
 import type { AttemptResponse, CreateAttemptRequest } from "@/lib/api/schemas";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
+import { gradePracticeAttempt } from "@/lib/data/practice-grade";
+import type { FirmContextSnapshot } from "@/lib/data/practice-packs";
 import { getPracticeSession } from "./practice";
 import { ensureAppUserQuery } from "./users";
 
@@ -16,12 +18,6 @@ const stubMastery = new Map<string, Mastery>();
 
 function masteryKey(userId: string, subjectType: string, subjectId: string): string {
   return `${userId}:${subjectType}:${subjectId}`;
-}
-
-function scoreFromCorrect(correct: boolean | null | undefined): number {
-  if (correct === true) return 1;
-  if (correct === false) return 0.25;
-  return 0.5;
 }
 
 function levelFromScore(score: number): Mastery["level"] {
@@ -36,17 +32,16 @@ function upsertStubMastery(options: {
   userId: string;
   questionId: string;
   firmId?: string | null;
-  correct?: boolean | null;
+  score: number;
   createdAt: string;
 }): Mastery {
   const key = masteryKey(options.userId, "canonical_question", options.questionId);
   const current = stubMastery.get(key);
-  const attemptScore = scoreFromCorrect(options.correct);
   const attempt_count = (current?.attempt_count ?? 0) + 1;
   const score =
     current && current.attempt_count > 0
-      ? (current.score * current.attempt_count + attemptScore) / attempt_count
-      : attemptScore;
+      ? (current.score * current.attempt_count + options.score) / attempt_count
+      : options.score;
   const mastery = MasterySchema.parse({
     user_id: options.userId,
     subject_type: "canonical_question",
@@ -67,6 +62,16 @@ export function getStubMastery(userId: string): Mastery[] {
   return [...stubMastery.values()].filter((item) => item.user_id === userId);
 }
 
+function firmContextFromSession(
+  session: Awaited<ReturnType<typeof getPracticeSession>>,
+): FirmContextSnapshot | null {
+  const raw = session?.metadata?.firm_context_snapshot;
+  if (!raw || typeof raw !== "object") return null;
+  const snap = raw as FirmContextSnapshot;
+  if (!Array.isArray(snap.heat_topics)) return null;
+  return snap;
+}
+
 export async function recordPracticeAttempt(options: {
   userId: string;
   email?: string | null;
@@ -81,22 +86,43 @@ export async function recordPracticeAttempt(options: {
     throw new Error("Attempt requires canonical_question_id or a session question");
   }
 
+  const grade = await gradePracticeAttempt({
+    questionId,
+    responseText: input.response_text,
+    correct: input.correct,
+    confidence: input.confidence,
+    firmContext: firmContextFromSession(session),
+  });
+
   const now = new Date().toISOString();
+  const selfScore =
+    input.correct == null
+      ? input.confidence ?? null
+      : input.correct
+        ? 1
+        : 0.25;
+
   const attempt = AttemptSchema.parse({
     id: `att_${randomUUID().replace(/-/g, "").slice(0, 24)}`,
     user_id: userId,
     session_id: sessionId,
     canonical_question_id: questionId,
-    answer_id: null,
+    answer_id: grade.answer_id,
     response_text: input.response_text,
-    self_score: input.correct == null ? null : scoreFromCorrect(input.correct),
+    self_score: selfScore,
     confidence: input.confidence ?? null,
     time_spent_ms: input.time_spent_ms ?? null,
-    correct: input.correct ?? null,
-    weak_topics: [],
+    correct: grade.correct ?? input.correct ?? null,
+    weak_topics: grade.weak_topics,
     firm_id: session?.firm_ids[0] ?? null,
+    score_source: grade.score_source,
+    llm_score: grade.score_source === "self" ? null : grade.score,
+    rubric_json: grade.rubric_json,
+    grade_citations: grade.citations,
     created_at: now,
   });
+
+  const masteryScore = grade.score;
 
   if (!isDatabaseConfigured()) {
     const attempts = stubAttempts.get(sessionId) ?? [];
@@ -106,22 +132,29 @@ export async function recordPracticeAttempt(options: {
       userId,
       questionId,
       firmId: attempt.firm_id,
-      correct: input.correct,
+      score: masteryScore,
       createdAt: now,
     });
     return {
       attempt,
       mastery,
+      grade: {
+        score_source: grade.score_source,
+        score: grade.score,
+        feedback: grade.feedback,
+        weak_topics: grade.weak_topics,
+        citations: grade.citations,
+        rubric: grade.rubric_json,
+      },
       source: "stub",
-      note: "DATABASE_URL unset — saved attempt/mastery in memory.",
+      note: `DATABASE_URL unset — graded via ${grade.score_source}.`,
     };
   }
 
   try {
     const sql = requireSql();
     const correctness =
-      input.correct == null ? null : input.correct === true ? 1 : 0;
-    const masteryScore = scoreFromCorrect(input.correct);
+      grade.correct == null ? null : grade.correct === true ? 1 : 0;
     const queries = [
       ensureAppUserQuery(sql, userId, email),
       sql`
@@ -153,15 +186,22 @@ export async function recordPracticeAttempt(options: {
       userId,
       questionId,
       firmId: attempt.firm_id,
-      correct: input.correct,
+      score: masteryScore,
       createdAt: now,
     });
     return {
       attempt,
       mastery,
+      grade: {
+        score_source: grade.score_source,
+        score: grade.score,
+        feedback: grade.feedback,
+        weak_topics: grade.weak_topics,
+        citations: grade.citations,
+        rubric: grade.rubric_json,
+      },
       source: "published",
-      note:
-        "Attempt saved to app.question_attempts; response-only fields kept in API payload until DB schema expands.",
+      note: `Graded via ${grade.score_source}; mastery updated from grade score.`,
     };
   } catch (err) {
     console.warn("[attempts] DB write failed; saving attempt in memory", err);
@@ -172,14 +212,22 @@ export async function recordPracticeAttempt(options: {
       userId,
       questionId,
       firmId: attempt.firm_id,
-      correct: input.correct,
+      score: masteryScore,
       createdAt: now,
     });
     return {
       attempt,
       mastery,
+      grade: {
+        score_source: grade.score_source,
+        score: grade.score,
+        feedback: grade.feedback,
+        weak_topics: grade.weak_topics,
+        citations: grade.citations,
+        rubric: grade.rubric_json,
+      },
       source: "stub",
-      note: "DB attempt write failed — saved attempt/mastery in memory.",
+      note: `DB attempt write failed — graded via ${grade.score_source} in memory.`,
     };
   }
 }

@@ -107,7 +107,7 @@ export const FirmHeatResponseSchema = z.object({
 export type FirmHeatResponse = z.infer<typeof FirmHeatResponseSchema>
 
 export const CreatePracticeSessionRequestSchema = z.object({
-  mode: PracticeSessionModeEnum.default("adaptive_weak"),
+  mode: PracticeSessionModeEnum.catch("adaptive_weak"),
   learning_mode: z.enum(["company_prep", "concept_learn"]).optional(),
   firm_ids: z.array(z.string()).default([]),
   concept_ids: z.array(z.string()).default([]),
@@ -287,9 +287,28 @@ export const CreateAttemptRequestSchema = z.object({
 })
 export type CreateAttemptRequest = z.infer<typeof CreateAttemptRequestSchema>
 
+export const AttemptGradeResponseSchema = z.object({
+  score_source: z.enum(["self", "llm", "deterministic"]),
+  score: z.number().min(0).max(1),
+  feedback: z.string().optional(),
+  weak_topics: z.array(z.string()).default([]),
+  citations: z
+    .array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(["teaching_answer", "heat_topic", "occurrence"]),
+        label: z.string().optional(),
+      }),
+    )
+    .default([]),
+  rubric: z.record(z.unknown()).nullable().optional(),
+})
+export type AttemptGradeResponse = z.infer<typeof AttemptGradeResponseSchema>
+
 export const AttemptResponseSchema = z.object({
   attempt: AttemptSchema,
   mastery: MasterySchema.optional(),
+  grade: AttemptGradeResponseSchema.optional(),
   source: DataSourceSchema,
   note: z.string().optional(),
 })

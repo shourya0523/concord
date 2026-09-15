@@ -347,7 +347,7 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
                 eyebrow="Mode A · frozen pack · layered reveal"
                 initialQuestionIds={result.pack.item_ids}
                 initialFirmIds={targets}
-                sessionMode="pseudo_rag"
+                sessionMode="rag"
                 learningMode="company_prep"
                 ragContext={{
                   packId: result.pack.id,
