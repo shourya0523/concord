@@ -96,6 +96,18 @@ Acceptance for 3.2–3.3:
 
 **Deploy note.** Apply `migrations/041_review_queue_scheduling.sql` to Neon before shipping. It is also registered in `packages/database/scripts/migrate.ts`.
 
+**Verified on Neon (2026-09-22).** These checks ran on the branch `test/review-queue-041`, forked from `production`. The app's SQL was run directly through the Neon connector; the Next.js server was not run against Neon.
+
+- **Migration 041:** applies cleanly. Running it a second time changes nothing, and no constraint is duplicated.
+- **Write queries:** the review upsert, due-list query, notes edit/delete, bookmark delete, collection item add/remove/cascade and `module_progress` upsert all behave as intended.
+- **Bad input:** an invalid rating is rejected by the CHECK constraint.
+- **Cross-user writes:** a second user's edit, delete and add attempts against the first user's rows hit 0 rows every time.
+
+**Found while verifying (not changed here):**
+
+- The app role `neondb_owner` has `BYPASSRLS`, so the RLS policies in `030`/`032`/`041` are not enforced. User isolation relies entirely on each query's `neon_auth_user_id` filter.
+- `app.study_sessions.mode` accepts `pseudo_rag` but not `rag`, so RAG practice sessions fail to insert and fall back to memory.
+
 ## Still open (next candidates)
 
 - 1.3 Notifications / reminders in Settings (store in `preferences_json`).
