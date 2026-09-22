@@ -10,6 +10,8 @@ import { Annotate, CircledNumber, RoughHover } from "@/components/paper"
 import {
   fetchModuleProgress,
   moduleProgressPercent,
+  onModuleProgressChange,
+  publishModuleProgress,
   type ModuleProgressEntry,
 } from "@/components/progress-client"
 
@@ -37,11 +39,15 @@ export function ModuleMasteryChip({ moduleId }: { moduleId: string }) {
 
   React.useEffect(() => {
     let cancelled = false
-    void fetchModuleProgress().then((entries) => {
-      if (!cancelled) setPercent(moduleProgressPercent(entries, moduleId))
-    })
+    const read = () =>
+      void fetchModuleProgress().then((entries) => {
+        if (!cancelled) setPercent(moduleProgressPercent(entries, moduleId))
+      })
+    read()
+    const unsubscribe = onModuleProgressChange(read)
     return () => {
       cancelled = true
+      unsubscribe()
     }
   }, [moduleId])
 
@@ -65,14 +71,51 @@ export function ModuleMasteryChip({ moduleId }: { moduleId: string }) {
  */
 export function ModuleRoadmapIsland({
   moduleId,
+  moduleSlug,
   checkpoints,
   sessionHref,
 }: {
   moduleId: string
+  moduleSlug: string
   checkpoints: RoadmapCheckpoint[]
   sessionHref: string
 }) {
   const [progress, setProgress] = React.useState<ModuleProgressEntry[] | null>(null)
+  const [savingId, setSavingId] = React.useState<string | null>(null)
+  const [saveError, setSaveError] = React.useState<string | null>(null)
+
+  async function setComplete(checkpointId: string, complete: boolean) {
+    setSavingId(checkpointId)
+    setSaveError(null)
+    try {
+      const response = await fetch(
+        `/api/learn/modules/${encodeURIComponent(moduleSlug)}/progress`,
+        {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ checkpoint_id: checkpointId, complete }),
+        },
+      )
+      if (!response.ok) {
+        setSaveError(
+          response.status === 401
+            ? "Sign in to track module progress."
+            : `Progress could not be saved (${response.status}).`,
+        )
+        return
+      }
+      const payload = (await response.json()) as { module_progress: ModuleProgressEntry }
+      void publishModuleProgress(payload.module_progress)
+      setProgress((current) => [
+        ...(current ?? []).filter((item) => item.module_id !== moduleId),
+        payload.module_progress,
+      ])
+    } catch {
+      setSaveError("Progress could not be saved. Try again in a moment.")
+    } finally {
+      setSavingId(null)
+    }
+  }
 
   React.useEffect(() => {
     let cancelled = false
@@ -92,7 +135,7 @@ export function ModuleRoadmapIsland({
 
   function stateFor(index: number, id: string): CheckpointState {
     if (progress === null) return "open"
-    if (doneIds.has(id) || index < currentIndex) return "done"
+    if (doneIds.has(id)) return "done"
     if (index === currentIndex) return "current"
     return "locked"
   }
@@ -177,17 +220,38 @@ export function ModuleRoadmapIsland({
                     className="absolute top-10 bottom-[-0.75rem] left-3.5 border-l border-dashed border-border"
                   />
                 ) : null}
-                {clickable ? (
-                  <Link className="flex gap-3" href={checkpoint.href!}>
-                    {body}
-                  </Link>
-                ) : (
-                  <div className="flex gap-3">{body}</div>
-                )}
+                <div className="flex items-start justify-between gap-3">
+                  {clickable ? (
+                    <Link className="flex min-w-0 gap-3" href={checkpoint.href!}>
+                      {body}
+                    </Link>
+                  ) : (
+                    <div className="flex min-w-0 gap-3">{body}</div>
+                  )}
+                  {state === "current" || state === "done" ? (
+                    <button
+                      type="button"
+                      disabled={savingId !== null}
+                      className="shrink-0 pt-1 font-mono text-[10px] tracking-wide text-muted-foreground uppercase underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50"
+                      onClick={() => void setComplete(checkpoint.id, state !== "done")}
+                    >
+                      {savingId === checkpoint.id
+                        ? "saving…"
+                        : state === "done"
+                          ? "undo"
+                          : "mark done"}
+                    </button>
+                  ) : null}
+                </div>
               </li>
             )
           })}
         </ol>
+        {saveError ? (
+          <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">
+            {saveError}
+          </p>
+        ) : null}
       </section>
 
       <div className="flex flex-wrap gap-2">

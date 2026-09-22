@@ -16,8 +16,16 @@ import type {
 } from "@/lib/api/schemas";
 import { buildPracticePack } from "@/lib/data/practice-packs";
 import { ensureAppUserQuery } from "./users";
+import { memoryStore } from "./memory-store";
 
-const stubSessions = new Map<string, PracticeSession>();
+const stubSessions = memoryStore<string, PracticeSession>("practice_sessions");
+
+/** In-memory sessions for one user, newest first (no-DB progress history). */
+export function listStubSessions(userId: string): PracticeSession[] {
+  return [...stubSessions.values()]
+    .filter((session) => session.user_id === userId)
+    .sort((a, b) => b.started_at.localeCompare(a.started_at));
+}
 
 function practiceModeToDb(mode: PracticeSessionMode): string {
   return mode;
