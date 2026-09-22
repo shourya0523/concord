@@ -1,5 +1,6 @@
 /**
- * Questions list/detail — prefer published.v_questions; else bank fallback.
+ * Questions list/detail — prefer published.v_questions; else offline fallback
+ * (teaching seed Q/A first, then Glassdoor bank rows as firm signals only).
  */
 import {
   CanonicalQuestionSchema,
@@ -12,6 +13,13 @@ import {
   getBankQuestion,
   listBankAsCanonical,
 } from "@/lib/data/bank-fallback";
+import {
+  filterSeedQuestions,
+  getSeedQuestion,
+  loadTeachingSeed,
+  seedRowToCanonical,
+  seedRowToStudy,
+} from "@/lib/data/teaching-seed-fallback";
 import type { QuestionDetailResponse, QuestionListResponse } from "@/lib/api/schemas";
 import {
   diagramsForConcepts,
@@ -66,6 +74,34 @@ function rowToCanonical(row: PublishedQuestionRow): CanonicalQuestion {
   return CanonicalQuestionSchema.parse(candidate);
 }
 
+/**
+ * Offline list: teaching seed questions (with answers) first, then Glassdoor
+ * bank rows. Pagination spans the concatenation.
+ */
+async function listFallbackQuestions(options: {
+  q?: string;
+  track?: string;
+  topic?: string;
+  limit: number;
+  offset: number;
+}): Promise<{ items: CanonicalQuestion[]; total: number }> {
+  const seedRows = filterSeedQuestions(loadTeachingSeed(), options);
+  const seedItems = seedRows
+    .slice(options.offset, options.offset + options.limit)
+    .map(seedRowToCanonical);
+  const bank = await listBankAsCanonical({
+    q: options.q,
+    track: options.track,
+    topic: options.topic,
+    limit: options.limit - seedItems.length,
+    offset: Math.max(0, options.offset - seedRows.length),
+  });
+  return {
+    items: [...seedItems, ...bank.items],
+    total: seedRows.length + bank.total,
+  };
+}
+
 export async function listQuestions(options: {
   q?: string;
   track?: string;
@@ -77,7 +113,7 @@ export async function listQuestions(options: {
   const offset = options.offset ?? 0;
 
   if (!isDatabaseConfigured()) {
-    const { items, total } = await listBankAsCanonical({
+    const { items, total } = await listFallbackQuestions({
       q: options.q,
       track: options.track,
       topic: options.topic,
@@ -116,8 +152,8 @@ export async function listQuestions(options: {
   const total = countRows[0]?.n ?? items.length;
 
   if (items.length === 0 && total === 0) {
-    // Empty published corpus → soft-fallback to bank for local UX
-    const fallback = await listBankAsCanonical({
+    // Empty published corpus → soft-fallback to seed + bank for local UX
+    const fallback = await listFallbackQuestions({
       q: options.q,
       track: options.track,
       topic: options.topic,
@@ -187,7 +223,7 @@ function mapAnswerProvenance(
   }
 }
 
-function toStudyPayload(options: {
+export function toStudyPayload(options: {
   question: CanonicalQuestion;
   study: NonNullable<QuestionDetailResponse["study"]>;
 }): QuestionStudyPayload {
@@ -248,6 +284,25 @@ function toStudyPayload(options: {
   });
 }
 
+async function diagramLayers(
+  conceptIds: string[],
+): Promise<Pick<NonNullable<QuestionDetailResponse["study"]>, "diagram_refs" | "diagram_asset">> {
+  const diagramAsset = conceptIds[0]
+    ? await getDiagramAssetForConcept(conceptIds[0])
+    : null;
+  return {
+    diagram_refs: diagramsForConcepts(conceptIds),
+    diagram_asset: diagramAsset
+      ? {
+          id: diagramAsset.ref.id,
+          title: diagramAsset.title,
+          body: diagramAsset.body,
+          a11y_fallback: diagramAsset.ref.a11y_fallback ?? null,
+        }
+      : null,
+  };
+}
+
 async function getPublishedStudyPayload(options: {
   questionId: string;
   conceptIds: string[];
@@ -305,9 +360,7 @@ async function getPublishedStudyPayload(options: {
     });
   }
 
-  const diagramAsset = options.conceptIds[0]
-    ? await getDiagramAssetForConcept(options.conceptIds[0])
-    : null;
+  const diagrams = await diagramLayers(options.conceptIds);
 
   // Layers must not repeat: the direct answer often prefixes the expanded
   // explanation — strip it so the interview-ready layer adds new info.
@@ -331,15 +384,7 @@ async function getPublishedStudyPayload(options: {
     direct_answer: row.concise_answer,
     interview_ready_explanation: expandedBeyondDirect || expanded,
     step_by_step: stepByStep,
-    diagram_refs: diagramsForConcepts(options.conceptIds),
-    diagram_asset: diagramAsset
-      ? {
-          id: diagramAsset.ref.id,
-          title: diagramAsset.title,
-          body: diagramAsset.body,
-          a11y_fallback: diagramAsset.ref.a11y_fallback ?? null,
-        }
-      : null,
+    ...diagrams,
     formulae,
     assumptions: asStringArray(row.assumptions_json),
     common_mistakes: asStringArray(row.common_mistakes_json),
@@ -412,29 +457,58 @@ async function loadBankSignalsForQuestion(
   }
 }
 
+/**
+ * Offline detail: teaching seed rows carry answers; Glassdoor bank rows are
+ * firm signals only (empty study — never answer text).
+ */
+async function getFallbackQuestion(
+  id: string,
+  options?: { includeStudy?: boolean },
+): Promise<QuestionDetailResponse | null> {
+  const seedHit = getSeedQuestion(id);
+  if (seedHit) {
+    const question = seedRowToCanonical(seedHit.row);
+    if (!options?.includeStudy) {
+      return { question, bank_signals: [], source: "bank_fallback" };
+    }
+    const conceptId = question.topic ? conceptIdForTopic(question.topic) : null;
+    const study = {
+      ...seedRowToStudy(seedHit.row, seedHit.source_label),
+      ...(await diagramLayers(conceptId ? [conceptId] : [])),
+    };
+    return {
+      question,
+      bank_signals: [],
+      study,
+      study_payload: toStudyPayload({ question, study }),
+      source: "bank_fallback",
+    };
+  }
+
+  const hit = await getBankQuestion(id);
+  if (!hit) return null;
+  const study = options?.includeStudy ? emptyStudy() : undefined;
+  return {
+    question: hit.question,
+    bank_signals: [hit.bank],
+    ...(study
+      ? {
+          study,
+          study_payload: toStudyPayload({
+            question: hit.question,
+            study,
+          }),
+        }
+      : {}),
+    source: "bank_fallback",
+  };
+}
+
 export async function getQuestion(
   id: string,
   options?: { includeStudy?: boolean },
 ): Promise<QuestionDetailResponse | null> {
-  if (!isDatabaseConfigured()) {
-    const hit = await getBankQuestion(id);
-    if (!hit) return null;
-    const study = options?.includeStudy ? emptyStudy() : undefined;
-    return {
-      question: hit.question,
-      bank_signals: [hit.bank],
-      ...(study
-        ? {
-            study,
-            study_payload: toStudyPayload({
-              question: hit.question,
-              study,
-            }),
-          }
-        : {}),
-      source: "bank_fallback",
-    };
-  }
+  if (!isDatabaseConfigured()) return getFallbackQuestion(id, options);
 
   const sql = requireSql();
   const rows = (await sql`
@@ -467,21 +541,5 @@ export async function getQuestion(
     };
   }
 
-  const hit = await getBankQuestion(id);
-  if (!hit) return null;
-  const study = options?.includeStudy ? emptyStudy() : undefined;
-  return {
-    question: hit.question,
-    bank_signals: [hit.bank],
-    ...(study
-      ? {
-          study,
-          study_payload: toStudyPayload({
-            question: hit.question,
-            study,
-          }),
-        }
-      : {}),
-    source: "bank_fallback",
-  };
+  return getFallbackQuestion(id, options);
 }
