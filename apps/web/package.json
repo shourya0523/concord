@@ -10,7 +10,8 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "import:bank": "tsx scripts/import-question-bank.ts"
+    "import:bank": "tsx scripts/import-question-bank.ts",
+    "test": "tsx --test \"lib/**/*.test.ts\""
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.29",

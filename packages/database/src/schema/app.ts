@@ -130,5 +130,10 @@ export const reviewQueue = appSchema.table("review_queue", {
   userId: text("user_id").notNull(),
   questionId: text("question_id").notNull(),
   dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+  intervalDays: doublePrecision("interval_days").notNull().default(0),
+  ease: doublePrecision("ease").notNull().default(2.5),
+  repetitions: integer("repetitions").notNull().default(0),
+  lastRating: text("last_rating"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
