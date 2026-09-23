@@ -39,6 +39,18 @@ replace it.
 | Retention | Streak = any attempt on a UTC day, capped at 28-day window; no goal, freeze, XP, achievements, reminders | `lib/data/progress.ts:50-80` |
 | CI | Web `node:test` files exist but are not run in CI | `.github/workflows/ci.yml`, `apps/web/lib/**/*.test.ts` |
 
+## Reconciliation with main (2026-09-23, before implementation)
+
+Main moved after this plan was drafted (#42–#44). Adjustments:
+
+| Plan item | Status on main | Change |
+|-----------|----------------|--------|
+| P0.3 `rag` mode insert | Fixed in #43 (`rag` → `pseudo_rag` at the DB boundary) | Dropped |
+| P0.7 write `module_progress` | Shipped in #42 (`/api/learn/modules/[slug]/progress`) | Dropped |
+| P4.1 FSRS | #42 shipped SM-2-lite spaced review (`lib/review-schedule.ts`, migration 041) | **KD-5 amended:** keep SM-2-lite; grader score drives the rating when the learner does not rate. No FSRS dependency. |
+| Migration numbers | 041/042 taken | Shared DDL lands as 043–046 (foundation commit). Track-specific follow-ups use 047+. |
+| OQ-1 licensing | **Resolved by owner (2026-09-23): permission granted for all listed sources** | P1.1 closed; P1.5 ingest unblocked |
+
 ## Product Contract
 
 ### Target user experience
@@ -243,7 +255,7 @@ Parallel tracks: **content** (Phases 1–2, mostly Python + worker) and **produc
 
 | ID | Question | Default if unresolved |
 |----|----------|------------------------|
-| OQ-1 | Licence for `ddeng5` and `coryjburk` sources (owner / legal) | Keep dev-only; regenerate synthesised replacements for prod |
+| OQ-1 | Licence for `ddeng5` and `coryjburk` sources (owner / legal) | **Resolved 2026-09-23: owner has permission for all sources** |
 | OQ-2 | Grader model ("Jev" in the request — unclear which model is meant) | Keep Gemini flash behind `GRADER_MODEL`; decide via P3.7 bake-off |
 | OQ-3 | Email provider | Resend |
 | OQ-4 | Web push in v1 or email only? | Email first; push in P6.3 after first cohort |

@@ -127,3 +127,15 @@ export const resourceLinks = canonicalSchema.table("resource_links", {
   questionId: text("question_id"),
   firmId: text("firm_id"),
 });
+
+/** 044 — question ↔ diagram links (feedback + study cards show the diagram). */
+export const questionDiagrams = canonicalSchema.table(
+  "question_diagrams",
+  {
+    questionId: text("question_id").notNull(),
+    diagramId: text("diagram_id").notNull(),
+    relevance: doublePrecision("relevance").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.questionId, t.diagramId] })],
+);

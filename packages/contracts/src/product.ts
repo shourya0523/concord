@@ -414,6 +414,10 @@ export const AttemptScoreSourceEnum = z.enum([
   "self",
   "llm",
   "deterministic",
+  /** Exact numeric check (drills / calc questions) — no LLM. */
+  "numeric",
+  /** Answer copied from the just-revealed gold answer — no mastery credit. */
+  "reveal_copy",
 ]);
 export type AttemptScoreSource = z.infer<typeof AttemptScoreSourceEnum>;
 

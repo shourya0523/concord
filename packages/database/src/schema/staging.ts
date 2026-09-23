@@ -1,4 +1,5 @@
 import {
+  boolean,
   doublePrecision,
   jsonb,
   text,
@@ -71,5 +72,24 @@ export const validationResults = stagingSchema.table("validation_results", {
   status: text("status").notNull(),
   issuesJson: jsonb("issues_json").notNull().default([]),
   scoresJson: jsonb("scores_json").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** 044 — durable LLM / heuristic enrichment proposals awaiting review. */
+export const enrichmentProposals = stagingSchema.table("enrichment_proposals", {
+  id: text("id").primaryKey(),
+  targetKind: text("target_kind").notNull(),
+  targetId: text("target_id").notNull(),
+  field: text("field").notNull(),
+  proposalJson: jsonb("proposal_json").notNull(),
+  currentJson: jsonb("current_json"),
+  model: text("model"),
+  promptVersion: text("prompt_version"),
+  confidence: doublePrecision("confidence"),
+  status: text("status").notNull().default("pending"),
+  autoApproved: boolean("auto_approved").notNull().default(false),
+  reviewer: text("reviewer"),
+  reviewNote: text("review_note"),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

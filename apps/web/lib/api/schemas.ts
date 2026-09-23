@@ -4,7 +4,9 @@
  */
 import { z } from "zod"
 import {
+  ActivityResultSchema,
   AttemptSchema,
+  AttemptScoreSourceEnum,
   BankQuestionSchema,
   BookmarkSchema,
   CanonicalQuestionSchema,
@@ -12,6 +14,7 @@ import {
   CollectionSchema,
   ConceptSchema,
   DiagramRefSchema,
+  GradeDetailSchema,
   LearningModuleCheckpointSchema,
   LearningModuleSchema,
   LearningResourceSchema,
@@ -289,8 +292,8 @@ export const CreateAttemptRequestSchema = z.object({
 })
 export type CreateAttemptRequest = z.infer<typeof CreateAttemptRequestSchema>
 
-export const AttemptGradeResponseSchema = z.object({
-  score_source: z.enum(["self", "llm", "deterministic"]),
+export const AttemptGradeResponseSchema = GradeDetailSchema.partial().extend({
+  score_source: AttemptScoreSourceEnum,
   score: z.number().min(0).max(1),
   feedback: z.string().optional(),
   weak_topics: z.array(z.string()).default([]),
@@ -318,6 +321,8 @@ export const AttemptResponseSchema = z.object({
       interval_days: z.number().nonnegative(),
     })
     .optional(),
+  /** Streak / XP / achievements after this attempt (null when retention is off). */
+  activity: ActivityResultSchema.nullable().optional(),
   source: DataSourceSchema,
   note: z.string().optional(),
 })

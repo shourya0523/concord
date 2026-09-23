@@ -79,3 +79,14 @@ Uses legacy bank `id` (SHA1 of `company|position|question`) as the primary idemp
 `042_app_rls_role.sql` — creates `concord_app`, the non-owner `NOBYPASSRLS` login role the web app should connect as (`neondb_owner` bypasses RLS on Neon), grants it only `app` DML plus `published`/`canonical` reads, adds the missing `app.*` policies, and forces RLS on every `app.*` table. It sets no password. See `docs/deployment/app-db-role.md` for the password step, the Vercel `DATABASE_URL` switch, and the rules for new tables (they need an explicit `GRANT ... TO concord_app`).
 
 The migrate runner splits statements on `;` even inside `--` comments, so keep semicolons out of comments.
+
+## 043–046 (learning loop, plan 2026-09-23-001)
+
+| File | Adds |
+|------|------|
+| `043_attempt_grades.sql` | Full grade on `app.question_attempts` (score, score_source, grade_json, confidence, time, grader_version, session_id) + `app.drill_attempts` |
+| `044_rubrics_enrichment.sql` | `canonical.answers.rubric_json/rubric_status`, `staging.enrichment_proposals`, occurrence `join_score/join_method`, `canonical.question_diagrams` |
+| `045_retention_core.sql` | `app.daily_sets`, `daily_activity`, `user_streaks`, `readiness_snapshots`, `user_achievements` |
+| `046_notifications_leagues.sql` | `app.notification_log`, `push_subscriptions`, `league_memberships` (+ league read policy) |
+
+Every new `app.*` table ships with RLS + FORCE + a self policy and a conditional `GRANT … TO concord_app`, so the 042 guard keeps passing. Verified on a local Postgres 16 + pgvector: 043–046 apply cleanly, re-apply idempotently, and a re-run of 042's guard passes.
