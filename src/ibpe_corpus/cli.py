@@ -199,8 +199,17 @@ def run_pipeline(
     ),
     db: Path = typer.Option(ROOT / "data" / "db" / "corpus.db"),
     force: bool = typer.Option(False, help="Re-run completed jobs"),
+    llm: Optional[bool] = typer.Option(
+        None,
+        "--llm/--no-llm",
+        help="Gemini enrich-v1 / rubric-v1 (default: on only when GEMINI_API_KEY or AI_GATEWAY_API_KEY is set)",
+    ),
 ) -> None:
-    """Run the controlled collection pipeline (includes question_bank import)."""
+    """Run the controlled collection pipeline (includes question_bank import).
+
+    Stages: import → canonicalise (prefix strip) → firm-signal join → taxonomy
+    enrichment (proposals) → answers → validation → rubrics → export → reports.
+    """
     if mode not in {"fixtures", "live"}:
         raise typer.BadParameter("mode must be fixtures or live")
     if mode == "live":
@@ -208,7 +217,7 @@ def run_pipeline(
             "[cyan]Live mode still runs the offline corpus assembly; "
             "use `ibpe fetch-glassdoor --mode auto` for authenticated/browser fetches.[/cyan]"
         )
-    summary = run_fixture_pipeline(db_path=db, force=force)
+    summary = run_fixture_pipeline(db_path=db, force=force, llm=llm)
     rprint(
         json.dumps(
             {
@@ -295,6 +304,48 @@ def inspect_dead_letters(
     store = CorpusStore(db)
     rows = store.fetch_all(dead_letters)
     rprint(rows or "No dead letters")
+
+
+@app.command("proposals")
+def proposals_cmd(
+    db: Path = typer.Option(ROOT / "data" / "db" / "corpus.db"),
+    status: Optional[str] = typer.Option("pending", help="pending | approved | rejected | applied | all"),
+    limit: int = typer.Option(20),
+) -> None:
+    """List durable enrichment proposals (review queue)."""
+    from ibpe_corpus.answers.proposals import ProposalStore
+
+    store = ProposalStore(CorpusStore(db))
+    rows = store.list(status=None if status == "all" else status)
+    rprint({"total": len(rows)})
+    for rec in rows[:limit]:
+        rprint(
+            {
+                "id": rec.id,
+                "target": f"{rec.target_kind}:{rec.target_id}",
+                "field": rec.field,
+                "value": (rec.proposal_json or {}).get("value"),
+                "confidence": rec.confidence,
+                "status": rec.status,
+            }
+        )
+
+
+@app.command("review-proposal")
+def review_proposal(
+    proposal_id: str,
+    decision: str = typer.Argument(..., help="approved | rejected"),
+    reviewer: str = typer.Option(..., help="Reviewer name / email"),
+    note: Optional[str] = typer.Option(None),
+    db: Path = typer.Option(ROOT / "data" / "db" / "corpus.db"),
+) -> None:
+    """Record a human decision on a proposal (kept across re-runs)."""
+    from ibpe_corpus.answers.proposals import ProposalStore
+
+    if decision not in {"approved", "rejected"}:
+        raise typer.BadParameter("decision must be approved or rejected")
+    rec = ProposalStore(CorpusStore(db)).decide(proposal_id, decision, reviewer=reviewer, note=note)
+    rprint(rec.model_dump(mode="json"))
 
 
 if __name__ == "__main__":

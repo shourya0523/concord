@@ -38,6 +38,11 @@ python -m ibpe_corpus.answers.enrich_job --limit 50
 
 Report: `reports/answer-enrichment-report.json`
 
+Durable proposals (plan P2.1): pass `--db data/db/corpus.db` to persist enrich-v1 proposals and the
+editorial queue in SQLite; `ibpe proposals` lists them and `ibpe review-proposal <id> approved --reviewer …`
+records a human decision that survives re-runs. Taxonomy / rubric enrichment also runs inside
+`ibpe run-pipeline` (heuristic without a key; `--llm` forces Gemini when configured).
+
 Provenance: all Gemini outputs are `gemini_synthesised` — never Glassdoor / GitHub teaching source.
 
 ## Secrets

@@ -20,6 +20,7 @@ from ibpe_corpus.answers.enrich_models import (
     EnrichmentProposal,
 )
 from ibpe_corpus.answers.editorial import EditorialReviewQueue
+from ibpe_corpus.answers.proposals import ProposalStore, proposal_id
 from ibpe_corpus.answers.gemini_client import (
     ENRICH_PROMPT_VERSION,
     GeminiEnrichClient,
@@ -30,7 +31,14 @@ from ibpe_corpus.answers.provenance import (
     assert_not_source_laundering,
     collect_provenance_violations,
 )
-from ibpe_corpus.schemas.models import Answer, CanonicalQuestion, JobResult, JobState, utcnow
+from ibpe_corpus.schemas.models import (
+    Answer,
+    CanonicalQuestion,
+    EnrichmentProposalRecord,
+    JobResult,
+    JobState,
+    utcnow,
+)
 
 
 JOB_NAME = "gemini_enrich"
@@ -111,6 +119,30 @@ def build_graph_slice(proposals: Sequence[EnrichmentProposal]) -> EnrichmentGrap
     )
 
 
+def graph_proposal_records(prop: EnrichmentProposal) -> list[EnrichmentProposalRecord]:
+    """Durable ``staging.enrichment_proposals`` rows for one enrich-v1 proposal.
+
+    Graph metadata (concepts, mode routing, diagrams, firm soft-tags) is stored
+    as a single ``enrichment`` field row; it is never auto-applied.
+    """
+    payload = prop.model_dump(mode="json")
+    pid = proposal_id("question", prop.canonical_question_id, "enrichment", prop.prompt_version)
+    return [
+        EnrichmentProposalRecord(
+            id=pid,
+            target_kind="question",
+            target_id=prop.canonical_question_id,
+            field="enrichment",
+            proposal_json={"value": payload, "dry_run": bool((prop.metadata or {}).get("dry_run"))},
+            model=prop.model_version,
+            prompt_version=prop.prompt_version,
+            confidence=prop.confidence,
+            status="pending",
+            review_note="enrich-v1 graph metadata (concepts, routing, diagrams) — editorial review",
+        )
+    ]
+
+
 def run_enrich_batch(
     questions: Sequence[CanonicalQuestion],
     *,
@@ -119,11 +151,14 @@ def run_enrich_batch(
     limit: int | None = None,
     enqueue_low_confidence: bool = True,
     review_queue: EditorialReviewQueue | None = None,
+    proposal_store: ProposalStore | None = None,
 ) -> tuple[EnrichmentGraphSlice, EditorialReviewQueue, dict]:
     """Batch-enrich canonical questions offline.
 
     Corpus answers are not overwritten; enrichment is additive graph metadata.
-    Low-confidence proposals can enter the editorial review queue.
+    Low-confidence proposals can enter the editorial review queue. With a
+    ``proposal_store`` every proposal is persisted (plan P2.1) instead of
+    living only in memory.
     """
     client = client or GeminiEnrichClient()
     queue = review_queue or EditorialReviewQueue()
@@ -145,6 +180,8 @@ def run_enrich_batch(
             model_version=prop.model_version,
         )
         proposals.append(prop)
+        if proposal_store is not None:
+            proposal_store.upsert_many(graph_proposal_records(prop))
         if enqueue_low_confidence and prop.confidence < 0.5:
             queue.enqueue(
                 canonical_question_id=cq.id,
@@ -168,6 +205,7 @@ def run_enrich_batch(
         "prompt_version": ENRICH_PROMPT_VERSION,
         "answer_provenance_violations": len(violations),
         "answered_canonical_ids": len(answered_ids),
+        "persisted_proposals": len(proposals) if proposal_store is not None else 0,
     }
     return graph, queue, metrics
 
@@ -268,17 +306,44 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Optional JSON list of {id,canonical_wording,topic,...}",
     )
+    parser.add_argument(
+        "--questions-jsonl",
+        type=Path,
+        default=None,
+        help="Exported teaching questions (e.g. exports/questions.jsonl)",
+    )
+    parser.add_argument(
+        "--db",
+        type=Path,
+        default=None,
+        help="Persist proposals + review queue in this SQLite corpus DB (durable)",
+    )
     args = parser.parse_args(argv)
 
-    if args.questions_json and args.questions_json.exists():
+    if args.questions_jsonl and args.questions_jsonl.exists():
+        questions = [
+            CanonicalQuestion.model_validate_json(line)
+            for line in args.questions_jsonl.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+    elif args.questions_json and args.questions_json.exists():
         raw = json.loads(args.questions_json.read_text(encoding="utf-8"))
         questions = [CanonicalQuestion.model_validate(row) for row in raw]
     else:
         questions = _demo_questions()
 
+    store = None
+    queue = None
+    if args.db is not None:
+        from ibpe_corpus.storage.db import CorpusStore
+
+        corpus = CorpusStore(args.db)
+        store = ProposalStore(corpus)
+        queue = EditorialReviewQueue(corpus)
+
     client = GeminiEnrichClient(dry_run=args.dry_run or not credentials_configured())
     graph, queue, metrics = run_enrich_batch(
-        questions, client=client, limit=args.limit
+        questions, client=client, limit=args.limit, review_queue=queue, proposal_store=store
     )
     write_enrichment_report(graph, metrics, path=args.report, queue=queue)
     print(json.dumps({"ok": True, "report": str(args.report), "metrics": metrics}, indent=2))

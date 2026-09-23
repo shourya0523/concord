@@ -48,3 +48,10 @@ version is present on a `source_provided` record, validation downgrades to
 ## Pipeline
 
 `fill_answers` runs `validate_answer` as the final layer for every newly filled answer.
+
+## Depth, placeholders and rubrics (plan P1.3, P1.4, P2.3)
+
+- `depth_validator`: `expanded_explanation == concise_answer` → `quality_tags: ["needs_expansion"]` (still publishable).
+- Placeholder answers (`is_placeholder_answer`) → `needs_generation`, provenance `needs_review`, never validated; `publish_gate.answer_withhold_reason` rejects them (and `rejected` provenance).
+- Numerical validator now recomputes every calculator-backed topic (`run_topic`), not just WACC/MOIC/EV/LBO.
+- Rubrics (`answers/rubric.py`, contract `AnswerRubricSchema`): weights sum to 1 ± 0.01, ≥1 `must_have`, ≤6 key points, every numeric check recomputed (mismatch → `rejected`). Heuristic rubrics are auto-approved only when these pass; LLM rubrics additionally need every key point grounded in the teaching answer. `kind="numeric"` is reserved for pure calculation prompts because the grader scores those by numbers only.

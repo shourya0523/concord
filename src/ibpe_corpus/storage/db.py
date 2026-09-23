@@ -142,6 +142,18 @@ answers = Table(
     Column("references_json", Text, default="[]"),
 )
 
+# Rubric per answer (plan P2.3) — separate table so existing answers tables
+# created before rubrics need no ALTER.
+answer_rubrics = Table(
+    "answer_rubrics",
+    METADATA,
+    Column("answer_id", String, primary_key=True),
+    Column("canonical_question_id", String, nullable=False, index=True),
+    Column("rubric_json", Text, nullable=False),
+    Column("rubric_status", String, nullable=False),
+    Column("quality_tags_json", Text, default="[]"),
+)
+
 question_relationships = Table(
     "question_relationships",
     METADATA,
@@ -207,6 +219,48 @@ source_registry = Table(
 )
 
 
+# Mirrors Postgres staging.enrichment_proposals (migration 044) so offline /
+# worker enrichment runs persist proposals before publish-teaching upserts them.
+enrichment_proposals = Table(
+    "enrichment_proposals",
+    METADATA,
+    Column("id", String, primary_key=True),
+    Column("target_kind", String, nullable=False),
+    Column("target_id", String, nullable=False, index=True),
+    Column("field", String, nullable=False),
+    Column("proposal_json", Text, nullable=False),
+    Column("current_json", Text),
+    Column("model", String),
+    Column("prompt_version", String),
+    Column("confidence", Float),
+    Column("status", String, nullable=False, default="pending"),
+    Column("auto_approved", Integer, nullable=False, default=0),
+    Column("reviewer", String),
+    Column("review_note", Text),
+    Column("decided_at", String),
+    Column("created_at", String),
+)
+
+# Durable editorial review queue (replaces the in-memory stub when a store is given).
+editorial_queue = Table(
+    "editorial_queue",
+    METADATA,
+    Column("id", String, primary_key=True),
+    Column("canonical_question_id", String, nullable=False, index=True),
+    Column("answer_id", String),
+    Column("enrichment_id", String),
+    Column("reason", String, nullable=False),
+    Column("status", String, nullable=False, default="pending"),
+    Column("priority", Integer, default=0),
+    Column("assignee", String),
+    Column("notes", Text),
+    Column("provenance", String),
+    Column("created_at", String),
+    Column("updated_at", String),
+    Column("metadata_json", Text, default="{}"),
+)
+
+
 class CorpusStore:
     def __init__(self, db_path: str | Path) -> None:
         self.db_path = Path(db_path)
@@ -239,6 +293,12 @@ class CorpusStore:
         with self.engine.connect() as conn:
             rows = conn.execute(select(table)).mappings().all()
             return [dict(r) for r in rows]
+
+    def fetch_by_pk(self, table: Table, key: Any) -> dict[str, Any] | None:
+        pk = list(table.primary_key)[0].name
+        with self.engine.connect() as conn:
+            row = conn.execute(select(table).where(table.c[pk] == key)).mappings().first()
+            return dict(row) if row else None
 
     def count(self, table: Table) -> int:
         with self.engine.connect() as conn:
