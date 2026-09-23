@@ -3,5 +3,11 @@
   "framework": "nextjs",
   "regions": ["iad1"],
   "installCommand": "cd ../.. && npm ci",
-  "buildCommand": "cd ../.. && npm run build --workspace=@ibpe/web"
+  "buildCommand": "cd ../.. && npm run build --workspace=@ibpe/web",
+  "crons": [
+    {
+      "path": "/api/cron/notify",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

@@ -90,3 +90,7 @@ The migrate runner splits statements on `;` even inside `--` comments, so keep s
 | `046_notifications_leagues.sql` | `app.notification_log`, `push_subscriptions`, `league_memberships` (+ league read policy) |
 
 Every new `app.*` table ships with RLS + FORCE + a self policy and a conditional `GRANT … TO concord_app`, so the 042 guard keeps passing. Verified on a local Postgres 16 + pgvector: 043–046 apply cleanly, re-apply idempotently, and a re-run of 042's guard passes.
+
+## 057 (notify track — leagues)
+
+`057_league_sizes.sql` — `app.league_sizes(week_start, prefix)`: a `SECURITY DEFINER` function that returns member **counts** per league id for one week and one league-id prefix, so a joining member can be placed in a league with room (≤ 30) without the 046 read policy exposing other leagues. `EXECUTE` is revoked from `PUBLIC` and granted to `concord_app`. Adds `ix_league_memberships_week_league`. No new tables, so the 042 guard is unaffected (verified locally: 057 applies, re-applies, and 042 re-runs clean).
