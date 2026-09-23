@@ -32,4 +32,4 @@ export function bankQuestionKey(
   return `${company}|${position}|${question}`;
 }
 
-export * from "./finance/drills.js";
+export * from "./finance/index.js";

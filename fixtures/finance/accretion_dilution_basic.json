@@ -1,0 +1,13 @@
+{
+  "fixture_id": "finance-accretion-dilution-basic",
+  "topic": "accretion_dilution",
+  "description": "Combined EPS 2.20 vs stand-alone 2.00 → 10% accretive",
+  "inputs": {
+    "acquirer_eps": 2.0,
+    "combined_eps": 2.2
+  },
+  "expected": {
+    "eps_delta": 0.1,
+    "accretive": 1.0
+  }
+}

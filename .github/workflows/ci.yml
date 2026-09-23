@@ -36,6 +36,8 @@ jobs:
         run: npm test --workspace=@ibpe/web
       - name: Search unit tests
         run: npm test --workspace=@ibpe/search
+      - name: Domain finance calculator + drill tests
+        run: npm test --workspace=@ibpe/domain
 
   # Deploy jobs intentionally omitted until VERCEL_* secrets exist in Actions.
   # Preview-then-promote: docs/deployment/vercel-project-link.md

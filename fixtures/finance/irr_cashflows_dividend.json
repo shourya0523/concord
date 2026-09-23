@@ -1,0 +1,19 @@
+{
+  "fixture_id": "finance-irr-cashflows-dividend",
+  "topic": "irr_cashflows",
+  "ts_only": true,
+  "description": "Exact IRR with a year-2 dividend recap and year-5 exit",
+  "inputs": {
+    "cashflows": [
+      -100.0,
+      0.0,
+      50.0,
+      0.0,
+      0.0,
+      150.0
+    ]
+  },
+  "expected": {
+    "irr": 0.18440129319092863
+  }
+}
