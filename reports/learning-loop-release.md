@@ -13,7 +13,7 @@ Built as seven parallel tracks on shared contracts (`packages/contracts/src/lear
 | 3 Grader v2 | Numeric pre-check, rubric judge (model ticks key points with verbatim evidence; code verifies evidence and computes score + `correct`), interviewer follow-ups, reveal-copy + injection guards, cache + per-user rate limit, 100-case eval harness | `lib/grading/**`, `evals/grader/**` |
 | 4 Daily loop | SM-2-lite review driven by grade (kept from #42), per-day frozen daily set, `/today`, nav regrouped (Today / Practice / Learn / Firms / Progress), placement check | `lib/data/daily-set.ts`, `app/(product)/today`, `components/app-shell.tsx` |
 | 5 Gamification | Timezone-aware streaks with earned freezes, XP (quality-weighted, half on repeats), readiness % per target firm with weekly delta, achievements, Warren mood, simulator stage-topic selection + cited after-action report | `lib/data/{activity,streaks,xp,readiness}.ts`, `lib/achievements.ts`, `app/api/practice/sessions/[id]/report` |
-| 6 Notifications | Settings UI, Resend email (reminder / streak-at-risk / weekly recap, signed unsubscribe), Web Push, hourly idempotent cron with 2/day cap | `lib/notify/**`, `app/api/cron/notify`, `public/sw.js` |
+| 6 Notifications | Settings UI, Resend email (reminder / streak-at-risk / weekly recap, signed unsubscribe), Web Push, daily idempotent cron (hourly optional) with 2/day cap | `lib/notify/**`, `app/api/cron/notify`, `public/sw.js` |
 | 7 Depth | Voice answers (MediaRecorder → Gemini transcription, delivery score, behind `voice_answers`), interactive fill-in diagrams, opt-in weekly leagues with anonymised handles | `components/voice-answer*.tsx`, `packages/ui/src/components/diagram-fill-blank.tsx`, `lib/data/leagues.ts` |
 
 ## Corpus before → after (exports/)
