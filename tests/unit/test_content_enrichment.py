@@ -27,6 +27,7 @@ from ibpe_corpus.answers.calculators import (
     run_topic,
 )
 from ibpe_corpus.answers.depth import propose_expansions
+from ibpe_corpus.answers.llm_client import LlmRouteCounts
 from ibpe_corpus.answers.editorial import EditorialReviewQueue, ReviewQueueStatus
 from ibpe_corpus.answers.generate import (
     PLACEHOLDER_PREFIX,
@@ -455,7 +456,7 @@ def test_human_decision_survives_rerun(tmp_path: Path) -> None:
 
 class _FakeLlmClient:
     dry_run = False
-    model = "google/gemini-test"
+    model = "deepseek/deepseek-test"
 
     def __init__(self, topic: str, confidence: float) -> None:
         self.topic, self.confidence = topic, confidence
@@ -574,11 +575,12 @@ def test_star_and_motivation_rubrics() -> None:
 
 def test_llm_rubric_injected_call() -> None:
     q = _q("What is enterprise value?")
-    ans = _src_answer(
+    # Single-claim answer: the extractive rubric is below the auto-approve bar,
+    # so the (small-tier) model is required.
+    thin = _src_answer(
         q.id,
-        "Enterprise value is the value of the operating business to all capital providers.",
-        "Enterprise value is the value of the operating business to all capital providers. "
-        "It equals equity value plus net debt, preferred stock and non-controlling interest.",
+        "Enterprise value is the value of the operating business to all capital providers, "
+        "equal to equity value plus net debt, preferred stock and non-controlling interest.",
     )
     good = {
         "kind": "technical",
@@ -591,18 +593,90 @@ def test_llm_rubric_injected_call() -> None:
         "red_flags": ["Subtracts debt"],
         "follow_ups": ["Why subtract cash?", "Where does NCI go?"],
     }
-    r = build_rubric(ans, q, llm_call=lambda prompt: good, model="gemini-test")
+    routes = LlmRouteCounts()
+    r = build_rubric(thin, q, llm_call=lambda prompt: good, model="deepseek-test", routes=routes)
     assert r.provenance == "llm" and r.review_status == "approved" and r.prompt_version == "rubric-v1"
+    assert r.model == "deepseek-test" and routes.small == 1
     ungrounded = json.loads(json.dumps(good))
     ungrounded["key_points"][1]["cues"] = ["merger arbitrage"]
     ungrounded["key_points"][1]["text"] = "Something not in the answer"
-    r2 = build_rubric(ans, q, llm_call=lambda prompt: ungrounded)
-    assert r2.provenance == "heuristic"
+    r2 = build_rubric(thin, q, llm_call=lambda prompt: ungrounded, routes=routes)
+    assert r2.provenance == "heuristic" and routes.failed == 1
 
     def boom(prompt: str) -> dict:
         raise RuntimeError("network down")
 
-    assert build_rubric(ans, q, llm_call=boom).provenance == "heuristic"
+    assert build_rubric(thin, q, llm_call=boom).provenance == "heuristic"
+
+
+def test_rubric_skips_llm_when_heuristic_suffices() -> None:
+    q = _q("What is enterprise value?")
+    rich = _src_answer(
+        q.id,
+        "Enterprise value is the value of the operating business to all capital providers.",
+        "Enterprise value is the value of the operating business to all capital providers. "
+        "It equals equity value plus net debt, preferred stock and non-controlling interest.",
+    )
+    calls: list[str] = []
+
+    def spy(prompt: str) -> dict:
+        calls.append(prompt)
+        return {}
+
+    routes = LlmRouteCounts()
+    r = build_rubric(rich, q, llm_call=spy, escalate_call=spy, routes=routes)
+    assert calls == [] and r.provenance == "heuristic" and r.review_status == "approved"
+    assert routes.as_dict() == {"heuristic": 1, "small": 0, "primary": 0, "failed": 0}
+
+
+def test_rubric_escalates_to_primary_only_after_small_validation_failure() -> None:
+    q = _q("What is enterprise value?")
+    thin = _src_answer(
+        q.id,
+        "Enterprise value is the value of the operating business to all capital providers, "
+        "equal to equity value plus net debt, preferred stock and non-controlling interest.",
+    )
+    bad_weights = {
+        "kind": "technical",
+        "key_points": [
+            {"id": "k1", "text": "Defines EV", "weight": 0.9, "must_have": True,
+             "cues": ["all capital providers"]},
+            {"id": "k2", "text": "Bridge", "weight": 0.9, "must_have": False, "cues": ["net debt"]},
+        ],
+    }
+    good = {
+        "kind": "technical",
+        "key_points": [
+            {"id": "k1", "text": "Defines EV", "weight": 0.5, "must_have": True,
+             "cues": ["all capital providers"]},
+            {"id": "k2", "text": "Bridge", "weight": 0.5, "must_have": False, "cues": ["net debt"]},
+        ],
+    }
+    seen: list[str] = []
+
+    def small(prompt: str) -> dict:
+        seen.append("small")
+        return bad_weights
+
+    def primary(prompt: str) -> dict:
+        seen.append("primary")
+        return good
+
+    routes = LlmRouteCounts()
+    r = build_rubric(thin, q, llm_call=small, model="small-m", escalate_call=primary,
+                     escalate_model="jev-m", routes=routes)
+    assert seen == ["small", "primary"]
+    assert r.provenance == "llm" and r.model == "jev-m" and routes.primary == 1
+
+    # A hard failure (network) on the small tier never escalates.
+    seen.clear()
+
+    def down(prompt: str) -> dict:
+        seen.append("small")
+        raise RuntimeError("503 after retries")
+
+    r2 = build_rubric(thin, q, llm_call=down, escalate_call=primary, routes=routes)
+    assert seen == ["small"] and r2.provenance == "heuristic" and routes.failed == 1
 
 
 def test_rubric_mirrors_ts_contract_fields() -> None:
