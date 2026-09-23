@@ -27,8 +27,12 @@ export function listStubSessions(userId: string): PracticeSession[] {
     .sort((a, b) => b.started_at.localeCompare(a.started_at));
 }
 
-function practiceModeToDb(mode: PracticeSessionMode): string {
-  return mode;
+/**
+ * `app.study_sessions.mode` CHECK constraint predates the `rag` rename and only
+ * allows the legacy `pseudo_rag`. Reads map it back via `normalizePracticeMode`.
+ */
+export function practiceModeToDb(mode: PracticeSessionMode): string {
+  return mode === "rag" ? "pseudo_rag" : mode;
 }
 
 function simulatorStageTemplate() {
