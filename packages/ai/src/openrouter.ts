@@ -1,6 +1,7 @@
 /**
  * Dependency-free OpenRouter client (chat, structured JSON, embeddings,
- * transcription) — docs/deployment/llm-stack.md.
+ * transcription) — docs/deployment/llm-stack.md. Jev decisions live in
+ * ./decisions.ts and reuse this transport (`postJsonTo`).
  *
  *   OPENROUTER_API_KEY   required (server-only; never logged or echoed in errors)
  *   OPENROUTER_BASE_URL  default https://openrouter.ai/api/v1
@@ -33,6 +34,9 @@ export type OpenRouterErrorCode =
   | "network"
   | "aborted"
   | "invalid_response"
+  | "not_found"
+  | "payload_too_large"
+  | "overloaded"
 
 /** Typed client error. `status` is the HTTP status (null for non-HTTP failures). */
 export class OpenRouterError extends Error {
@@ -49,8 +53,11 @@ export class OpenRouterError extends Error {
 export function errorCodeForStatus(status: number): OpenRouterErrorCode {
   if (status === 401 || status === 403) return "auth"
   if (status === 402) return "insufficient_credits"
+  if (status === 404) return "not_found"
   if (status === 408 || status === 504) return "timeout"
+  if (status === 413) return "payload_too_large"
   if (status === 429) return "rate_limited"
+  if (status === 529) return "overloaded"
   if (status >= 500) return "upstream"
   return "bad_request"
 }
@@ -62,14 +69,14 @@ export type ClientOptions = {
   apiKey?: string
 }
 
-type ResolvedClient = {
+export type ResolvedClient = {
   apiKey: string
   baseUrl: string
   appUrl: string | undefined
   fetchImpl: typeof fetch
 }
 
-function resolveClient(options: ClientOptions = {}): ResolvedClient {
+export function resolveClient(options: ClientOptions = {}): ResolvedClient {
   const env = options.env ?? process.env
   const apiKey = options.apiKey?.trim() || openRouterApiKey(env)
   if (!apiKey) {
@@ -113,9 +120,23 @@ async function postJson<T>(
   body: unknown,
   signal?: AbortSignal,
 ): Promise<T> {
+  return postJsonTo<T>(client, `${client.baseUrl}${path}`, path, body, signal)
+}
+
+/**
+ * POST JSON to an absolute OpenRouter URL (`label` names it in errors). Maps
+ * HTTP / network / abort failures to OpenRouterError and redacts the key.
+ */
+export async function postJsonTo<T>(
+  client: ResolvedClient,
+  url: string,
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
   let response: Response
   try {
-    response = await client.fetchImpl(`${client.baseUrl}${path}`, {
+    response = await client.fetchImpl(url, {
       method: "POST",
       headers: openRouterHeaders(client),
       body: JSON.stringify(body),
@@ -176,7 +197,7 @@ export type ChatUsage = {
 }
 
 export type ChatRequest = {
-  /** Model tier (default "small"). Ignored when `model` is set. */
+  /** Chat tier (only "small"). Ignored when `model` is set. */
   tier?: LlmTier
   /** Explicit OpenRouter slug; no fallback list is sent. */
   model?: string
