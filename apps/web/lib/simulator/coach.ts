@@ -1,11 +1,18 @@
 /**
- * Cited AI coaching paragraph (SMALL tier, LLM_SMALL_MODEL via OpenRouter) for
- * the simulator after-action report (plan 2026-09-23-001 P5.8). Cite-only: the model sees stage scores, topic
- * labels, teaching answer ids and heat topic ids + intensities — never any
- * Glassdoor text — and every sentence must carry a bracket citation from the
- * allowed list. Anything else is rejected and the deterministic summary stays.
+ * Cited AI coaching paragraph for the simulator after-action report (plan
+ * 2026-09-23-001 P5.8) — a Jev-verified cascade
+ * (docs/vendor/jev/jev-verified-cascade.md):
+ *
+ *   1. the SMALL chat model (LLM_SMALL_MODEL) drafts. Cite-only: it sees stage
+ *      scores, topic labels, teaching answer ids and heat topic ids +
+ *      intensities — never any Glassdoor text
+ *   2. `validateCoaching`: every sentence cites an allowed id, no quotes
+ *   3. ONE Jev choice (supported | unsupported | declined) checks the draft
+ *      against those facts
+ *   4. shipped only when supported at ≥ JEV_ACCEPT_CONFIDENCE (0.8); anything
+ *      else keeps the deterministic summary (no frontier escalation)
  */
-import { chat, isLlmConfigured, smallModel } from "@ibpe/ai"
+import { chat, isLlmConfigured, smallModel, verifyDraft } from "@ibpe/ai"
 
 import type { MockReport, ReportCitation } from "./report"
 
@@ -34,6 +41,45 @@ const defaultGenerate: CoachGenerate = async ({ env, modelId, system, prompt, ab
     { env },
   )
   return text
+}
+
+/** Injected Jev verification (default: `verifyDraft` from @ibpe/ai). */
+export type CoachVerify = (input: {
+  env: NodeJS.ProcessEnv
+  sources: string[]
+  request: string
+  draft: string
+  abortSignal: AbortSignal
+}) => Promise<{ accepted: boolean; verdict: string; confidence: number }>
+
+const defaultVerify: CoachVerify = ({ env, sources, request, draft, abortSignal }) =>
+  verifyDraft({ sources, request, draft }, { signal: abortSignal }, { env })
+
+export const COACH_REQUEST =
+  "After-action coaching note for this mock interview: what went well, the single highest-priority fix, and what to practise next, citing only the allowed ids."
+
+/** The facts the coaching draft may use (Jev verifies the draft against these). */
+export function coachSources(
+  report: MockReport,
+  allowed: ReportCitation[],
+  firmName?: string | null,
+): string[] {
+  const pct = (score: number | null | undefined) => (score == null ? "not graded" : `${Math.round(score * 100)}%`)
+  return [
+    `Mock interview${firmName ? ` for ${firmName}` : ""}: overall ${pct(report.overall_score)}.`,
+    ...report.stages.map(
+      (stage) => `Stage ${stage.label} (topic ${stage.topic ?? "general"}): ${pct(stage.score)}.`,
+    ),
+    `Strongest topics: ${report.strongest_topics.map((t) => `${t.label} ${pct(t.score)}`).join(", ") || "none"}.`,
+    `Weakest topics: ${report.weakest_topics.map((t) => `${t.label} ${pct(t.score)}`).join(", ") || "none"}.`,
+    `Recommended concept labs: ${report.recommended_concepts.map((c) => c.title).join(", ") || "none"}.`,
+    ...allowed.map(
+      (citation) =>
+        `[${citation.id}] ${citation.kind === "heat_topic" ? "firm interview-frequency signal" : "teaching answer"}${
+          citation.label ? `: ${citation.label}` : ""
+        }`,
+    ),
+  ]
 }
 
 export const COACH_SYSTEM =
@@ -94,8 +140,8 @@ export function validateCoaching(
 
 export async function generateCoaching(
   input: { report: MockReport; allowed: ReportCitation[]; firmName?: string | null },
-  deps: { env?: NodeJS.ProcessEnv; generate?: CoachGenerate; timeoutMs?: number } = {},
-): Promise<{ text: string; citation_ids: string[]; model: string } | null> {
+  deps: { env?: NodeJS.ProcessEnv; generate?: CoachGenerate; verify?: CoachVerify; timeoutMs?: number } = {},
+): Promise<{ text: string; citation_ids: string[]; model: string; verified: true } | null> {
   const env = deps.env ?? process.env
   if (!isLlmConfigured(env) || input.allowed.length === 0 || input.report.graded_stages === 0) return null
   const modelId = smallModel(env)
@@ -110,9 +156,23 @@ export async function generateCoaching(
       abortSignal: controller.signal,
     })
     const validated = validateCoaching(text, new Set(input.allowed.map((c) => c.id)))
-    return validated ? { ...validated, model: modelId } : null
+    if (!validated) return null
+    const verification = await (deps.verify ?? defaultVerify)({
+      env,
+      sources: coachSources(input.report, input.allowed, input.firmName),
+      request: COACH_REQUEST,
+      draft: validated.text,
+      abortSignal: controller.signal,
+    })
+    if (!verification.accepted) {
+      console.info(
+        `[simulator-coach] Jev rejected coaching draft (${verification.verdict} @ ${verification.confidence}); keeping deterministic summary`,
+      )
+      return null
+    }
+    return { ...validated, model: modelId, verified: true }
   } catch (err) {
-    console.warn("[simulator-coach] AI coaching failed; keeping deterministic summary", err)
+    console.warn("[simulator-coach] AI coaching or Jev verification failed; keeping deterministic summary", err)
     return null
   } finally {
     clearTimeout(timer)

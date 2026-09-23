@@ -77,6 +77,8 @@ export const MockReportSchema = z.object({
   ),
   summary: z.string(),
   summary_source: z.enum(["deterministic", "llm"]),
+  /** True only when an AI coaching draft passed Jev verification. */
+  summary_verified: z.boolean().optional(),
   /** Deterministic summary, kept when an AI coaching paragraph replaces `summary`. */
   deterministic_summary: z.string(),
   citations: z.array(

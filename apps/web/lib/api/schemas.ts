@@ -253,6 +253,8 @@ export const PrepRagResponseSchema = z.object({
   source: DataSourceSchema,
   brief: z.string(),
   brief_source: z.enum(["llm", "template"]),
+  /** True only when an AI draft passed Jev verification. */
+  brief_verified: z.boolean().optional(),
   brief_citations: z
     .array(
       z.object({

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
-import { buildCoachPrompt, generateCoaching, validateCoaching } from "./coach"
+import { buildCoachPrompt, generateCoaching, validateCoaching, type CoachVerify } from "./coach"
 import { allowedCitations, buildMockReport, type ReportAttempt } from "./report"
 
 const STAGES = [
@@ -119,8 +119,11 @@ describe("coaching", () => {
     assert.equal(called, false)
   })
 
+  const accept: CoachVerify = async () => ({ accepted: true, verdict: "supported", confidence: 0.95 })
+
   it("uses the injected model and validates its output", async () => {
     let prompt = ""
+    let verified: Parameters<CoachVerify>[0] | null = null
     const good = await generateCoaching(
       { report, allowed, firmName: "Goldman" },
       {
@@ -129,17 +132,42 @@ describe("coaching", () => {
           prompt = input.prompt
           return "Strong accounting [ans_q_acc]. Valuation is the priority fix [ans_q_dcf] [heat:firm_gs:valuation]."
         },
+        verify: async (input) => ((verified = input), accept(input)),
       },
     )
     assert.deepEqual(good?.citation_ids.sort(), ["ans_q_acc", "ans_q_dcf", "heat:firm_gs:valuation"])
+    assert.equal(good?.verified, true)
     assert.match(prompt, /ALLOWED_CITATIONS/)
     assert.doesNotMatch(prompt, /glassdoor/i)
+    // Jev sees the draft and the facts it may use.
+    assert.match(verified!.draft, /Valuation is the priority fix/)
+    assert.ok(verified!.sources.some((line) => line.startsWith("[heat:firm_gs:valuation]")))
 
+    let verifyCalls = 0
     const bad = await generateCoaching(
       { report, allowed },
-      { env: { OPENROUTER_API_KEY: "k" } as unknown as NodeJS.ProcessEnv, generate: async () => "Uncited advice." },
+      {
+        env: { OPENROUTER_API_KEY: "k" } as unknown as NodeJS.ProcessEnv,
+        generate: async () => "Uncited advice.",
+        verify: async (input) => (verifyCalls++, accept(input)),
+      },
     )
     assert.equal(bad, null)
+    assert.equal(verifyCalls, 0)
+  })
+
+  it("keeps the deterministic summary when Jev rejects, is unsure, or errors", async () => {
+    const draft = async () => "Strong accounting [ans_q_acc]. Fix valuation next [ans_q_dcf]."
+    const env = { OPENROUTER_API_KEY: "k" } as unknown as NodeJS.ProcessEnv
+    for (const verify of [
+      async () => ({ accepted: false, verdict: "unsupported", confidence: 0.99 }),
+      async () => ({ accepted: false, verdict: "supported", confidence: 0.5 }),
+      async () => {
+        throw new Error("529")
+      },
+    ] as CoachVerify[]) {
+      assert.equal(await generateCoaching({ report, allowed }, { env, generate: draft, verify }), null)
+    }
   })
 
   it("prompt lists stages and allowed ids", () => {

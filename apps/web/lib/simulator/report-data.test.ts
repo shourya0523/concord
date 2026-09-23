@@ -100,6 +100,7 @@ describe("report-data", () => {
     MockReportSchema.parse(report)
     assert.equal(report.attempts_source, "request")
     assert.equal(report.summary_source, "deterministic")
+    assert.equal(report.summary_verified, false)
     assert.equal(report.stages[1]!.score, 0.3)
     assert.equal(report.stages[1]!.follow_up_score, 0.6)
     assert.equal(report.stages[1]!.label, "Valuation and DCF")
@@ -115,6 +116,7 @@ describe("report-data", () => {
       deps: {
         env: { OPENROUTER_API_KEY: "k" } as unknown as NodeJS.ProcessEnv,
         generate: async () => "Valuation is your priority fix [heat:firm_gs:valuation] [ans_dcf].",
+        verify: async () => ({ accepted: true, verdict: "supported", confidence: 0.9 }),
         dbAttempts: [
           {
             question_id: "q_dcf",
@@ -128,6 +130,7 @@ describe("report-data", () => {
     })
     assert.equal(report.attempts_source, "database")
     assert.equal(report.summary_source, "llm")
+    assert.equal(report.summary_verified, true)
     assert.match(report.deterministic_summary, /Overall 40%/)
     assert.ok(report.citations.some((c) => c.id === "ans_dcf"))
   })

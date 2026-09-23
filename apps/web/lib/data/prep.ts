@@ -178,6 +178,7 @@ export async function buildPrepRagPack(
     brief: brief.brief,
     brief_source: brief.brief_source,
     brief_citations: brief.brief_citations,
+    brief_verified: brief.brief_verified,
     notes: [
       ...real.notes,
       brief.note,
