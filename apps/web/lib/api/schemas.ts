@@ -13,6 +13,7 @@ import {
   CollectionItemSchema,
   CollectionSchema,
   ConceptSchema,
+  DeliveryScoreSchema,
   DiagramRefSchema,
   GradeDetailSchema,
   LearningModuleCheckpointSchema,
@@ -291,6 +292,8 @@ export const CreateAttemptRequestSchema = z.object({
   rating: z.enum(["again", "hard", "good", "easy"]).optional(),
   /** When the learner revealed the gold answer for this question (anti-gaming). */
   revealed_at: z.string().datetime({ offset: true }).nullable().optional(),
+  /** Client-computed voice delivery (P7.1) — coaching only, never affects mastery. */
+  delivery: DeliveryScoreSchema.nullable().optional(),
 })
 export type CreateAttemptRequest = z.infer<typeof CreateAttemptRequestSchema>
 

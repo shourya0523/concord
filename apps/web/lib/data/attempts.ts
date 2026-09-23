@@ -121,7 +121,10 @@ function firmContextFromSession(
 }
 
 /** Everything persisted in app.question_attempts.grade_json. */
-export function buildGradeJson(grade: GradedPracticeAttempt): Record<string, unknown> {
+export function buildGradeJson(
+  grade: GradedPracticeAttempt,
+  delivery: CreateAttemptRequest["delivery"] = null,
+): Record<string, unknown> {
   return {
     feedback: grade.feedback,
     correct: grade.correct,
@@ -131,7 +134,7 @@ export function buildGradeJson(grade: GradedPracticeAttempt): Record<string, unk
     follow_up: grade.follow_up,
     citations: grade.citations,
     weak_topics: grade.weak_topics,
-    delivery: null,
+    delivery: delivery ?? null,
     model: grade.model ?? null,
     cached: grade.cached ?? false,
     latency_ms: grade.latency_ms ?? null,
@@ -139,7 +142,10 @@ export function buildGradeJson(grade: GradedPracticeAttempt): Record<string, unk
   };
 }
 
-function gradeResponse(grade: GradedPracticeAttempt): AttemptGradeResponse {
+function gradeResponse(
+  grade: GradedPracticeAttempt,
+  delivery: CreateAttemptRequest["delivery"] = null,
+): AttemptGradeResponse {
   return {
     score_source: grade.score_source,
     score: grade.score,
@@ -153,7 +159,7 @@ function gradeResponse(grade: GradedPracticeAttempt): AttemptGradeResponse {
     red_flags_triggered: grade.red_flags_triggered,
     numeric_checks: grade.numeric_checks,
     follow_up: grade.follow_up,
-    delivery: null,
+    delivery: delivery ?? null,
     cached: grade.cached ?? false,
   };
 }
@@ -263,7 +269,7 @@ async function recordAttemptAndMastery(options: {
       : input.correct
         ? 1
         : 0.25;
-  const gradeJson = buildGradeJson(grade);
+  const gradeJson = buildGradeJson(grade, input.delivery);
   const updatesMastery = grade.score_source !== "reveal_copy";
 
   const attempt = AttemptSchema.parse({
@@ -303,7 +309,7 @@ async function recordAttemptAndMastery(options: {
     return {
       attempt,
       ...(mastery ? { mastery } : {}),
-      grade: gradeResponse(grade),
+      grade: gradeResponse(grade, input.delivery),
       source: "stub",
       note,
       gradeResult: grade,
@@ -438,7 +444,7 @@ async function recordAttemptAndMastery(options: {
     return {
       attempt,
       ...(mastery ? { mastery } : {}),
-      grade: gradeResponse(grade),
+      grade: gradeResponse(grade, input.delivery),
       source: "published",
       note: updatesMastery
         ? `Graded via ${grade.score_source}; mastery updated from grade score.`
