@@ -4,12 +4,18 @@ import { z } from "zod"
 import { cosineSimilarity, embedTexts, isEmbeddingConfigured } from "./embeddings.js"
 import { gradeModelConfig } from "./grade.js"
 import {
+  DEFAULT_DECISION_MODEL,
   DEFAULT_EMBED_MODEL,
-  DEFAULT_PRIMARY_MODEL,
+  DEFAULT_JEV_ACCEPT_CONFIDENCE,
+  DEFAULT_JEV_CONFIDENCE_FLOOR,
   DEFAULT_SMALL_MODEL,
   DEFAULT_STT_MODEL,
+  decisionModel,
+  isJevModel,
   isLlmConfigured,
-  primaryModel,
+  jevAcceptConfidence,
+  jevConfidenceFloor,
+  resetModelWarnings,
   tierModels,
 } from "./models.js"
 import {
@@ -60,23 +66,43 @@ const chatReply = (content: string, model = "deepseek/deepseek-v4.1-flash") => (
 describe("model tiers", () => {
   it("defaults and env overrides", () => {
     const empty = {} as NodeJS.ProcessEnv
-    assert.equal(primaryModel(empty), DEFAULT_PRIMARY_MODEL)
-    assert.deepEqual(tierModels("primary", empty), [DEFAULT_PRIMARY_MODEL, DEFAULT_SMALL_MODEL])
+    assert.equal(DEFAULT_DECISION_MODEL, "typesafe/jev-1.13")
+    assert.equal(decisionModel(empty), DEFAULT_DECISION_MODEL)
     assert.deepEqual(tierModels("small", empty), [DEFAULT_SMALL_MODEL])
     assert.equal(isLlmConfigured(empty), false)
     assert.equal(isEmbeddingConfigured(env()), true)
-    assert.equal(primaryModel(env({ LLM_PRIMARY_MODEL: "jev/jev-1" })), "jev/jev-1")
-    // GRADER_MODEL overrides for bake-offs, but only OpenRouter slugs.
-    assert.equal(primaryModel(env({ LLM_PRIMARY_MODEL: "jev/jev-1", GRADER_MODEL: "z-ai/glm-4.7-flash" })), "z-ai/glm-4.7-flash")
-    assert.equal(primaryModel(env({ LLM_PRIMARY_MODEL: "jev/jev-1", GRADER_MODEL: "gemini-3.6-flash" })), "jev/jev-1")
-    // Same model in both tiers → no duplicate fallback.
-    assert.deepEqual(tierModels("primary", env({ LLM_PRIMARY_MODEL: DEFAULT_SMALL_MODEL })), [DEFAULT_SMALL_MODEL])
+    assert.equal(decisionModel(env({ LLM_DECISION_MODEL: "~typesafe/jev-latest" })), "~typesafe/jev-latest")
+    assert.equal(jevConfidenceFloor(empty), DEFAULT_JEV_CONFIDENCE_FLOOR)
+    assert.equal(jevAcceptConfidence(empty), DEFAULT_JEV_ACCEPT_CONFIDENCE)
+    assert.equal(jevConfidenceFloor(env({ JEV_CONFIDENCE_FLOOR: "0.75" })), 0.75)
+    // Out-of-range / junk thresholds fall back to the defaults.
+    assert.equal(jevConfidenceFloor(env({ JEV_CONFIDENCE_FLOOR: "7" })), DEFAULT_JEV_CONFIDENCE_FLOOR)
+    assert.equal(jevAcceptConfidence(env({ JEV_ACCEPT_CONFIDENCE: "high" })), DEFAULT_JEV_ACCEPT_CONFIDENCE)
   })
 
-  it("gradeModelConfig keeps its shape on the openrouter route", () => {
+  it("GRADER_MODEL overrides the decision model only for Jev ids, warning once otherwise", () => {
+    assert.ok(isJevModel("typesafe/jev-1.13"))
+    assert.ok(isJevModel("~typesafe/jev-latest"))
+    assert.ok(!isJevModel("z-ai/glm-4.7-flash"))
+    assert.equal(decisionModel(env({ GRADER_MODEL: "typesafe/jev-1.12" })), "typesafe/jev-1.12")
+    resetModelWarnings()
+    const warnings: unknown[] = []
+    const original = console.warn
+    console.warn = (...args: unknown[]) => void warnings.push(args)
+    try {
+      assert.equal(decisionModel(env({ GRADER_MODEL: "z-ai/glm-4.7-flash" })), DEFAULT_DECISION_MODEL)
+      assert.equal(decisionModel(env({ GRADER_MODEL: "gemini-3.6-flash" })), DEFAULT_DECISION_MODEL)
+    } finally {
+      console.warn = original
+    }
+    assert.equal(warnings.length, 1)
+  })
+
+  it("gradeModelConfig: Jev decisions, small chat escalation", () => {
     assert.deepEqual(gradeModelConfig({} as NodeJS.ProcessEnv), {
-      model: DEFAULT_PRIMARY_MODEL,
-      fallbackModel: DEFAULT_SMALL_MODEL,
+      decisionModel: DEFAULT_DECISION_MODEL,
+      chatModel: DEFAULT_SMALL_MODEL,
+      confidenceFloor: DEFAULT_JEV_CONFIDENCE_FLOOR,
       route: "openrouter",
       available: false,
     })
@@ -88,7 +114,7 @@ describe("chat", () => {
   it("posts to /chat/completions with auth, attribution headers, fallback models and usage accounting", async () => {
     const { fetch, calls } = mockFetch(() => chatReply("hello"))
     const result = await chat(
-      { tier: "primary", messages: [{ role: "user", content: "hi" }], temperature: 0, maxTokens: 50 },
+      { models: ["deepseek/deepseek-v4.1-flash", DEFAULT_SMALL_MODEL], messages: [{ role: "user", content: "hi" }], temperature: 0, maxTokens: 50 },
       { env: env({ NEXT_PUBLIC_APP_URL: "https://concord.example" }), fetch },
     )
     assert.equal(calls.length, 1)
@@ -98,8 +124,8 @@ describe("chat", () => {
     assert.equal(call.headers.Authorization, `Bearer ${KEY}`)
     assert.equal(call.headers["X-Title"], "Concord")
     assert.equal(call.headers["HTTP-Referer"], "https://concord.example")
-    assert.equal(call.body.model, DEFAULT_PRIMARY_MODEL)
-    assert.deepEqual(call.body.models, [DEFAULT_PRIMARY_MODEL, DEFAULT_SMALL_MODEL])
+    assert.equal(call.body.model, "deepseek/deepseek-v4.1-flash")
+    assert.deepEqual(call.body.models, ["deepseek/deepseek-v4.1-flash", DEFAULT_SMALL_MODEL])
     assert.deepEqual(call.body.usage, { include: true })
     assert.equal(call.body.temperature, 0)
     assert.equal(call.body.max_tokens, 50)
@@ -153,9 +179,12 @@ describe("error mapping", () => {
       [400, "bad_request"],
       [401, "auth"],
       [402, "insufficient_credits"],
+      [404, "not_found"],
       [408, "timeout"],
+      [413, "payload_too_large"],
       [429, "rate_limited"],
       [502, "upstream"],
+      [529, "overloaded"],
     ]
     for (const [status, code] of cases) {
       assert.equal(errorCodeForStatus(status), code)
@@ -230,7 +259,7 @@ describe("chatJson", () => {
     const result = await chatJson(
       Schema,
       {
-        tier: "primary",
+        tier: "small",
         schemaName: "rubric_judge",
         messages: [
           { role: "system", content: "You grade." },
@@ -252,7 +281,8 @@ describe("chatJson", () => {
     assert.deepEqual(format.json_schema.schema.required, ["score", "items", "follow_up_id"])
     assert.ok(!JSON.stringify(format.json_schema.schema).includes('"default"'))
     assert.ok(!JSON.stringify(format.json_schema.schema).includes("$schema"))
-    assert.deepEqual(body.models, [DEFAULT_PRIMARY_MODEL, DEFAULT_SMALL_MODEL])
+    assert.equal(body.model, DEFAULT_SMALL_MODEL)
+    assert.equal(body.models, undefined)
     const messages = body.messages as Array<{ role: string; content: string }>
     assert.equal(messages.length, 2)
     assert.match(messages[0]!.content, /^You grade\.\n\nReply with only a JSON object/)

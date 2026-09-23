@@ -9,7 +9,7 @@ import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
 import type { FirmContextSnapshot } from "@/lib/data/practice-packs";
 
-import { generateCoaching, type CoachGenerate } from "./coach";
+import { generateCoaching, type CoachGenerate, type CoachVerify } from "./coach";
 import {
   allowedCitations,
   buildMockReport,
@@ -137,7 +137,12 @@ export async function buildSessionReport(options: {
   userId: string;
   session: PracticeSession | null;
   body: MockReportRequest;
-  deps?: { env?: NodeJS.ProcessEnv; generate?: CoachGenerate; dbAttempts?: ReportAttempt[] };
+  deps?: {
+    env?: NodeJS.ProcessEnv;
+    generate?: CoachGenerate;
+    verify?: CoachVerify;
+    dbAttempts?: ReportAttempt[];
+  };
 }): Promise<MockReportPayload> {
   const { sessionId, userId, session, body } = options;
   let attempts: ReportAttempt[] = [];
@@ -172,7 +177,7 @@ export async function buildSessionReport(options: {
 
   const coaching = await generateCoaching(
     { report, allowed: allowedCitations({ attempts, heatTopics }), firmName: body.firm_name },
-    { env: options.deps?.env, generate: options.deps?.generate },
+    { env: options.deps?.env, generate: options.deps?.generate, verify: options.deps?.verify },
   );
 
   const citations = [...report.citations];
@@ -190,6 +195,7 @@ export async function buildSessionReport(options: {
     ...report,
     summary: coaching?.text ?? report.summary,
     summary_source: coaching ? "llm" : "deterministic",
+    summary_verified: coaching?.verified ?? false,
     deterministic_summary: report.summary,
     citations,
     attempts_source: attemptsSource,

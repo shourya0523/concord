@@ -29,7 +29,7 @@ Session artefacts (never env-public): `data/glassdoor_state.json`, `data/glassdo
 | `NEON_AUTH_COOKIE_SECRET` | secret | `openssl rand -base64 32` (≥32 chars) — **unset → auth stub** |
 | `NEXT_PUBLIC_APP_URL` | public | App origin (e.g. `https://concord-umber.vercel.app`) |
 | `OPENROUTER_API_KEY` | secret | Web LLM stack via OpenRouter (grading, briefs, coaching, embeddings, STT) — server-only |
-| `LLM_PRIMARY_MODEL` / `LLM_SMALL_MODEL` / `LLM_EMBED_MODEL` / `LLM_STT_MODEL`, `OPENROUTER_BASE_URL`, `OPENROUTER_APP_URL` | config | Model tiers — `docs/deployment/llm-stack.md` (set `LLM_PRIMARY_MODEL` to Jev's slug) |
+| `LLM_DECISION_MODEL` / `LLM_SMALL_MODEL` / `LLM_EMBED_MODEL` / `LLM_STT_MODEL`, `OPENROUTER_BASE_URL`, `OPENROUTER_DECISIONS_URL`, `OPENROUTER_APP_URL`, `JEV_CONFIDENCE_FLOOR`, `JEV_ACCEPT_CONFIDENCE` | config | Model tiers — `docs/deployment/llm-stack.md` (decision tier defaults to Jev `typesafe/jev-1.13`; all optional) |
 | `CRON_SECRET` | secret | Scheduled handlers only; Vercel cron sends `Authorization: Bearer $CRON_SECRET` to `/api/cron/notify` (hourly, `apps/web/vercel.json`) |
 | `CRON_DATABASE_URL` | secret | Owner / `BYPASSRLS` Neon URL for cross-user cron work (notify run, league XP refresh). Falls back to `DATABASE_URL`; **required** once `DATABASE_URL` is `concord_app`. See `docs/deployment/notifications.md` |
 | `RESEND_API_KEY` | secret | Reminder / recap email (Resend). Unset → email no-op (`skipped`) |

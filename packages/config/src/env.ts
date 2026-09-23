@@ -47,7 +47,11 @@ export const ProductEnvSchema = z.object({
   OPENROUTER_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
   OPENROUTER_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
   OPENROUTER_APP_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
-  LLM_PRIMARY_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),
+  OPENROUTER_DECISIONS_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  // Jev (TypeSafe) decision model — grading + draft verification
+  LLM_DECISION_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),
+  JEV_CONFIDENCE_FLOOR: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(1).optional()),
+  JEV_ACCEPT_CONFIDENCE: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(1).optional()),
   LLM_SMALL_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),
   LLM_EMBED_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),
   LLM_STT_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),

@@ -1,13 +1,14 @@
 /**
- * AI helpers: OpenRouter client + model tiers (chat, structured JSON,
- * embeddings, transcription) and the enrichment proposal schemas.
+ * AI helpers: OpenRouter client + model tiers (Jev decisions, small chat,
+ * structured JSON, embeddings, transcription) and the enrichment proposal
+ * schemas.
  *
  * Everything calls OpenRouter with `OPENROUTER_API_KEY`; model ids come from
  * the tiers in ./models.ts (docs/deployment/llm-stack.md). GEMINI_API_KEY is
  * no longer used by the TypeScript stack.
  */
 import { z } from "zod";
-import { DEFAULT_PRIMARY_MODEL } from "./models.js";
+import { DEFAULT_SMALL_MODEL } from "./models.js";
 
 export {
   DEFAULT_EMBEDDING_DIMS,
@@ -26,16 +27,51 @@ export {
   type GradeModelConfig,
 } from "./grade.js";
 export {
+  acceptDraft,
+  DRAFT_SUPPORT_QUESTION,
+  verifyDraft,
+  type DraftVerdict,
+  type DraftVerification,
+} from "./cascade.js";
+export {
+  DECISIONS_PATH,
+  decide,
+  decisionsUrl,
+  isTransientOpenRouterError,
+  parseDecisionAnswers,
+  validateQuestions,
+  type AnswerFor,
+  type ChoiceAnswer,
+  type ChoiceQuestion,
+  type DecideRequest,
+  type DecisionAnswer,
+  type DecisionAnswers,
+  type DecisionQuestion,
+  type DecisionQuestions,
+  type DecisionResult,
+  type DecisionUsage,
+  type NoulAnswer,
+  type NoulQuestion,
+  type ScoreAnswer,
+  type ScoreQuestion,
+} from "./decisions.js";
+export {
+  DEFAULT_DECISION_MODEL,
   DEFAULT_EMBED_DIMS,
   DEFAULT_EMBED_MODEL,
-  DEFAULT_PRIMARY_MODEL,
+  DEFAULT_JEV_ACCEPT_CONFIDENCE,
+  DEFAULT_JEV_CONFIDENCE_FLOOR,
   DEFAULT_SMALL_MODEL,
   DEFAULT_STT_MODEL,
+  decisionModel,
   embedModel,
+  isJevModel,
   isLlmConfigured,
+  jevAcceptConfidence,
+  jevConfidenceFloor,
   modelForTier,
   openRouterApiKey,
-  primaryModel,
+  resetModelWarnings,
   smallModel,
   sttModel,
   tierModels,
@@ -68,7 +104,7 @@ export {
  * config). `gemini_synthesised` below is a stored provenance value, not a
  * statement about which model produced the text.
  */
-export const DEFAULT_ENRICH_MODEL = DEFAULT_PRIMARY_MODEL;
+export const DEFAULT_ENRICH_MODEL = DEFAULT_SMALL_MODEL;
 
 export const EnrichmentProvenanceEnum = z.enum([
   "gemini_synthesised",

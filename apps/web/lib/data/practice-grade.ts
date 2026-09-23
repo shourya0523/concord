@@ -3,22 +3,23 @@
  *
  * Wires the pure grade pipeline (lib/grading/pipeline.ts) to data + infra:
  * question/answer/rubric loading, reveal-copy detection, grade cache,
- * per-user LLM rate limit, model selection (LLM_PRIMARY_MODEL via OpenRouter),
- * the grade router (LLM only when required) and latency logs.
+ * per-user model budget (Jev calls weigh 1/10 of a chat call), model
+ * selection (Jev decisions via LLM_DECISION_MODEL, small-model escalation via
+ * LLM_SMALL_MODEL), the grade router (models only when required) and logs.
  */
 import { GRADER_VERSION } from "@ibpe/contracts";
 import { getAnswerRubric, getQuestion } from "@/lib/data/questions";
 import type { FirmContextSnapshot } from "@/lib/data/practice-packs";
 import { isFlagOn } from "@/lib/flags";
 import { checkRevealCopy } from "@/lib/grading/guards";
-import { createGradeCaller, type GradeUsage } from "@/lib/grading/llm";
+import { createGradeModels, type GradeUsage } from "@/lib/grading/llm";
 import {
   gradeRubricDeterministic,
   runGradePipeline,
   type GradeInput,
 } from "@/lib/grading/pipeline";
 import { isNumericOnlyRubric, rubricFingerprint } from "@/lib/grading/rubric";
-import { routeGrade } from "@/lib/grading/router";
+import { routeGrade, routeWithoutModel } from "@/lib/grading/router";
 import {
   GRADER_V1,
   gradeDeterministic,
@@ -87,7 +88,7 @@ export async function gradePracticeAttempt(options: {
   if (!responseText) {
     return {
       ...selfGrade({ correct: options.correct, confidence: options.confidence, topic }),
-      router: routeGrade({ responseText, rubric: null, llmAvailable: false }),
+      router: routeWithoutModel(routeGrade({ responseText, rubric: null, llmAvailable: false })),
       topic,
     };
   }
@@ -137,7 +138,9 @@ export async function gradePracticeAttempt(options: {
   if (reveal.copied) {
     const graded = {
       ...revealCopyGrade(input, reveal.similarity),
-      router: routeGrade({ responseText, rubric, revealCopy: true, llmAvailable: false }),
+      router: routeWithoutModel(
+        routeGrade({ responseText, rubric, revealCopy: true, llmAvailable: false }),
+      ),
     };
     logGradeEvent({
       question_id: options.questionId,
@@ -146,22 +149,23 @@ export async function gradePracticeAttempt(options: {
       cached: false,
       latency_ms: Date.now() - started,
       router: graded.router.reason,
+      path: graded.router.path,
     });
     return { ...graded, latency_ms: Date.now() - started, topic };
   }
 
   const numericOnly = Boolean(rubric && isNumericOnlyRubric(rubric));
-  let usage: GradeUsage | null = null;
-  const model = numericOnly
+  const usages: GradeUsage[] = [];
+  const models = numericOnly
     ? null
-    : createGradeCaller({ onUsage: (u) => (usage = u) });
+    : createGradeModels({ onUsage: (u) => usages.push(u) });
 
-  const cacheKey = model
+  const cacheKey = models
     ? gradeCacheKey({
         questionId: options.questionId,
         rubricFingerprint: rubricFingerprint(rubric),
         graderVersion: rubric ? GRADER_VERSION : GRADER_V1,
-        model: model.model,
+        model: `${models.decisionModel}+${models.chatModel}@${models.confidenceFloor}`,
         responseText,
       })
     : null;
@@ -169,7 +173,9 @@ export async function gradePracticeAttempt(options: {
     const cached = await getCachedGrade(cacheKey);
     if (cached) {
       const latency = Date.now() - started;
-      const router = routeGrade({ responseText, rubric, cacheHit: true, llmAvailable: true });
+      const router = routeWithoutModel(
+        routeGrade({ responseText, rubric, cacheHit: true, llmAvailable: true }),
+      );
       logGradeEvent({
         question_id: options.questionId,
         score_source: cached.score_source,
@@ -178,33 +184,39 @@ export async function gradePracticeAttempt(options: {
         latency_ms: latency,
         model: cached.model ?? null,
         router: router.reason,
+        path: router.path,
       });
       return { ...cached, router, cached: true, latency_ms: latency, topic };
     }
   }
 
-  // Rate-limit budget is reserved only when the router actually needs the LLM.
+  // Budget is reserved per model call, only when the router needs one
+  // (Jev = 1 unit, small-model escalation = 10 units).
   let rateLimited = false;
   let llmError: string | null = null;
   const graded = await runGradePipeline(input, {
     graderV2,
-    llm: model?.caller ?? null,
-    model: model?.model ?? null,
-    allowLlm: async () => {
-      const ok = options.userId ? await reserveLlmGrade(options.userId) : true;
-      rateLimited = !ok;
+    decide: models?.decide ?? null,
+    decisionModel: models?.decisionModel ?? null,
+    llm: models?.caller ?? null,
+    model: models?.chatModel ?? null,
+    confidenceFloor: models?.confidenceFloor,
+    allowLlm: async (kind) => {
+      const ok = options.userId ? await reserveLlmGrade(options.userId, kind) : true;
+      if (!ok) rateLimited = true;
       return ok;
     },
     onLlmError: (err) => {
-      llmError = err instanceof Error ? err.name : "error";
-      console.warn("[practice-grade] LLM grade failed; using deterministic", err);
+      llmError = err instanceof Error ? `${err.name}${"code" in err ? `:${String(err.code)}` : ""}` : "error";
+      console.warn("[practice-grade] model grade failed; falling back", err);
     },
   });
 
-  if (cacheKey && graded.score_source === "llm") {
+  if (cacheKey && (graded.score_source === "llm" || graded.score_source === "jev")) {
     await setCachedGrade(cacheKey, graded).catch(() => undefined);
   }
-  const finalUsage = usage as GradeUsage | null;
+  const sum = (pick: (u: GradeUsage) => number | null | undefined) =>
+    usages.length ? usages.reduce((total, u) => total + (pick(u) ?? 0), 0) : null;
   logGradeEvent({
     question_id: options.questionId,
     score_source: graded.score_source,
@@ -212,12 +224,16 @@ export async function gradePracticeAttempt(options: {
     cached: false,
     latency_ms: Date.now() - started,
     model: graded.model ?? null,
-    input_tokens: finalUsage?.input_tokens ?? null,
-    output_tokens: finalUsage?.output_tokens ?? null,
-    cost: finalUsage?.cost ?? null,
+    input_tokens: sum((u) => u.input_tokens),
+    output_tokens: sum((u) => u.output_tokens),
+    cost: graded.router?.cost_usd ?? sum((u) => u.cost),
     rate_limited: rateLimited,
     llm_error: llmError,
     router: graded.router?.reason ?? null,
+    path: graded.router?.path ?? null,
+    escalation: graded.router?.escalation ?? null,
+    decision_model: graded.router?.decision_model ?? null,
+    chat_model: graded.router?.chat_model ?? null,
   });
   return {
     ...graded,
@@ -226,7 +242,7 @@ export async function gradePracticeAttempt(options: {
     rubric_json: {
       ...graded.rubric_json,
       ...(rateLimited ? { rate_limited: true } : {}),
-      ...(finalUsage ? { usage: finalUsage } : {}),
+      ...(usages.length ? { usage: usages } : {}),
     },
     topic,
   };

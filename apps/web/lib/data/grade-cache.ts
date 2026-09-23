@@ -14,7 +14,17 @@ import { memoryStore } from "./memory-store";
 
 export const GRADE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const GRADE_CACHE_MAX_ENTRIES = 500;
-export const LLM_GRADES_PER_HOUR = 60;
+/**
+ * Per-user hourly model budget, in units: a small-model chat grade costs
+ * CHAT_GRADE_UNITS, a Jev decision JEV_GRADE_UNITS (1/10 — Jev is billed on
+ * input tokens only at $0.042/M). 600 units = 60 chat grades (the previous
+ * limit) or 600 Jev grades an hour.
+ */
+export const CHAT_GRADE_UNITS = 10;
+export const JEV_GRADE_UNITS = 1;
+export const LLM_GRADE_UNITS_PER_HOUR = 600;
+/** Chat-grade equivalent of the hourly budget (kept for callers / docs). */
+export const LLM_GRADES_PER_HOUR = LLM_GRADE_UNITS_PER_HOUR / CHAT_GRADE_UNITS;
 const HOUR_MS = 60 * 60 * 1000;
 const UPSTASH_TIMEOUT_MS = 800;
 
@@ -102,22 +112,28 @@ export async function setCachedGrade(key: string, grade: PracticeGradeResult): P
 }
 
 /**
- * Reserve one LLM grade for this user in the current hour. Returns false when
- * the user is over LLM_GRADES_PER_HOUR (caller falls back to deterministic).
+ * Reserve model budget for this user in the current hour: `kind` "decision"
+ * (Jev) costs JEV_GRADE_UNITS, "chat" CHAT_GRADE_UNITS. Returns false when the
+ * user would exceed LLM_GRADE_UNITS_PER_HOUR (caller skips that call).
  */
-export async function reserveLlmGrade(userId: string, now = Date.now()): Promise<boolean> {
+export async function reserveLlmGrade(
+  userId: string,
+  kind: "decision" | "chat" = "chat",
+  now = Date.now(),
+): Promise<boolean> {
+  const units = kind === "decision" ? JEV_GRADE_UNITS : CHAT_GRADE_UNITS;
   const bucket = Math.floor(now / HOUR_MS);
   const key = `grade_rl:${createHash("sha256").update(userId).digest("hex").slice(0, 24)}:${bucket}`;
   const config = upstashConfig();
   if (config) {
     const result = await upstashPipeline(config, [
-      ["INCR", key],
+      ["INCRBY", key, units],
       ["PEXPIRE", key, HOUR_MS + 60_000],
     ]);
     const count = Number(result?.[0]?.result);
-    if (Number.isFinite(count)) return count <= LLM_GRADES_PER_HOUR;
+    if (Number.isFinite(count)) return count <= LLM_GRADE_UNITS_PER_HOUR;
   }
-  return incrementWindow(memoryRate, key, HOUR_MS, now) <= LLM_GRADES_PER_HOUR;
+  return incrementWindow(memoryRate, key, HOUR_MS, now, units) <= LLM_GRADE_UNITS_PER_HOUR;
 }
 
 export function logGradeEvent(event: {
@@ -133,8 +149,13 @@ export function logGradeEvent(event: {
   llm_error?: string | null;
   /** Grade router reason (lib/grading/router.ts). */
   router?: string | null;
-  /** USD from OpenRouter usage accounting. */
+  /** USD from OpenRouter usage accounting (Jev + chat). */
   cost?: number | null;
+  /** GradeRoute path: skip | jev | jev+small | small | deterministic. */
+  path?: string | null;
+  escalation?: string | null;
+  decision_model?: string | null;
+  chat_model?: string | null;
 }): void {
   console.info(`[grade] ${JSON.stringify(event)}`);
 }

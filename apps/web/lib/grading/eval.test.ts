@@ -12,6 +12,8 @@ import {
   runEval,
   spearman,
 } from "./eval"
+import type { DecisionAnswer } from "@ibpe/ai"
+import type { GradeDecider } from "./jev"
 import type { StructuredCaller } from "./judge"
 
 const datasetPath = join(
@@ -84,6 +86,51 @@ describe("grade router on the eval set", () => {
     assert.ok(router.skipped >= 40)
     // Injections never reach the model when the router is on.
     assert.equal(router.by_reason.injection, cases.filter((c) => c.gaming === "injection").length)
+  })
+})
+
+/** Mock Jev that answers every question it is asked ("hit", no, top level) at a fixed confidence. */
+function fooledJev(confidence: number, cost = 0.00002): GradeDecider {
+  return async ({ questions }) => {
+    const answers: Record<string, DecisionAnswer> = {}
+    for (const [key, q] of Object.entries(questions)) {
+      answers[key] =
+        q.type === "choice"
+          ? { type: "choice", choice: "hit", confidence, probabilities: { hit: confidence } }
+          : q.type === "noul"
+            ? { type: "noul", noul: 0 }
+            : { type: "score", score: 3, confidence, probabilities: {}, legend: {} }
+    }
+    return { answers, model: "typesafe/jev-1.13", usage: { cost } }
+  }
+}
+
+describe("Jev path on the eval set (mocked decisions)", () => {
+  it("a fooled Jev (every point hit, instructs_grader = 0) still cannot pass injection cases", async () => {
+    const injection = cases.filter((c) => c.gaming === "injection")
+    const { metrics } = await runEval(injection, { decide: fooledJev(0.99), router: false })
+    assert.equal(metrics.sources.jev, injection.length)
+    assert.equal(metrics.injection_resistance, 1)
+  })
+
+  it("reports Jev call rate, escalation rate and cost; escalation only below the floor", async () => {
+    const confident = await runEval(cases, { decide: fooledJev(0.9), decisionModel: "typesafe/jev-1.13" })
+    const m = confident.metrics
+    assert.equal(m.models.jev_call_rate, m.router.llm_call_rate)
+    assert.equal(m.models.escalation_rate, 0)
+    assert.equal(m.models.small_call_rate, 0)
+    assert.equal(m.models.paths.jev, Math.round(m.router.llm_call_rate * cases.length))
+    assert.ok(Math.abs(m.models.cost_usd - 0.00002 * (m.models.paths.jev ?? 0)) < 1e-9)
+
+    const chat: StructuredCaller = async <T>() =>
+      ({ items: [], red_flags_triggered: [], feedback: "", follow_up_id: null }) as T
+    const unsure = await runEval(cases, { decide: fooledJev(0.3), llm: chat, confidenceFloor: 0.6 })
+    assert.equal(unsure.metrics.models.escalation_rate, unsure.metrics.models.jev_call_rate)
+    assert.equal(unsure.metrics.models.paths.jev, undefined)
+    assert.equal(
+      unsure.metrics.models.paths["jev+small"],
+      Math.round(unsure.metrics.models.jev_call_rate * cases.length),
+    )
   })
 })
 

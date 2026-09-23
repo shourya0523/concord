@@ -42,19 +42,20 @@ export class TtlLru<V> {
 
 /**
  * Fixed-window counter (per key per window). Returns the count after
- * incrementing; callers compare against their limit.
+ * incrementing by `amount`; callers compare against their limit.
  */
 export function incrementWindow(
   map: Map<string, LruEntry<number>>,
   key: string,
   windowMs: number,
   now: number,
+  amount = 1,
 ): number {
   const entry = map.get(key)
   if (!entry || entry.expiresAt <= now) {
-    map.set(key, { value: 1, expiresAt: now + windowMs })
-    return 1
+    map.set(key, { value: amount, expiresAt: now + windowMs })
+    return amount
   }
-  entry.value += 1
+  entry.value += amount
   return entry.value
 }

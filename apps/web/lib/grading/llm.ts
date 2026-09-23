@@ -1,14 +1,27 @@
 /**
- * Production model caller for the grader: the rubric judge runs on the
- * PRIMARY tier via OpenRouter (`chatJson`), with the SMALL tier as
- * OpenRouter's automatic fallback. Returns null when OPENROUTER_API_KEY is
- * missing so every path degrades to deterministic.
+ * Production model wiring for the grader (docs/deployment/llm-stack.md):
+ *
+ *   decide  Jev (LLM_DECISION_MODEL) via OpenRouter's Decisions API — one
+ *           typed request per attempt
+ *   caller  the SMALL chat model (LLM_SMALL_MODEL) running the rubric-judge
+ *           prompt — only when the pipeline escalates
+ *
+ * Returns null when OPENROUTER_API_KEY is missing so every path degrades to
+ * deterministic (exactly the pre-Jev behaviour).
  */
-import { chatJson, gradeModelConfig, type ClientOptions, type GradeModelConfig } from "@ibpe/ai"
+import {
+  chatJson,
+  decide,
+  gradeModelConfig,
+  type ClientOptions,
+  type GradeModelConfig,
+} from "@ibpe/ai"
+import type { GradeDecider } from "./jev"
 import type { StructuredCaller } from "./judge"
 
 export type GradeUsage = {
-  /** Model that actually answered (the fallback when the primary errored). */
+  kind: "decision" | "chat"
+  /** Model (snapshot) that actually answered. */
   model: string
   input_tokens: number | null
   output_tokens: number | null
@@ -16,12 +29,36 @@ export type GradeUsage = {
   cost?: number | null
 }
 
-export function createGradeCaller(options: {
+type FactoryOptions = {
   config?: GradeModelConfig
   onUsage?: (usage: GradeUsage) => void
   /** Test seam: fetch/env/key for the OpenRouter client. */
   client?: ClientOptions
-} = {}): { caller: StructuredCaller; model: string } | null {
+}
+
+/** Jev decision caller for the pipeline (`GradeOptions.decide`). */
+export function createGradeDecider(options: FactoryOptions = {}): { decide: GradeDecider; model: string } | null {
+  const config = options.config ?? gradeModelConfig(options.client?.env)
+  if (!config.available) return null
+  const decider: GradeDecider = async (request) => {
+    const result = await decide(
+      { state: request.state, questions: request.questions, model: config.decisionModel, signal: request.signal },
+      options.client,
+    )
+    options.onUsage?.({
+      kind: "decision",
+      model: result.model,
+      input_tokens: result.usage.input_tokens,
+      output_tokens: result.usage.output_tokens,
+      cost: result.usage.cost,
+    })
+    return { answers: result.answers, model: result.model, usage: result.usage }
+  }
+  return { decide: decider, model: config.decisionModel }
+}
+
+/** Small chat model caller for escalations (`GradeOptions.llm`). */
+export function createGradeCaller(options: FactoryOptions = {}): { caller: StructuredCaller; model: string } | null {
   const config = options.config ?? gradeModelConfig(options.client?.env)
   if (!config.available) return null
 
@@ -29,8 +66,7 @@ export function createGradeCaller(options: {
     const result = await chatJson(
       request.schema,
       {
-        // Primary tier first, small tier as OpenRouter's fallback.
-        models: config.fallbackModel ? [config.model, config.fallbackModel] : [config.model],
+        model: config.chatModel,
         schemaName: "grade",
         messages: [
           { role: "system", content: request.system },
@@ -42,13 +78,38 @@ export function createGradeCaller(options: {
       },
       options.client,
     )
-    options.onUsage?.({
+    const usage = {
       model: result.model,
       input_tokens: result.usage.input_tokens,
       output_tokens: result.usage.output_tokens,
       cost: result.usage.cost,
-    })
+    }
+    options.onUsage?.({ kind: "chat", ...usage })
+    request.onUsage?.(usage)
     return result.object
   }
-  return { caller, model: config.model }
+  return { caller, model: config.chatModel }
+}
+
+export type GradeModels = {
+  decide: GradeDecider
+  decisionModel: string
+  caller: StructuredCaller
+  chatModel: string
+  confidenceFloor: number
+}
+
+/** Both tiers from one config (null without OPENROUTER_API_KEY). */
+export function createGradeModels(options: FactoryOptions = {}): GradeModels | null {
+  const config = options.config ?? gradeModelConfig(options.client?.env)
+  const decider = createGradeDecider({ ...options, config })
+  const chat = createGradeCaller({ ...options, config })
+  if (!decider || !chat) return null
+  return {
+    decide: decider.decide,
+    decisionModel: decider.model,
+    caller: chat.caller,
+    chatModel: chat.model,
+    confidenceFloor: config.confidenceFloor,
+  }
 }

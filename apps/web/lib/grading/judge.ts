@@ -12,11 +12,22 @@ import {
 } from "./guards"
 import { followUpId, redFlagId } from "./rubric"
 
+/** Provider usage reported by a model call (OpenRouter usage accounting). */
+export type ModelUsage = {
+  model?: string | null
+  input_tokens?: number | null
+  output_tokens?: number | null
+  /** USD; null when the provider did not report it. */
+  cost: number | null
+}
+
 export type StructuredCallRequest<T> = {
   schema: z.ZodType<T>
   system: string
   prompt: string
   signal: AbortSignal
+  /** Called with provider usage when the caller knows it (cost accounting). */
+  onUsage?: (usage: ModelUsage) => void
 }
 
 /** Injected model call: returns the schema-shaped object or throws. */
@@ -32,12 +43,11 @@ export class GraderTimeoutError extends Error {
 export const DEFAULT_GRADER_TIMEOUT_MS = 8000
 
 /**
- * Run an injected call with an AbortSignal timeout. Rejects with
- * GraderTimeoutError even if the caller ignores the signal.
+ * Run `fn` with an AbortSignal timeout. Rejects with GraderTimeoutError even
+ * if `fn` ignores the signal.
  */
-export async function callWithTimeout<T>(
-  caller: StructuredCaller,
-  request: Omit<StructuredCallRequest<T>, "signal">,
+export async function runWithTimeout<T>(
+  fn: (signal: AbortSignal) => Promise<T>,
   timeoutMs = DEFAULT_GRADER_TIMEOUT_MS,
 ): Promise<T> {
   const controller = new AbortController()
@@ -49,13 +59,19 @@ export async function callWithTimeout<T>(
     }, timeoutMs)
   })
   try {
-    return await Promise.race([
-      caller<T>({ ...request, signal: controller.signal }),
-      timeout,
-    ])
+    return await Promise.race([fn(controller.signal), timeout])
   } finally {
     if (timer) clearTimeout(timer)
   }
+}
+
+/** Run an injected structured call with an AbortSignal timeout. */
+export async function callWithTimeout<T>(
+  caller: StructuredCaller,
+  request: Omit<StructuredCallRequest<T>, "signal">,
+  timeoutMs = DEFAULT_GRADER_TIMEOUT_MS,
+): Promise<T> {
+  return runWithTimeout((signal) => caller<T>({ ...request, signal }), timeoutMs)
 }
 
 export type HeatContext = {

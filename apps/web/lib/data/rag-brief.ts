@@ -1,8 +1,17 @@
 /**
- * Cited session brief for RAG prep packs: a SMALL-tier OpenRouter rewrite
- * (LLM_SMALL_MODEL) guarded by `validateCitedBrief`, else a template.
+ * Cited session brief for RAG prep packs — a Jev-verified cascade
+ * (docs/vendor/jev/jev-verified-cascade.md):
+ *
+ *   1. the SMALL chat model (LLM_SMALL_MODEL) drafts a cited rewrite
+ *   2. `validateCitedBrief` keeps only sentences citing retrieved pack ids
+ *   3. ONE Jev choice (supported | unsupported | declined) checks the draft
+ *      against the pack snippets it was allowed to use
+ *   4. ship it only when supported at ≥ JEV_ACCEPT_CONFIDENCE (0.8); otherwise
+ *      the deterministic cite-only template (no frontier escalation)
+ *
+ * `brief_verified` is true only for a draft Jev accepted.
  */
-import { chat, isLlmConfigured, type ClientOptions } from "@ibpe/ai"
+import { chat, isLlmConfigured, verifyDraft, type ClientOptions } from "@ibpe/ai"
 
 type BriefSource = "llm" | "template"
 
@@ -30,6 +39,8 @@ export type RagBriefResult = {
   brief: string
   brief_source: BriefSource
   brief_citations: RagBriefCitation[]
+  /** True only when a model draft passed Jev verification (false for the template). */
+  brief_verified: boolean
   note?: string
 }
 
@@ -97,6 +108,7 @@ export function buildTemplateRagBrief(input: RagBriefInput): RagBriefResult {
         "No cited teaching-corpus items were retrieved for this pack; broaden the focus prompt or target firms before starting the study loop.",
       brief_source: "template",
       brief_citations: [],
+      brief_verified: false,
       note: "Template brief used because the pack returned no cited items.",
     }
   }
@@ -121,7 +133,8 @@ export function buildTemplateRagBrief(input: RagBriefInput): RagBriefResult {
       `${itemText} Use the cited teaching corpus as the answer source${firmText}; Glassdoor-derived signals only affect retrieval ranking ${citationLabel(items[0]!)}.${weakText}`.trim(),
     brief_source: "template",
     brief_citations: items.map(citationFor),
-    note: "Template brief used; AI rewrite unavailable or rejected by citation guard.",
+    brief_verified: false,
+    note: "Template brief used; AI rewrite unavailable or rejected by the citation guard / Jev verification.",
   }
 }
 
@@ -179,6 +192,23 @@ Return 2-4 concise sentences. Use exact bracket citations from PACK_ITEMS in eve
 
     const validated = validateCitedBrief(text, items)
     if (!validated) return null
+    const verification = await verifyDraft(
+      {
+        sources: items.map(
+          (item) => `[${item.id}] ${item.title}: ${item.snippet?.slice(0, 360) ?? ""}`.trim()
+        ),
+        request: `2-4 sentence interview-prep session brief for the focus "${input.query}" (target firms: ${firmText}; weak topics: ${weakText}), citing pack items.`,
+        draft: validated.brief,
+      },
+      { signal: controller.signal },
+      { ...client, env }
+    )
+    if (!verification.accepted) {
+      console.info(
+        `[rag-brief] Jev rejected draft (${verification.verdict} @ ${verification.confidence}); using template`
+      )
+      return null
+    }
     const citationMap = new Map(
       items.map((item) => [item.id, citationFor(item)])
     )
@@ -188,10 +218,11 @@ Return 2-4 concise sentences. Use exact bracket citations from PACK_ITEMS in eve
       brief_citations: validated.citation_ids
         .map((id) => citationMap.get(id))
         .filter((citation): citation is RagBriefCitation => Boolean(citation)),
-      note: `AI brief rewrite (${model}) accepted with ${validated.citation_ids.length} cited pack item(s).`,
+      brief_verified: true,
+      note: `AI brief rewrite (${model}) verified by Jev (${verification.verdict} @ ${verification.confidence.toFixed(2)}) with ${validated.citation_ids.length} cited pack item(s).`,
     }
   } catch (err) {
-    console.warn("[rag-brief] AI rewrite failed; using template", err)
+    console.warn("[rag-brief] AI rewrite or Jev verification failed; using template", err)
     return null
   } finally {
     clearTimeout(timer)
