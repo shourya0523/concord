@@ -9,8 +9,10 @@ import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { neonConfig, Pool } from "@neondatabase/serverless";
 import ws from "ws";
+import { applyLocalNeonProxy } from "./local-neon";
 
 neonConfig.webSocketConstructor = ws;
+applyLocalNeonProxy();
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "../../..");
