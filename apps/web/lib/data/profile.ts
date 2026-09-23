@@ -6,6 +6,7 @@ import { z } from "zod";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
 import { ensureAppUserQuery } from "./users";
+import { memoryStore } from "./memory-store";
 
 export const PrepProfileSchema = z.object({
   modes: z.array(z.enum(["company_prep", "concept_learn"])).default([]),
@@ -27,7 +28,7 @@ export type PrepProfileResponse = z.infer<typeof PrepProfileResponseSchema>;
 
 const EMPTY_PROFILE: PrepProfile = PrepProfileSchema.parse({});
 
-const stubProfiles = new Map<string, PrepProfile>();
+const stubProfiles = memoryStore<string, PrepProfile>("profiles");
 
 export async function getPrepProfile(userId: string): Promise<PrepProfileResponse> {
   const stub = stubProfiles.get(userId);

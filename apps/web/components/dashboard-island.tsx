@@ -33,6 +33,8 @@ type DashboardData = {
   weakTopics: WeakTopic[]
   interviewDate: string | null
   streakDays: number
+  reviewDue: number
+  reviewScheduled: number
   loadedAtMs: number
 }
 
@@ -50,6 +52,7 @@ type PlanPayload = { plan?: { items?: DashboardData["planItems"] } }
 type ModulePayload = { items?: DashboardData["modules"] }
 type ProfilePayload = { profile?: { interview_date?: string | null } }
 type ProgressPayload = { streak_days?: number }
+type ReviewPayload = { due_count?: number; scheduled_count?: number }
 
 const HOT_THRESHOLD = 0.5
 
@@ -104,6 +107,8 @@ export function DashboardIsland() {
     weakTopics: [],
     interviewDate: null,
     streakDays: 0,
+    reviewDue: 0,
+    reviewScheduled: 0,
     loadedAtMs: 0,
   })
 
@@ -141,6 +146,9 @@ export function DashboardIsland() {
       fetch("/api/progress", { signal: controller.signal }).then((response) =>
         json<ProgressPayload>(response)
       ),
+      fetch("/api/review/due?limit=1", { signal: controller.signal }).then(
+        (response) => json<ReviewPayload>(response)
+      ),
     ])
       .then(
         ([
@@ -149,6 +157,7 @@ export function DashboardIsland() {
           modulePayload,
           profilePayload,
           progressPayload,
+          reviewPayload,
         ]) => {
           const mastery = masteryPayload?.items ?? []
           setData({
@@ -164,6 +173,8 @@ export function DashboardIsland() {
             ),
             interviewDate: profilePayload?.profile?.interview_date ?? null,
             streakDays: progressPayload?.streak_days ?? 0,
+            reviewDue: reviewPayload?.due_count ?? 0,
+            reviewScheduled: reviewPayload?.scheduled_count ?? 0,
             loadedAtMs: Date.now(),
           })
         }
@@ -491,6 +502,34 @@ export function DashboardIsland() {
                 Keep one calm rep moving each day.
               </p>
             </div>
+          </section>
+
+          <section
+            aria-label="Spaced review"
+            className="space-y-2 border border-border px-4 py-3"
+          >
+            <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+              Spaced review
+            </p>
+            <p className="text-sm">
+              <span className="font-display text-2xl tracking-tight">
+                {data.reviewDue}
+              </span>{" "}
+              due now
+              <span className="text-muted-foreground">
+                {" "}
+                · {data.reviewScheduled} scheduled
+              </span>
+            </p>
+            {data.reviewDue > 0 ? (
+              <Link href="/study?review=due">
+                <Button size="sm">Review now</Button>
+              </Link>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Rated answers come back here when they are due.
+              </p>
+            )}
           </section>
 
           {weakest ? (
