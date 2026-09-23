@@ -33,3 +33,31 @@ export const DrillAttemptResponseSchema = z.object({
   source: z.enum(["published", "stub"]),
 })
 export type DrillAttemptResponse = z.infer<typeof DrillAttemptResponseSchema>
+
+/** GET /api/drills/templates — the drill catalogue plus this user's record per template. */
+export const DrillTemplateSummarySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  topic: z.string(),
+  concept_id: z.string().nullable(),
+  difficulty: z.enum(["easy", "medium", "hard"]),
+  description: z.string().nullable().optional(),
+  unit: z.string().nullable().optional(),
+  attempts: z.number().int().nonnegative(),
+  correct: z.number().int().nonnegative(),
+  last_attempt_at: z.string().nullable(),
+})
+export type DrillTemplateSummary = z.infer<typeof DrillTemplateSummarySchema>
+
+export const DrillTemplatesResponseSchema = z.object({
+  items: z.array(DrillTemplateSummarySchema),
+  source: z.enum(["published", "stub"]),
+})
+export type DrillTemplatesResponse = z.infer<typeof DrillTemplatesResponseSchema>
+
+export const DrillNextQuerySchema = z.object({
+  template: z.string().regex(/^[a-z0-9_]+$/).optional(),
+  concept: z.string().min(1).max(120).optional(),
+  difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+})
+export type DrillNextQuery = z.infer<typeof DrillNextQuerySchema>
