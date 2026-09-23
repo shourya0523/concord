@@ -55,7 +55,7 @@ Nothing below was done from this session — Neon was deliberately not touched.
 1. **Apply migrations on Neon, in order:** 043, 044, 045, 046, 054, 057, 059, 060, 061 (then re-run 042's guard). `npm run migrate -w @ibpe/database` lists them.
 2. **Publish the new corpus:** `npm run publish:teaching -w @ibpe/database -- --retire-missing` (unpublishes 38 retired fragment questions), then `npm run embed:rag` with `GEMINI_API_KEY`.
 3. **Secrets (Vercel, server-only):** `GEMINI_API_KEY` (LLM grading, transcription, coaching), optional `GRADER_MODEL`; `RESEND_API_KEY`, `NOTIFY_FROM_EMAIL`, `NOTIFY_SIGNING_SECRET`; `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`; `CRON_SECRET`; `CRON_DATABASE_URL` and `ADMIN_DATABASE_URL` (owner role — the app role cannot span users or read staging); `ADMIN_EMAILS`; optional `UPSTASH_REDIS_REST_URL/TOKEN`.
-4. **Hourly cron** needs Vercel Pro (Hobby runs crons daily).
+4. **Reminders run once a day** (13:00 UTC, Hobby-compatible). For hourly timing on Vercel Pro, set the cron to `0 * * * *` and `NOTIFY_CADENCE=hourly`.
 5. **Pick the grading model on data:** `npm run eval:grader -w @ibpe/web` with each candidate in `GRADER_MODEL` (including the "Jev" model you mentioned), record the winner in `docs/decision-log.md`.
 6. **Human review:** 529 pending enrichment proposals in `/admin/review`, a sample of heuristic rubrics, lesson content and keyword-based question↔diagram links.
 7. `voice_answers` flag is off by default — turn on with `FLAG_VOICE_ANSWERS=1` once the Gemini key is set.

@@ -447,3 +447,50 @@ describe("planNotifications", () => {
     )
   })
 })
+
+describe("daily cadence (one cron run a day)", () => {
+  // 2026-09-27 is a Sunday. 13:00 UTC is 18:30 in Kolkata, 09:00 in New York.
+  const run = (extra: Partial<PlannerOptions> = {}) =>
+    at("2026-09-27T13:00:00Z", { cadence: "daily", ...extra })
+
+  it("sends the daily reminder regardless of the chosen hour", () => {
+    const u = user({ timezone: "Asia/Kolkata", reminderHour: 7 })
+    assert.deepEqual(kinds(u, at("2026-09-27T13:00:00Z")), [])
+    assert.deepEqual(kinds(u, run()), ["daily_reminder:email"])
+  })
+
+  it("skips reminders when off or when today's goal is already met", () => {
+    assert.deepEqual(kinds(user({ reminderHour: null }), run()), [])
+    const met = user({
+      activity: [{ localDate: "2026-09-27", goalMet: true, freezeUsed: false, cardsDone: 8, goal: 8 }],
+    })
+    assert.deepEqual(kinds(met, run()), [])
+  })
+
+  it("replaces the reminder with the streak-at-risk nudge", () => {
+    const u = user({ streak: { current: 5, lastGoalDate: "2026-09-26", freezes: 0 } })
+    assert.deepEqual(kinds(u, run()), ["streak_at_risk:email"])
+  })
+
+  it("sends the weekly recap on the user's local Sunday only", () => {
+    const u = user({ reminderHour: null, weeklyRecap: true })
+    assert.deepEqual(kinds(u, run()), ["weekly_recap:email"])
+    assert.deepEqual(kinds(u, at("2026-09-28T13:00:00Z", { cadence: "daily" })), [])
+  })
+
+  it("stays idempotent within the local day", () => {
+    const u = user({
+      log: [{ kind: "daily_reminder", channel: "email", localDate: "2026-09-27", status: "sent" }],
+    })
+    assert.deepEqual(kinds(u, run()), [])
+  })
+})
+
+describe("notifyCadence", () => {
+  it("defaults to daily and accepts hourly", async () => {
+    const { notifyCadence } = await import("./plan")
+    assert.equal(notifyCadence({}), "daily")
+    assert.equal(notifyCadence({ NOTIFY_CADENCE: "HOURLY" }), "hourly")
+    assert.equal(notifyCadence({ NOTIFY_CADENCE: "weekly" }), "daily")
+  })
+})

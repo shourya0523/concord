@@ -15,6 +15,7 @@ import { memoryStore } from "@/lib/data/memory-store"
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client"
 import { withRlsUserId } from "@/lib/db/rls"
 import { notifyCapabilities } from "./config"
+import { DAILY_RUN_UTC_HOUR, NOTIFY_CADENCES, notifyCadence } from "./plan"
 
 export const PushSubscribeRequestSchema = z.object({
   endpoint: z.string().url().max(2048).refine((v) => v.startsWith("https://"), "endpoint must be https"),
@@ -38,6 +39,10 @@ export const NotifyPrefsResponseSchema = z.object({
   /** `leagues` feature flag (Settings shows the opt-in only when on). */
   leagues_enabled: z.boolean(),
   paused: z.boolean(),
+  /** "daily": one cron run a day (Hobby); "hourly": reminder_hour is honoured. */
+  cadence: z.enum(NOTIFY_CADENCES),
+  /** UTC hour of the daily run (shown as the user's local time). */
+  daily_run_utc_hour: z.number().int().min(0).max(23),
   channels: z.object({
     email: z.object({ available: z.boolean() }),
     push: z.object({
@@ -74,6 +79,8 @@ export async function getNotifyPrefs(
     enabled: flags.notifications,
     leagues_enabled: flags.leagues,
     paused,
+    cadence: notifyCadence(),
+    daily_run_utc_hour: DAILY_RUN_UTC_HOUR,
     channels: {
       email: { available: caps.email },
       push: {

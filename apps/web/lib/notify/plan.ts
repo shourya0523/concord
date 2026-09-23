@@ -10,6 +10,11 @@
  * - weekly_recap    Sunday 18:00 local when `weekly_recap` is on (email only)
  * - each kind fires in a window [hour, hour + graceHours) so a late or
  *   skipped cron run, or a DST spring-forward gap, still delivers once
+ * - cadence "daily" (default for deployments: Vercel Hobby only runs crons
+ *   once a day) drops the hour windows — the one run a day sends the daily
+ *   reminder when reminders are on and today's goal is unmet, the
+ *   streak-at-risk nudge instead when a ≥ 3-day streak is at stake, and the
+ *   weekly recap on the user's local Sunday. Cadence "hourly" keeps windows.
  * - at most `maxPerDay` distinct kinds per user per local day
  * - idempotent: a (kind, channel, local_date) already logged as sent/skipped
  *   is never planned again. Failed rows may be retried inside the window
@@ -31,6 +36,16 @@ export const WEEKLY_RECAP_HOUR = 18
 /** 0 = Sunday. */
 export const WEEKLY_RECAP_WEEKDAY = 0
 export const DEFAULT_GRACE_HOURS = 2
+
+export const NOTIFY_CADENCES = ["daily", "hourly"] as const
+export type NotifyCadence = (typeof NOTIFY_CADENCES)[number]
+/** UTC hour of the daily Vercel cron (apps/web/vercel.json `0 13 * * *`). */
+export const DAILY_RUN_UTC_HOUR = 13
+
+/** `NOTIFY_CADENCE=hourly` once the cron runs hourly (e.g. Vercel Pro). */
+export function notifyCadence(env: Record<string, string | undefined> = process.env): NotifyCadence {
+  return env.NOTIFY_CADENCE?.trim().toLowerCase() === "hourly" ? "hourly" : "daily"
+}
 export const DEFAULT_MAX_PER_DAY = 2
 
 /** Higher first — wins when the daily cap is tight. */
@@ -83,6 +98,8 @@ export type PlannerOptions = {
   channels: { email: boolean; push: boolean }
   graceHours?: number
   maxPerDay?: number
+  /** Default "hourly" keeps the windowed rules; the cron passes notifyCadence(). */
+  cadence?: NotifyCadence
 }
 
 export type PlannedNotification = {
@@ -184,26 +201,16 @@ export function planForUser(user: PlannerUser, options: PlannerOptions): UserPla
     todayLog.filter((row) => row.status === "sent").map((row) => row.kind),
   )
 
+  const daily = options.cadence === "daily"
+  const at = (target: number) => daily || inWindow(local.hour, target, graceHours)
   const due = new Set<NotificationKind>()
-  if (
-    user.reminderHour !== null &&
-    inWindow(local.hour, user.reminderHour, graceHours) &&
-    !goalMetToday
-  ) {
+  if (user.reminderHour !== null && at(user.reminderHour) && !goalMetToday) {
     due.add("daily_reminder")
   }
-  if (
-    streak >= STREAK_AT_RISK_MIN &&
-    !goalMetToday &&
-    inWindow(local.hour, STREAK_AT_RISK_HOUR, graceHours)
-  ) {
+  if (streak >= STREAK_AT_RISK_MIN && !goalMetToday && at(STREAK_AT_RISK_HOUR)) {
     due.add("streak_at_risk")
   }
-  if (
-    user.weeklyRecap &&
-    local.weekday === WEEKLY_RECAP_WEEKDAY &&
-    inWindow(local.hour, WEEKLY_RECAP_HOUR, graceHours)
-  ) {
+  if (user.weeklyRecap && local.weekday === WEEKLY_RECAP_WEEKDAY && at(WEEKLY_RECAP_HOUR)) {
     due.add("weekly_recap")
   }
 

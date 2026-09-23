@@ -9,6 +9,7 @@ import { SemanticPill } from "@/components/paper"
 import {
   detectTimeZone,
   formatHour,
+  localHourOfUtc,
   timeZoneLabel,
   timeZoneOptions,
   urlBase64ToUint8Array,
@@ -34,6 +35,9 @@ type PrefsPayload = {
   enabled: boolean
   leagues_enabled: boolean
   paused: boolean
+  /** "daily": one run a day, so the reminder is on/off rather than an hour. */
+  cadence?: "daily" | "hourly"
+  daily_run_utc_hour?: number
   channels: {
     email: { available: boolean }
     push: {
@@ -112,6 +116,11 @@ export function NotificationSettings({
   const detected = React.useMemo(() => detectTimeZone(), [])
 
   const [timezone, setTimezone] = React.useState(profile.timezone ?? detected ?? "UTC")
+  const dailyCadence = (prefs?.cadence ?? "daily") === "daily"
+  const dailyRunLocalHour = React.useMemo(
+    () => localHourOfUtc(prefs?.daily_run_utc_hour ?? 13, timezone),
+    [prefs?.daily_run_utc_hour, timezone],
+  )
   const [reminderHour, setReminderHour] = React.useState<number | null>(profile.reminder_hour)
   const [notifyEmail, setNotifyEmail] = React.useState(profile.notify_email)
   const [weeklyRecap, setWeeklyRecap] = React.useState(profile.weekly_recap)
@@ -319,20 +328,33 @@ export function NotificationSettings({
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="space-y-1.5 text-sm">
             <span className="text-muted-foreground">Daily reminder</span>
-            <select
-              value={reminderHour === null ? "off" : String(reminderHour)}
-              onChange={(event) =>
-                setReminderHour(event.target.value === "off" ? null : Number(event.target.value))
-              }
-              className="w-full border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
-            >
-              <option value="off">Off</option>
-              {HOURS.map((hour) => (
-                <option key={hour} value={hour}>
-                  {formatHour(hour)}
-                </option>
-              ))}
-            </select>
+            {dailyCadence ? (
+              <select
+                value={reminderHour === null ? "off" : "on"}
+                onChange={(event) =>
+                  setReminderHour(event.target.value === "off" ? null : dailyRunLocalHour)
+                }
+                className="w-full border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+              >
+                <option value="off">Off</option>
+                <option value="on">On — once a day, around {formatHour(dailyRunLocalHour)}</option>
+              </select>
+            ) : (
+              <select
+                value={reminderHour === null ? "off" : String(reminderHour)}
+                onChange={(event) =>
+                  setReminderHour(event.target.value === "off" ? null : Number(event.target.value))
+                }
+                className="w-full border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-foreground"
+              >
+                <option value="off">Off</option>
+                {HOURS.map((hour) => (
+                  <option key={hour} value={hour}>
+                    {formatHour(hour)}
+                  </option>
+                ))}
+              </select>
+            )}
           </label>
           <label className="space-y-1.5 text-sm">
             <span className="text-muted-foreground">Timezone</span>

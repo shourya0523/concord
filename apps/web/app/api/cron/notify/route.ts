@@ -3,6 +3,7 @@ import { refreshLeagueXp } from "@/lib/data/leagues";
 import { featureFlags } from "@/lib/flags";
 import { appBaseUrl, isAuthorizedCron } from "@/lib/notify/config";
 import { getCronSql, roleBypassesRls } from "@/lib/notify/db";
+import { notifyCadence } from "@/lib/notify/plan";
 import { getEmailSender } from "@/lib/notify/email";
 import { getPushSender } from "@/lib/notify/push";
 import { runNotify } from "@/lib/notify/run";
@@ -68,6 +69,7 @@ export async function GET(request: Request) {
           appUrl: appBaseUrl(),
           signingSecret: signingSecret(),
           dryRun,
+          cadence: notifyCadence(),
         })
       : null;
     if (notify && !notify.channels.email && !notify.channels.push) {

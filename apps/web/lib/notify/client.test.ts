@@ -1,6 +1,12 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
-import { formatHour, timeZoneLabel, timeZoneOptions, urlBase64ToUint8Array } from "./client"
+import {
+  formatHour,
+  localHourOfUtc,
+  timeZoneLabel,
+  timeZoneOptions,
+  urlBase64ToUint8Array,
+} from "./client"
 
 describe("notification client helpers", () => {
   it("decodes a base64url VAPID key", () => {
@@ -28,5 +34,16 @@ describe("notification client helpers", () => {
   it("labels zones", () => {
     assert.equal(timeZoneLabel("America/New_York"), "New York (America)")
     assert.equal(timeZoneLabel("UTC"), "UTC")
+  })
+})
+
+describe("localHourOfUtc", () => {
+  it("converts the daily run hour into the user's local hour", () => {
+    const summer = new Date("2026-07-01T00:00:00Z")
+    assert.equal(localHourOfUtc(13, "UTC", summer), 13)
+    assert.equal(localHourOfUtc(13, "America/New_York", summer), 9)
+    assert.equal(localHourOfUtc(13, "Asia/Kolkata", summer), 18)
+    assert.equal(localHourOfUtc(13, "Europe/London", new Date("2026-12-01T00:00:00Z")), 13)
+    assert.equal(localHourOfUtc(13, "Not/AZone", summer), 13)
   })
 })

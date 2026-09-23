@@ -17,6 +17,7 @@ import { listUnsubscribeHeaders } from "./email"
 import {
   planForUser,
   type LogStatus,
+  type NotifyCadence,
   type NotificationKind,
   type PlannedNotification,
   type PlannerUser,
@@ -63,6 +64,8 @@ export type NotifyRunOptions = {
   maxUsers?: number
   /** Plan only — no claims, no sends. */
   dryRun?: boolean
+  /** "daily" (default deployment) or "hourly" — see plan.ts. */
+  cadence?: NotifyCadence
 }
 
 export type NotifyRunSummary = {
@@ -209,7 +212,7 @@ export async function runNotify(options: NotifyRunOptions): Promise<NotifyRunSum
     summary.users_scanned += users.length
 
     for (const user of users) {
-      const plan = planForUser(user, { now: options.now, channels })
+      const plan = planForUser(user, { now: options.now, channels, cadence: options.cadence })
       for (const planned of plan.planned) {
         summary.planned += 1
         if (options.dryRun) {

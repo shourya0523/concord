@@ -46,3 +46,16 @@ export function timeZoneLabel(zone: string): string {
   const city = (parts[parts.length - 1] ?? zone).replace(/_/g, " ")
   return parts.length > 1 ? `${city} (${parts[0]})` : city
 }
+
+/** Local hour (0–23) in `timeZone` when it is `utcHour`:00 UTC on `now`'s UTC date. */
+export function localHourOfUtc(utcHour: number, timeZone: string, now: Date = new Date()): number {
+  const at = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), utcHour))
+  try {
+    const hour = new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", hourCycle: "h23" })
+      .formatToParts(at)
+      .find((part) => part.type === "hour")?.value
+    return hour === undefined ? utcHour : Number(hour) % 24
+  } catch {
+    return utcHour
+  }
+}

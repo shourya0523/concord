@@ -16,7 +16,7 @@ Everything degrades safely: with no provider keys the senders return `{ status: 
 | Runner | `lib/notify/run.ts` + `lib/notify/store.ts` | Claim → send → mark, per planned item |
 | Email | `lib/notify/email.ts`, `lib/notify/templates.ts` | Resend over `fetch`, plain HTML + text, one-click unsubscribe |
 | Push | `lib/notify/push.ts`, `public/sw.js`, `POST/DELETE /api/push/subscribe` | `web-push` + VAPID; 404/410 deletes the subscription |
-| Cron | `GET /api/cron/notify`, `apps/web/vercel.json` (`0 * * * *`) | Hourly run + league XP refresh |
+| Cron | `GET /api/cron/notify`, `apps/web/vercel.json` (`0 13 * * *`) | One run a day (13:00 UTC) + league XP refresh |
 | Unsubscribe | `GET/POST /api/notifications/unsubscribe?token=…` | HMAC token → `notify_email = false` |
 | Leagues | `lib/data/leagues.ts`, `GET /api/leagues/current`, `POST/DELETE /api/leagues/membership`, `/leagues` | Opt-in weekly XP league with anonymous handles |
 
@@ -67,7 +67,7 @@ Inventory: `docs/agent-run/env-inventory.md`, template: `.env.example`.
 2. Resend: verify the sending domain, create an API key, set `RESEND_API_KEY` + `NOTIFY_FROM_EMAIL` on Vercel (Preview first).
 3. `npx web-push generate-vapid-keys` → set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`.
 4. Set `NOTIFY_SIGNING_SECRET` and `CRON_DATABASE_URL`.
-5. **Vercel plan:** Hobby projects only run crons once a day. The hourly schedule needs Pro; on Hobby, trigger the route hourly from elsewhere (e.g. a GitHub Actions schedule calling it with the bearer secret).
+5. **Cadence (default daily):** Vercel Hobby rejects sub-daily crons, so the cron runs once a day at 13:00 UTC and the planner uses `NOTIFY_CADENCE=daily` (the default): reminders are on/off (Settings shows the run as the user's local time), the streak-at-risk nudge replaces that day's reminder when a ≥ 3-day streak is at stake, and the weekly recap goes out on the user's local Sunday. On Vercel Pro, set the schedule to `0 * * * *` **and** `NOTIFY_CADENCE=hourly` to honour each user's `reminder_hour` and the 20:00 at-risk / Sunday 18:00 recap windows.
 6. Dry run in the target env:
 
    ```bash
@@ -88,7 +88,7 @@ Inventory: `docs/agent-run/env-inventory.md`, template: `.env.example`.
 ## Leagues (P7.3)
 
 - **Opt-in only** (`league_opt_in` on the profile; Settings toggle or the `/leagues` page). Opting out deletes this week's row, so you vanish from standings at once.
-- **Week** = Monday–Sunday in the member's timezone. Weekly XP = Σ `app.daily_activity.xp` for that week, refreshed on every read (own row) and by the hourly cron (all rows of the last two weeks).
+- **Week** = Monday–Sunday in the member's timezone. Weekly XP = Σ `app.daily_activity.xp` for that week, refreshed on every read (own row) and by the daily cron (all rows of the last two weeks).
 - **Grouping:** leagues of ≤ 30 by cohort (optional free text such as "2027 SA", normalised, case-insensitive) else by track. Placement fills the lowest-numbered league with room, using `app.league_sizes()` (definer function returning counts only).
 - **Privacy:** handles are `adjective-animal-###` from a SHA-256 of user id + week, rotating weekly; the API returns handle, XP, rank, zone and an `is_you` flag only — never user ids, names or emails. RLS lets a member read only rows of leagues they belong to.
 - Promotion/demotion (top/bottom 20%, from 5 members) is copy only; there are no tiers.
