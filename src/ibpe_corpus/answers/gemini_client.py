@@ -83,6 +83,17 @@ class GeminiEnrichClient:
         payload = self._call_model(question)
         return self._parse_proposal(question, payload)
 
+    def generate_json(self, prompt: str) -> dict[str, Any]:
+        """Raw JSON completion for other prompts (``rubric-v1``, ``signal-topic-v1``).
+
+        Raises when in dry-run mode — callers must fall back to heuristics.
+        """
+        if self.dry_run:
+            raise RuntimeError("GeminiEnrichClient is in dry-run mode (no API key)")
+        if "/" in self.model and os.environ.get("AI_GATEWAY_API_KEY"):
+            return self._gateway_generate(prompt)
+        return self._google_generate(prompt)
+
     def _call_model(self, question: CanonicalQuestion) -> dict[str, Any]:
         """Call AI Gateway if model id is provider/model, else Gemini API."""
         user = {

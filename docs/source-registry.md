@@ -110,3 +110,12 @@ pytest tests/unit/test_import_github.py -q -m network
 ## HTML playbook note
 
 `import_html_playbook` regex/token-parses `addQuestion(...)` calls and resolves `MA_CATEGORIES[n]`-style arrays. If a playbook uses an unsupported embedding shape, the importer returns zero records and a diagnostic instead of inventing content.
+
+## Owner attestation and staged sources (2026-09-23)
+
+The repository owner confirmed permission to use all listed teaching sources (recorded under
+`owner_attestation` in `config/github_sources.yml`; `reports/license-review.md` is generated from it).
+Staged via read-only shallow clone on 2026-09-23 into `data/staging/github/<owner>_<repo>/` with
+`.meta.json` sidecars: coryjburk IB (849a2b08) and PE (d3f524b2) playbooks — 100 Q&A each —
+offergenie README (03f814c1, 20 titles), HireAbo IB / PE / M&A role files (837a40fb, 5 titles each).
+The trading-curriculum repo is `pattern_only`.

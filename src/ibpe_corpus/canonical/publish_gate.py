@@ -5,7 +5,41 @@ from __future__ import annotations
 import re
 from typing import Any, Iterable, Sequence
 
-from ibpe_corpus.schemas.models import Answer, CanonicalQuestion, ExtractionClass
+from ibpe_corpus.schemas.models import (
+    Answer,
+    AnswerProvenance,
+    CanonicalQuestion,
+    ExtractionClass,
+    ValidationStatus,
+)
+
+# ``_generic_handler`` placeholder template (answers/generate.py). Kept as a
+# literal here to avoid importing the generator into the gate.
+_PLACEHOLDER_ANSWER_RE = re.compile(
+    r"^\s*structure a clear interview answer to\s*:",
+    re.IGNORECASE,
+)
+
+
+def is_placeholder_answer_text(text: str | None) -> bool:
+    """True when an answer body is the generic synthesis placeholder template."""
+    return bool(_PLACEHOLDER_ANSWER_RE.match(text or ""))
+
+
+def answer_withhold_reason(ans: Answer) -> str | None:
+    """Why an answer must not be published (``None`` when publishable)."""
+    if is_interview_process_placeholder(ans.concise_answer) or is_interview_process_placeholder(
+        ans.expanded_explanation
+    ):
+        return "interview_process_placeholder"
+    if is_placeholder_answer_text(ans.concise_answer):
+        return "placeholder_template"
+    if ans.validation_status == ValidationStatus.NEEDS_GENERATION:
+        return "needs_generation"
+    if ans.provenance_type == AnswerProvenance.REJECTED:
+        return "rejected"
+    return None
+
 
 # BFF fallback rows look like: "[Interview process] Investment Banking Analyst"
 _INTERVIEW_PROCESS_RE = re.compile(
@@ -124,7 +158,12 @@ def filter_publishable_answers(
     answers: Sequence[Answer],
     publishable_question_ids: Iterable[str],
 ) -> tuple[list[Answer], list[Answer]]:
-    """Keep answers for publishable questions; drop placeholder answer bodies."""
+    """Keep answers for publishable questions; drop placeholder / rejected answers.
+
+    Rejects ``[Interview process]`` bodies, the generic synthesis placeholder
+    template (``Structure a clear interview answer to: …``), anything marked
+    ``needs_generation``, and ``rejected`` provenance (plan P1.3).
+    """
     allowed = set(publishable_question_ids)
     kept: list[Answer] = []
     withheld: list[Answer] = []
@@ -132,9 +171,7 @@ def filter_publishable_answers(
         if ans.canonical_question_id not in allowed:
             withheld.append(ans)
             continue
-        if is_interview_process_placeholder(ans.concise_answer) or is_interview_process_placeholder(
-            ans.expanded_explanation
-        ):
+        if answer_withhold_reason(ans) is not None:
             withheld.append(ans)
             continue
         kept.append(ans)

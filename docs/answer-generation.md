@@ -50,3 +50,24 @@ routing decision.
 `fill_answers` invokes generation only after source ingest and corpus match fail.
 Validation (`validate.py`) may promote provenance to `synthesised_validated`,
 `needs_review`, or `rejected`.
+
+## Topic handlers and placeholders (plan P1.3 / P2.4)
+
+`generate.py` routes each question to one of: DCF, WACC, EV bridge, three statements, LBO, paper LBO,
+MOIC/IRR, accretion/dilution, comps/precedents, valuation multiples, working capital, debt/credit,
+PE fund mechanics, valuation overview, M&A process, restructuring, investment thesis, PE overview,
+behavioural (STAR). Handlers carry worked examples whose numbers are recomputed by `calculators.py`;
+`_FACETS` prepend question-specific lead sentences (e.g. negative working capital, incurrence vs
+maintenance covenants). Provenance is always `synthesised_*`.
+
+When nothing matches, `_generic_handler` emits the placeholder `Structure a clear interview answer to: …`
+with `validation_status=needs_generation`; the validator keeps it unvalidated and the publish gate
+withholds it. publish-teaching also retires any previously published placeholder.
+
+Source answers: long single-block answers get an **extractive** concise lead (their own opening
+sentences); playbook answers map model answer → concise, + deep dive → expanded, red flag →
+`common_mistakes`, coaching → `coaching_notes`. Short answers stay as-is, tagged `needs_expansion`,
+with a pending synthesised-appendix proposal (`answers/depth.py`) for an editor to approve.
+
+Behavioural bank: `fixtures/corpus/behavioural_seed.json` (60 synthesised questions + guidance,
+not Glassdoor) → `adapters/static/behavioural_seed.py`.
