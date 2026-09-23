@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
  * POST /api/practice/sessions/[id]/report — simulator after-action report
  * (plan 2026-09-23-001 P5.8). Aggregates the session's graded attempts into
  * per-stage scores, strongest / weakest topics and recommended concepts, with
- * a cited Gemini coaching paragraph when a key exists (deterministic summary
+ * a cited AI coaching paragraph (small tier) when OPENROUTER_API_KEY exists (deterministic summary
  * otherwise). Also records the `mock_complete` learning activity.
  */
 export async function POST(

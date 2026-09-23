@@ -13,8 +13,8 @@ export const maxDuration = 60;
 
 /**
  * POST /api/transcribe — multipart form with an `audio` file (webm/opus from
- * MediaRecorder, ≤ 5 MB). Transcribes with Gemini audio input when a key is
- * configured; otherwise 501 `transcription_unavailable` so the client keeps
+ * MediaRecorder, ≤ 5 MB). Transcribes via OpenRouter (`LLM_STT_MODEL`) when
+ * OPENROUTER_API_KEY is configured; otherwise 501 `transcription_unavailable` so the client keeps
  * the typed answer box. Session-gated like other practice APIs (proxy.ts).
  */
 export async function POST(request: Request) {

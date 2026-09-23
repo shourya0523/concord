@@ -33,7 +33,7 @@ type RagResponse = {
   explanations: Array<{ item_id: string; reasons: string[] }>
   source: string
   brief?: string
-  brief_source?: "gemini" | "template"
+  brief_source?: "llm" | "template"
   brief_citations?: Array<{ item_id: string; label: string }>
   notes: string[]
 }
@@ -283,8 +283,8 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
                     Grounded brief
                   </span>
                   <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground uppercase">
-                    {result.brief_source === "gemini"
-                      ? "Gemini rewrite"
+                    {result.brief_source === "llm"
+                      ? "AI rewrite"
                       : "Template"}
                   </span>
                 </div>

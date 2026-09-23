@@ -3,7 +3,8 @@
  *
  * Wires the pure grade pipeline (lib/grading/pipeline.ts) to data + infra:
  * question/answer/rubric loading, reveal-copy detection, grade cache,
- * per-user LLM rate limit, model selection (GRADER_MODEL) and latency logs.
+ * per-user LLM rate limit, model selection (LLM_PRIMARY_MODEL via OpenRouter),
+ * the grade router (LLM only when required) and latency logs.
  */
 import { GRADER_VERSION } from "@ibpe/contracts";
 import { getAnswerRubric, getQuestion } from "@/lib/data/questions";
@@ -17,6 +18,7 @@ import {
   type GradeInput,
 } from "@/lib/grading/pipeline";
 import { isNumericOnlyRubric, rubricFingerprint } from "@/lib/grading/rubric";
+import { routeGrade } from "@/lib/grading/router";
 import {
   GRADER_V1,
   gradeDeterministic,
@@ -85,6 +87,7 @@ export async function gradePracticeAttempt(options: {
   if (!responseText) {
     return {
       ...selfGrade({ correct: options.correct, confidence: options.confidence, topic }),
+      router: routeGrade({ responseText, rubric: null, llmAvailable: false }),
       topic,
     };
   }
@@ -132,13 +135,17 @@ export async function gradePracticeAttempt(options: {
     goldExpanded,
   });
   if (reveal.copied) {
-    const graded = revealCopyGrade(input, reveal.similarity);
+    const graded = {
+      ...revealCopyGrade(input, reveal.similarity),
+      router: routeGrade({ responseText, rubric, revealCopy: true, llmAvailable: false }),
+    };
     logGradeEvent({
       question_id: options.questionId,
       score_source: graded.score_source,
       grader_version: graded.grader_version,
       cached: false,
       latency_ms: Date.now() - started,
+      router: graded.router.reason,
     });
     return { ...graded, latency_ms: Date.now() - started, topic };
   }
@@ -162,6 +169,7 @@ export async function gradePracticeAttempt(options: {
     const cached = await getCachedGrade(cacheKey);
     if (cached) {
       const latency = Date.now() - started;
+      const router = routeGrade({ responseText, rubric, cacheHit: true, llmAvailable: true });
       logGradeEvent({
         question_id: options.questionId,
         score_source: cached.score_source,
@@ -169,17 +177,24 @@ export async function gradePracticeAttempt(options: {
         cached: true,
         latency_ms: latency,
         model: cached.model ?? null,
+        router: router.reason,
       });
-      return { ...cached, cached: true, latency_ms: latency, topic };
+      return { ...cached, router, cached: true, latency_ms: latency, topic };
     }
   }
 
-  const allowed = model ? (options.userId ? await reserveLlmGrade(options.userId) : true) : false;
+  // Rate-limit budget is reserved only when the router actually needs the LLM.
+  let rateLimited = false;
   let llmError: string | null = null;
   const graded = await runGradePipeline(input, {
     graderV2,
-    llm: allowed && model ? model.caller : null,
+    llm: model?.caller ?? null,
     model: model?.model ?? null,
+    allowLlm: async () => {
+      const ok = options.userId ? await reserveLlmGrade(options.userId) : true;
+      rateLimited = !ok;
+      return ok;
+    },
     onLlmError: (err) => {
       llmError = err instanceof Error ? err.name : "error";
       console.warn("[practice-grade] LLM grade failed; using deterministic", err);
@@ -199,8 +214,10 @@ export async function gradePracticeAttempt(options: {
     model: graded.model ?? null,
     input_tokens: finalUsage?.input_tokens ?? null,
     output_tokens: finalUsage?.output_tokens ?? null,
-    rate_limited: Boolean(model) && !allowed,
+    cost: finalUsage?.cost ?? null,
+    rate_limited: rateLimited,
     llm_error: llmError,
+    router: graded.router?.reason ?? null,
   });
   return {
     ...graded,
@@ -208,7 +225,7 @@ export async function gradePracticeAttempt(options: {
     latency_ms: Date.now() - started,
     rubric_json: {
       ...graded.rubric_json,
-      ...(model && !allowed ? { rate_limited: true } : {}),
+      ...(rateLimited ? { rate_limited: true } : {}),
       ...(finalUsage ? { usage: finalUsage } : {}),
     },
     topic,

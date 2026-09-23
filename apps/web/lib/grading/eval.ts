@@ -7,6 +7,7 @@ import { AnswerRubricSchema } from "@ibpe/contracts"
 import { z } from "zod"
 import type { StructuredCaller } from "./judge"
 import { runGradePipeline } from "./pipeline"
+import type { RouterReason } from "./router"
 
 export const EvalCaseSchema = z.object({
   id: z.string(),
@@ -49,6 +50,10 @@ export type EvalResult = {
   correct: boolean
   score_source: string
   latency_ms: number
+  /** Grade router reason (lib/grading/router.ts). */
+  router_reason: RouterReason | null
+  /** True when the router sent (or, with no key, would send) this case to the LLM. */
+  router_llm: boolean
 }
 
 export type EvalMetrics = {
@@ -64,6 +69,43 @@ export type EvalMetrics = {
   sources: Record<string, number>
   by_quality: Record<string, { n: number; mean_human: number; mean_score: number; mae: number }>
   p95_latency_ms: number
+  router: RouterMetrics
+}
+
+export type RouterMetrics = {
+  /** Share of cases the router sends to the LLM. */
+  llm_call_rate: number
+  /** Cases answered without an LLM call. */
+  skipped: number
+  /** correct === expected_correct over the skipped cases (deterministic grades). */
+  skipped_correct_accuracy: number
+  by_reason: Record<string, number>
+  /** Skipped cases whose `correct` disagreed with the human label. */
+  skipped_errors: string[]
+}
+
+/** Router target: decisions made without the LLM must be right ≥ 95% of the time. */
+export const ROUTER_SKIPPED_ACCURACY_MIN = 0.95
+
+/** Reasons that mean "an LLM call is (or would be, with a key) required". */
+const LLM_REASONS = new Set<RouterReason>(["ambiguous", "no_rubric", "llm_unavailable", "rate_limited"])
+
+export function routerMetrics(results: EvalResult[]): RouterMetrics {
+  const byReason: Record<string, number> = {}
+  for (const r of results) {
+    const reason = r.router_reason ?? "none"
+    byReason[reason] = (byReason[reason] ?? 0) + 1
+  }
+  const skipped = results.filter((r) => !r.router_llm)
+  return {
+    llm_call_rate: round(results.length ? (results.length - skipped.length) / results.length : 0),
+    skipped: skipped.length,
+    skipped_correct_accuracy: round(
+      skipped.length ? mean(skipped.map((r) => (r.correct === r.expected_correct ? 1 : 0))) : 1,
+    ),
+    by_reason: byReason,
+    skipped_errors: skipped.filter((r) => r.correct !== r.expected_correct).map((r) => r.id),
+  }
 }
 
 export const GAMED_MAX_SCORE = 0.3
@@ -190,13 +232,21 @@ export function computeMetrics(results: EvalResult[]): EvalMetrics {
     sources,
     by_quality: byQuality,
     p95_latency_ms: latencies.length ? latencies[Math.min(latencies.length - 1, Math.floor(latencies.length * 0.95))]! : 0,
+    router: routerMetrics(results),
   }
 }
 
 /** Grade every case through the production pipeline (deterministic when `llm` is null). */
 export async function runEval(
   cases: EvalCase[],
-  options: { llm?: StructuredCaller | null; model?: string | null; graderV2?: boolean; timeoutMs?: number } = {},
+  options: {
+    llm?: StructuredCaller | null
+    model?: string | null
+    graderV2?: boolean
+    timeoutMs?: number
+    /** Grade router on (default) or off (every non-numeric case goes to the LLM). */
+    router?: boolean
+  } = {},
 ): Promise<{ results: EvalResult[]; metrics: EvalMetrics }> {
   const results: EvalResult[] = []
   for (const c of cases) {
@@ -216,8 +266,10 @@ export async function runEval(
         llm: options.llm ?? null,
         model: options.model ?? null,
         timeoutMs: options.timeoutMs,
+        router: options.router,
       },
     )
+    const reason = (grade.router?.reason ?? null) as RouterReason | null
     results.push({
       id: c.id,
       quality: c.quality,
@@ -228,6 +280,8 @@ export async function runEval(
       correct: grade.correct === true,
       score_source: grade.score_source,
       latency_ms: grade.latency_ms ?? 0,
+      router_reason: reason,
+      router_llm: reason != null && LLM_REASONS.has(reason),
     })
   }
   return { results, metrics: computeMetrics(results) }

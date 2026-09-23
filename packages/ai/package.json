@@ -7,13 +7,14 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "test": "tsx --test src/**/*.test.ts"
+  },
   "peerDependencies": {
-    "ai": "^7.0.44",
     "zod": "^3.23.0"
   },
-  "description": "AI SDK / Gateway helpers for Gemini enrichment + real RAG embeddings",
+  "description": "OpenRouter client + model tiers (chat, structured JSON, embeddings, transcription) and enrichment schemas",
   "dependencies": {
-    "@ai-sdk/google": "^4.0.29",
-    "ai": "^7.0.44"
+    "zod-to-json-schema": "^3.25.2"
   }
 }

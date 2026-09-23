@@ -70,7 +70,7 @@ export type MockReport = {
   weakest_topics: TopicScore[]
   recommended_concepts: RecommendedConcept[]
   summary: string
-  summary_source: "deterministic" | "gemini"
+  summary_source: "deterministic" | "llm"
   citations: ReportCitation[]
 }
 

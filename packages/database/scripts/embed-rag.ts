@@ -10,13 +10,19 @@
  *   - concept             published concepts + their lesson checkpoint text
  *   - diagram             diagram titles + a11y fallbacks (migration 040)
  *
- * Requires: DATABASE_URL, GEMINI_API_KEY (or GOOGLE_GENERATIVE_AI_API_KEY)
+ * Requires: DATABASE_URL, OPENROUTER_API_KEY (embeddings via OpenRouter,
+ * LLM_EMBED_MODEL — default openai/text-embedding-3-small at 768 dims).
  * Run after publish:teaching + migrate 033.
+ *
+ * Change detection: content_hash covers the embedding model id + title + body,
+ * so switching LLM_EMBED_MODEL re-embeds every document (and rows store the
+ * model in model_id, which the web app filters dense search on).
  *
  *   npm run embed:rag -w @ibpe/database
  *   npm run embed:rag -w @ibpe/database -- --limit 50
  *   npm run embed:rag -w @ibpe/database -- --dry-run   # count docs, no key needed
  *   npm run embed:rag -w @ibpe/database -- --kinds canonical_question,answer_chunk
+ *   npm run embed:rag -w @ibpe/database -- --pace-ms 1000  # pause between batches
  */
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -26,9 +32,10 @@ import { neonConfig, Pool } from "@neondatabase/serverless";
 import ws from "ws";
 import { applyLocalNeonProxy } from "./local-neon";
 import {
-  DEFAULT_EMBEDDING_MODEL,
   embedTexts,
-  googleApiKey,
+  embeddingModelId,
+  isEmbeddingConfigured,
+  OpenRouterError,
   toPgVectorLiteral,
 } from "@ibpe/ai";
 
@@ -79,11 +86,13 @@ function parseArgs(argv: string[]) {
   let limit: number | undefined;
   let batch = 16;
   let dryRun = false;
+  let paceMs = 250;
   let kinds: Kind[] = ALL_KINDS;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--limit") limit = Number(argv[++i]);
     else if (argv[i] === "--batch") batch = Number(argv[++i]);
     else if (argv[i] === "--dry-run") dryRun = true;
+    else if (argv[i] === "--pace-ms") paceMs = Number(argv[++i]);
     else if (argv[i] === "--kinds") {
       kinds = String(argv[++i] ?? "")
         .split(",")
@@ -91,7 +100,7 @@ function parseArgs(argv: string[]) {
         .filter((k): k is Kind => (ALL_KINDS as string[]).includes(k));
     }
   }
-  return { limit, batch, dryRun, kinds };
+  return { limit, batch, dryRun, kinds, paceMs };
 }
 
 function mapProvenance(raw: string): string {
@@ -153,8 +162,9 @@ export function answerChunks(concise: string, expanded: string, target = CHUNK_T
   return chunkText(rest, target).filter((chunk) => chunk !== c && !c.includes(chunk));
 }
 
-function contentHash(title: string, body: string): string {
-  return createHash("sha256").update(`${title}\n${body}`).digest("hex");
+/** Hash of what was embedded *and with which model* — a model switch re-embeds everything. */
+export function contentHash(title: string, body: string, modelId: string): string {
+  return createHash("sha256").update(`${modelId}\n${title}\n${body}`).digest("hex");
 }
 
 async function embedWithRetry(texts: string[], label: string): Promise<number[][]> {
@@ -162,17 +172,21 @@ async function embedWithRetry(texts: string[], label: string): Promise<number[][
     try {
       return await embedTexts(texts);
     } catch (err) {
+      // Auth / credit / bad-request errors will not fix themselves.
+      if (err instanceof OpenRouterError && ["auth", "insufficient_credits", "bad_request", "unconfigured"].includes(err.code)) {
+        throw err;
+      }
       const msg = err instanceof Error ? err.message : String(err);
       const retryMatch = msg.match(/retry in ([\d.]+)s/i);
-      const waitSec = retryMatch ? Math.ceil(Number(retryMatch[1]) + 2) : 60 * (attempt + 1);
-      console.warn(`  rate-limited/error at ${label}; sleeping ${waitSec}s (attempt ${attempt + 1})`);
+      const waitSec = retryMatch ? Math.ceil(Number(retryMatch[1]) + 2) : 10 * (attempt + 1);
+      console.warn(`  rate-limited/error at ${label}; sleeping ${waitSec}s (attempt ${attempt + 1}): ${msg.slice(0, 200)}`);
       await new Promise((r) => setTimeout(r, waitSec * 1000));
     }
   }
   throw new Error(`Failed to embed batch ${label}`);
 }
 
-async function upsertDoc(pool: Pool, doc: RagDoc, embedding: number[]): Promise<void> {
+async function upsertDoc(pool: Pool, doc: RagDoc, embedding: number[], modelId: string): Promise<void> {
   await pool.query(
     `
     INSERT INTO canonical.rag_documents (
@@ -206,9 +220,9 @@ async function upsertDoc(pool: Pool, doc: RagDoc, embedding: number[]): Promise<
       doc.domain,
       doc.difficulty,
       doc.provenance,
-      contentHash(doc.title, doc.body),
+      contentHash(doc.title, doc.body, modelId),
       toPgVectorLiteral(embedding),
-      `google/${DEFAULT_EMBEDDING_MODEL}`,
+      modelId,
       JSON.stringify(doc.metadata),
     ],
   );
@@ -302,8 +316,8 @@ async function buildConceptDocs(pool: Pool): Promise<RagDoc[]> {
     .filter((d) => d.body.length > 0);
 }
 
-/** Skip docs whose embedded content hash is unchanged. */
-async function pendingDocs(pool: Pool, docs: RagDoc[]): Promise<RagDoc[]> {
+/** Skip docs whose embedded content hash (model + title + body) is unchanged. */
+async function pendingDocs(pool: Pool, docs: RagDoc[], modelId: string): Promise<RagDoc[]> {
   if (!docs.length) return [];
   const res = await pool.query<{ id: string; content_hash: string }>(
     `SELECT id, content_hash FROM canonical.rag_documents
@@ -311,7 +325,7 @@ async function pendingDocs(pool: Pool, docs: RagDoc[]): Promise<RagDoc[]> {
     [docs.map((d) => d.id)],
   );
   const have = new Map(res.rows.map((r) => [r.id, r.content_hash]));
-  return docs.filter((d) => have.get(d.id) !== contentHash(d.title, d.body));
+  return docs.filter((d) => have.get(d.id) !== contentHash(d.title, d.body, modelId));
 }
 
 async function main() {
@@ -321,33 +335,33 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  const { limit, batch, dryRun, kinds } = parseArgs(process.argv.slice(2));
-  if (!dryRun && !googleApiKey()) {
-    console.error("GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY required (or pass --dry-run)");
+  const { limit, batch, dryRun, kinds, paceMs } = parseArgs(process.argv.slice(2));
+  if (!dryRun && !isEmbeddingConfigured()) {
+    console.error("OPENROUTER_API_KEY required (or pass --dry-run)");
     process.exitCode = 1;
     return;
   }
-  process.env.GOOGLE_GENERATIVE_AI_API_KEY =
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+  const modelId = embeddingModelId();
 
   const pool = new Pool({ connectionString: url });
 
   try {
     const teaching = await buildTeachingDocs(pool, kinds);
     const concepts = kinds.includes("concept") ? await buildConceptDocs(pool) : [];
-    let docs = await pendingDocs(pool, [...teaching, ...concepts]);
+    let docs = await pendingDocs(pool, [...teaching, ...concepts], modelId);
     if (limit && limit > 0) docs = docs.slice(0, limit);
     const byKind = docs.reduce<Record<string, number>>((acc, d) => {
       acc[d.kind] = (acc[d.kind] ?? 0) + 1;
       return acc;
     }, {});
-    console.log(`Embedding ${docs.length} changed/new docs…`, byKind);
+    console.log(`Embedding ${docs.length} changed/new docs with ${modelId}…`, byKind);
 
     if (dryRun) {
       console.log(
         JSON.stringify(
           {
             dry_run: true,
+            model: modelId,
             candidate_docs: teaching.length + concepts.length,
             pending_docs: docs.length,
             by_kind: byKind,
@@ -382,12 +396,13 @@ async function main() {
       for (let j = 0; j < chunk.length; j++) {
         const emb = vectors[j];
         if (!emb) continue;
-        await upsertDoc(pool, chunk[j]!, emb);
+        await upsertDoc(pool, chunk[j]!, emb, modelId);
         upserted++;
       }
       console.log(`  … ${Math.min(i + batch, docs.length)}/${docs.length}`);
-      // Free-tier pacing (~100 embed RPM)
-      await new Promise((r) => setTimeout(r, 15_000));
+      if (paceMs > 0 && i + batch < docs.length) {
+        await new Promise((r) => setTimeout(r, paceMs));
+      }
     }
 
     // Diagram a11y / titles → rag_documents (concept retrieval, not Glassdoor).
@@ -412,9 +427,11 @@ async function main() {
         WHERE NOT EXISTS (
           SELECT 1 FROM canonical.rag_documents r
           WHERE r.id = ('diagram:' || d.id) AND r.embedding IS NOT NULL
+            AND r.model_id = $1
         )
         ${limit && limit > 0 ? `LIMIT ${Number(limit)}` : ""}
         `,
+        [modelId],
       );
       for (const d of diagramRes.rows) {
         const body = [d.a11y_fallback ?? "", d.body ?? ""].filter(Boolean).join("\n\n");
@@ -443,6 +460,7 @@ async function main() {
             metadata: { diagram_id: d.id, source: "diagram" },
           },
           emb,
+          modelId,
         );
         diagramsUpserted++;
       }
@@ -460,7 +478,7 @@ async function main() {
           stale_chunks_removed: staleChunks,
           diagrams_upserted: diagramsUpserted,
           embedded_rows: count.rows,
-          model: DEFAULT_EMBEDDING_MODEL,
+          model: modelId,
         },
         null,
         2,
