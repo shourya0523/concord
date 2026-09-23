@@ -18,6 +18,7 @@ import {
   Mic,
   Settings,
   Sun,
+  Trophy,
 } from "lucide-react"
 
 import { cn } from "@ibpe/ui/lib/utils"
@@ -70,6 +71,7 @@ const NAV: Array<{
     items: [
       { href: "/progress", label: "Progress", icon: ChartNoAxesColumn },
       { href: "/plan", label: "Roadmap", icon: Map },
+      { href: "/leagues", label: "Leagues", icon: Trophy },
     ],
   },
 ]

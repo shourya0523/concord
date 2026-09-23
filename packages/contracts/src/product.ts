@@ -42,7 +42,8 @@ export type Role = z.infer<typeof RoleSchema>;
 
 export const TargetCompanySetSchema = z.object({
   user_id: z.string(),
-  firm_ids: z.array(z.string()).min(1),
+  /** Empty for new users who have not picked targets yet; PUT requires ≥1. */
+  firm_ids: z.array(z.string()),
   primary_firm_id: z.string().nullable().optional(),
   updated_at: z.string(),
 });
@@ -66,7 +67,7 @@ export const PutTargetCompanySetRequestSchema = TargetCompanySetSchema.pick({
   user_id: true,
   firm_ids: true,
   primary_firm_id: true,
-});
+}).extend({ firm_ids: z.array(z.string()).min(1) });
 export type PutTargetCompanySetRequest = z.infer<
   typeof PutTargetCompanySetRequestSchema
 >;
