@@ -199,8 +199,8 @@ def export_all(
             "Live Glassdoor fetches return Cloudflare/CAPTCHA 403 in this environment.",
             "Glassdoor application DOM/network shapes are validated via synthetic fixtures only.",
             "PE employer crawl counts remain matrix-planned until live access is available.",
-            "Answer synthesis uses deterministic topic templates; Gemini (enrich-v1 / "
-            "rubric-v1) runs only when a key is configured.",
+            "Answer synthesis uses deterministic topic templates; OpenRouter LLMs (enrich-v1 / "
+            "rubric-v1) run only with OPENROUTER_API_KEY and only when heuristics fall short.",
             "Heuristic rubrics and taxonomy auto-approvals are rule-validated, not human-reviewed.",
             "GitHub teaching corpora are cleared by owner attestation (2026-09-23); "
             "see reports/license-review.md.",

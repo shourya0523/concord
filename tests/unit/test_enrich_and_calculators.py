@@ -16,7 +16,7 @@ from ibpe_corpus.answers.calculators import (
 )
 from ibpe_corpus.answers.editorial import EditorialReviewQueue, ReviewQueueStatus
 from ibpe_corpus.answers.enrich_job import build_graph_slice, run_enrich_batch
-from ibpe_corpus.answers.gemini_client import GeminiEnrichClient
+from ibpe_corpus.answers.llm_client import EnrichClient
 from ibpe_corpus.answers.provenance import (
     EnrichmentProvenance,
     ProvenanceError,
@@ -78,19 +78,19 @@ def test_ufcf_identity():
     assert abs(ufcf(ebit=100, tax_rate=0.25, da=20, capex=30, delta_nwc=5) - 60.0) < 1e-9
 
 
-def test_gemini_cannot_be_labelled_glassdoor():
+def test_llm_output_cannot_be_labelled_glassdoor():
     with pytest.raises(ProvenanceError):
         assert_not_source_laundering(
             provenance="glassdoor",
-            model_version="google/gemini-2.5-flash",
+            model_version="deepseek/deepseek-v4-flash",
         )
 
 
-def test_gemini_cannot_claim_missing_github_path():
+def test_llm_output_cannot_claim_missing_github_path():
     with pytest.raises(ProvenanceError):
         assert_not_source_laundering(
             provenance="gemini_synthesised",
-            model_version="google/gemini-2.5-flash",
+            model_version="deepseek/deepseek-v4-flash",
             claimed_github_path="repo/answers.md",
             github_path_contained_text=False,
         )
@@ -133,10 +133,10 @@ def test_prefer_corpus_over_synthesis():
 def test_label_enrichment_record_stamps_provenance():
     stamped = label_enrichment_record(
         {"topic": "wacc", "glassdoor_answer_id": "bad"},
-        model_version="google/gemini-2.5-flash",
+        model_version="deepseek/deepseek-v4-flash",
         prompt_version="enrich-v1",
     )
-    assert stamped["provenance"] == EnrichmentProvenance.GEMINI_SYNTHESISED.value
+    assert stamped["provenance"] == EnrichmentProvenance.LLM_SYNTHESISED.value
     assert stamped["product_role"] == "enrichment"
     assert "glassdoor_answer_id" not in stamped
 
@@ -156,19 +156,19 @@ def test_enrich_job_dry_run_builds_mode_graphs():
             domain=Domain.PE,
         ),
     ]
-    client = GeminiEnrichClient(dry_run=True)
+    client = EnrichClient(dry_run=True)
     graph, queue, metrics = run_enrich_batch(qs, client=client, limit=2)
     assert metrics["proposals"] == 2
     assert metrics["company_prep_nodes"] >= 2
     assert metrics["concept_lab_nodes"] >= 2
     assert all(
-        p.provenance == EnrichmentProvenance.GEMINI_SYNTHESISED for p in graph.proposals
+        p.provenance == EnrichmentProvenance.LLM_SYNTHESISED for p in graph.proposals
     )
     assert all(
-        n.provenance == EnrichmentProvenance.GEMINI_SYNTHESISED for n in graph.company_prep
+        n.provenance == EnrichmentProvenance.LLM_SYNTHESISED for n in graph.company_prep
     )
     assert all(
-        n.provenance == EnrichmentProvenance.GEMINI_SYNTHESISED for n in graph.concept_lab
+        n.provenance == EnrichmentProvenance.LLM_SYNTHESISED for n in graph.concept_lab
     )
     # Low confidence heuristic → review queue
     assert len(queue.list_pending()) >= 1

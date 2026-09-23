@@ -259,12 +259,19 @@ def run_fixture_pipeline(
     force: bool = False,
     include_question_bank: bool = True,
     llm: bool | None = None,
+    llm_tier: str | None = None,
+    llm_escalate: bool = True,
 ) -> dict[str, Any]:
     """Run the full controlled collection pipeline in fixture/offline mode.
 
-    ``llm=None`` uses Gemini (enrich-v1 / rubric-v1 / signal-topic-v1) only when
-    a key is configured and ``IBPE_ENRICH_LLM`` is not ``0``; otherwise every
-    enrichment stage runs in deterministic heuristic mode.
+    ``llm=None`` enables OpenRouter (enrich-v1 / rubric-v1 / expand-v1 /
+    signal-topic-v1) only when ``OPENROUTER_API_KEY`` is set and
+    ``IBPE_ENRICH_LLM`` is not ``0``; otherwise every enrichment stage runs in
+    deterministic heuristic mode. Even with a key the model is called only when
+    the heuristic result is not auto-approvable: ``llm_tier`` (``small`` by
+    default, ``primary`` = Jev) picks the first tier and ``llm_escalate``
+    retries validation failures on the primary tier. Route counts
+    (heuristic / small / primary / failed) are reported per stage.
     """
     db_path = Path(db_path)
     exports_dir = Path(exports_dir)
@@ -275,12 +282,38 @@ def run_fixture_pipeline(
     # this run overwrites the exports.
     prior_ids = load_prior_ids(exports_dir)
 
-    from ibpe_corpus.answers.gemini_client import GeminiEnrichClient, credentials_configured
+    from ibpe_corpus.answers.depth import ExpansionDraft
+    from ibpe_corpus.answers.llm_client import (
+        EnrichClient,
+        LlmRouteCounts,
+        Tier,
+        credentials_configured,
+    )
+    from ibpe_corpus.answers.rubric import RubricDraft
+    from ibpe_corpus.canonical.firm_signals import SignalTopicBatch
 
     if llm is None:
         llm = credentials_configured() and os.environ.get("IBPE_ENRICH_LLM", "1") != "0"
-    llm_client = GeminiEnrichClient() if llm else None
-    llm_json_call = llm_client.generate_json if llm_client and not llm_client.dry_run else None
+    llm_client = EnrichClient(default_tier=llm_tier, escalate=llm_escalate) if llm else None
+    llm_live = llm_client is not None and not llm_client.dry_run
+
+    def _callers(schema: Any) -> tuple[Any, Any]:
+        """(first-tier caller, primary escalation caller or None)."""
+        if not llm_live:
+            return None, None
+        plan = llm_client.tier_plan()
+        first = llm_client.json_caller(schema, tier=plan[0])
+        escalate = llm_client.json_caller(schema, tier=plan[1]) if len(plan) > 1 else None
+        return first, escalate
+
+    tagger_call, _ = _callers(SignalTopicBatch)
+    rubric_call, rubric_escalate = _callers(RubricDraft)
+    expand_call, expand_escalate = _callers(ExpansionDraft)
+    llm_routes = {
+        "taxonomy": LlmRouteCounts(),
+        "rubric": LlmRouteCounts(),
+        "expansion": LlmRouteCounts(),
+    }
 
     store = CorpusStore(db_path)
     runner = JobRunner(store)
@@ -580,7 +613,7 @@ def run_fixture_pipeline(
                 )
 
         # Join cost is O(signals × teaching); teaching stays small so fuzzy is fine.
-        tagger = llm_topic_tagger(llm_json_call) if llm_json_call else None
+        tagger = llm_topic_tagger(tagger_call) if tagger_call else None
         joined_occs, join_audits = join_firm_signals(
             teaching_qs,
             teaching_vars,
@@ -721,6 +754,7 @@ def run_fixture_pipeline(
             proposal_store=ProposalStore(store),
             review_queue=EditorialReviewQueue(store),
             client=llm_client,
+            routes=llm_routes["taxonomy"],
         )
         by_id = {q.id: q for q in enriched_qs}
         canon_result.questions = [by_id.get(q.id, q) for q in canon_result.questions]
@@ -805,8 +839,9 @@ def run_fixture_pipeline(
         filled_answers, rubric_stats = attach_rubrics(
             filled_answers,
             publishable_qs,
-            llm_call=llm_json_call,
-            model=llm_client.model if llm_client else None,
+            llm_call=rubric_call,
+            escalate_call=rubric_escalate,
+            routes=llm_routes["rubric"],
         )
         filled_answers, withheld_ans = filter_publishable_answers(
             filled_answers, [q.id for q in publishable_qs]
@@ -882,10 +917,20 @@ def run_fixture_pipeline(
                 )
         # --- depth (P2.4): expansion proposals for shallow source answers ---
         expansion_props = ProposalStore(store).upsert_many(
-            propose_expansions(filled_answers, publishable_qs)
+            propose_expansions(
+                filled_answers,
+                publishable_qs,
+                llm_call=expand_call,
+                escalate_call=expand_escalate,
+                routes=llm_routes["expansion"],
+            )
         )
         proposals_out = list(proposals_out) + expansion_props
         enrichment_metrics["expansion_proposals"] = len(expansion_props)
+        total_routes = LlmRouteCounts()
+        for counts in llm_routes.values():
+            total_routes = total_routes.merge(counts)
+        enrichment_metrics.update({f"llm_{k}": v for k, v in total_routes.as_dict().items()})
         return {
             "input_count": len(publishable_qs),
             "output_count": len(filled_answers),
@@ -955,7 +1000,14 @@ def run_fixture_pipeline(
                 **enrichment_metrics,
                 **{f"rubric_{k}": v for k, v in rubric_stats.items()},
                 "signal_join": signal_join_summary(signal_join_rows),
-                "llm_enabled": bool(llm_json_call),
+                "llm_enabled": bool(llm_live),
+                "llm_gateway": "openrouter",
+                "llm_tier": (llm_client.default_tier.value if llm_client else None),
+                "llm_models": (
+                    {t.value: llm_client.model_for(t) for t in Tier} if llm_client else None
+                ),
+                "llm_routes": {k: v.as_dict() for k, v in llm_routes.items()},
+                "llm_usage": (llm_client.usage if llm_live else None),
             },
         )
         return {
@@ -976,6 +1028,8 @@ def run_fixture_pipeline(
     )
     job_results.append(jr2.model_dump(mode="json"))
 
+    if llm_client is not None:
+        llm_client.close()
     snap = metrics.snapshot()
     return {
         "db_path": str(db_path),
@@ -984,4 +1038,5 @@ def run_fixture_pipeline(
         "answers": len(filled_answers),
         "jobs": job_results,
         "alerts": metrics.alerts,
+        "llm_routes": {k: v.as_dict() for k, v in llm_routes.items()},
     }

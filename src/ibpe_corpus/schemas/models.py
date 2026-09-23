@@ -95,8 +95,17 @@ class CorpusProvenance(str, Enum):
     GITHUB_SOURCE = "github_source"
     STATIC_SEED = "static_seed"
     GLASSDOOR_OCCURRENCE = "glassdoor_occurrence"
+    # Value is frozen by the TS contract; means "LLM-synthesised" (any OpenRouter
+    # model — see ADR 0007). LLM_SYNTHESISED is an alias of the same member.
     GEMINI_SYNTHESISED = "gemini_synthesised"
+    LLM_SYNTHESISED = "gemini_synthesised"
     EDITORIAL = "editorial"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "CorpusProvenance | None":
+        if isinstance(value, str) and value.strip().lower() == "llm_synthesised":
+            return cls.GEMINI_SYNTHESISED
+        return None
 
 
 class ProductRole(str, Enum):

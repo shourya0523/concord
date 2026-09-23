@@ -202,7 +202,21 @@ def run_pipeline(
     llm: Optional[bool] = typer.Option(
         None,
         "--llm/--no-llm",
-        help="Gemini enrich-v1 / rubric-v1 (default: on only when GEMINI_API_KEY or AI_GATEWAY_API_KEY is set)",
+        help=(
+            "OpenRouter LLM enrichment (enrich-v1 / rubric-v1 / expand-v1); default: on only when "
+            "OPENROUTER_API_KEY is set. Even when on, the model is called only for items the "
+            "heuristics cannot auto-approve."
+        ),
+    ),
+    tier: str = typer.Option(
+        "small",
+        "--tier",
+        help="First LLM tier: small (LLM_SMALL_MODEL, default, cheapest) | primary (LLM_PRIMARY_MODEL / Jev)",
+    ),
+    escalate: bool = typer.Option(
+        True,
+        "--escalate/--no-escalate",
+        help="Retry small-model drafts that fail validation once on the primary tier",
     ),
 ) -> None:
     """Run the controlled collection pipeline (includes question_bank import).
@@ -212,17 +226,21 @@ def run_pipeline(
     """
     if mode not in {"fixtures", "live"}:
         raise typer.BadParameter("mode must be fixtures or live")
+    if tier not in {"small", "primary"}:
+        raise typer.BadParameter("tier must be small or primary")
     if mode == "live":
         rprint(
             "[cyan]Live mode still runs the offline corpus assembly; "
             "use `ibpe fetch-glassdoor --mode auto` for authenticated/browser fetches.[/cyan]"
         )
-    summary = run_fixture_pipeline(db_path=db, force=force, llm=llm)
+    summary = run_fixture_pipeline(
+        db_path=db, force=force, llm=llm, llm_tier=tier, llm_escalate=escalate
+    )
     rprint(
         json.dumps(
             {
                 k: summary[k]
-                for k in ("canonical_questions", "answers", "metrics", "alerts")
+                for k in ("canonical_questions", "answers", "metrics", "alerts", "llm_routes")
                 if k in summary
             },
             indent=2,

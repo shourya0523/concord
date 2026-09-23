@@ -20,6 +20,7 @@ import json
 from collections import defaultdict
 from typing import Any, Callable, Sequence
 
+from pydantic import BaseModel, Field
 from rapidfuzz import fuzz
 
 from ibpe_corpus.canonical.embeddings import sparse_cosine, sparse_hashing_embed
@@ -40,6 +41,12 @@ EMBEDDING_JOIN_THRESHOLD = 0.82
 TOPIC_TAG_PROMPT_VERSION = "signal-topic-v1"
 
 TopicTagger = Callable[[list[str]], list[str | None]]
+
+
+class SignalTopicBatch(BaseModel):
+    """Structured-output contract for prompt ``signal-topic-v1`` (one slug per input)."""
+
+    topics: list[str] = Field(default_factory=list)
 
 
 def _kind(record: ExtractedRecord) -> ExtractionClass | None:

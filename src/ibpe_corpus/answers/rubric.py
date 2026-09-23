@@ -9,8 +9,12 @@ Output matches ``AnswerRubricSchema`` in ``packages/contracts/src/learning-loop.
   (topic defaults otherwise) and turn ``calculation_representation`` into
   numeric checks recomputed with ``calculators.py``. Behavioural questions get
   a STAR (or motivation) template with ``kind="star"``.
-* **LLM** (prompt ``rubric-v1``) when a Gemini / AI Gateway key exists; the
-  model call is injectable so tests never hit the network.
+* **LLM** (prompt ``rubric-v1``) over OpenRouter when ``OPENROUTER_API_KEY``
+  is set — **only when required**: the heuristic rubric runs first and the model
+  is called only when it fails validation or its confidence is below the
+  auto-approve bar (e.g. a single-claim answer). The small tier drafts first;
+  the primary tier ("Jev") is tried only when the small draft fails validation
+  once. Model calls are injectable so tests never hit the network.
 
 Every rubric runs through :func:`validate_rubric` (weights sum to 1 ± 0.01,
 ≥ 1 must-have, ≤ 6 key points, numeric checks recompute). A heuristic rubric
@@ -27,11 +31,13 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Literal, Sequence
+
+from pydantic import BaseModel, Field
 
 from ibpe_corpus.answers.calculators import CALCULATOR_IDS, CalculatorError, run_topic
 from ibpe_corpus.answers.generate import route_topic
-from ibpe_corpus.canonical.taxonomy_rules import infer_topic
+from ibpe_corpus.canonical.taxonomy_rules import AUTO_APPROVE_CONFIDENCE, infer_topic
 from ibpe_corpus.schemas.models import (
     RUBRIC_VERSION,
     Answer,
@@ -49,6 +55,17 @@ MIN_CLAIM_CHARS = 25
 WEIGHT_TOLERANCE = 0.01
 
 LlmCall = Callable[[str], dict[str, Any]]
+
+
+class RubricDraft(BaseModel):
+    """Structured-output contract for prompt ``rubric-v1`` (OpenRouter json_schema)."""
+
+    kind: Literal["technical", "numeric", "star"] = "technical"
+    key_points: list[RubricKeyPoint] = Field(min_length=1, max_length=MAX_KEY_POINTS)
+    red_flags: list[str] = Field(default_factory=list)
+    common_mistakes: list[str] = Field(default_factory=list)
+    follow_ups: list[str] = Field(default_factory=list)
+
 
 _SENTENCE_RE = re.compile(r"(?:(?<=[.!?])|(?<=[.!?]\)))\s+(?=[A-Z0-9$(\"“'])")
 _NUMBER_RE = re.compile(r"(?:\$\s?)?\d+(?:[.,]\d+)?\s?(?:%|x\b|bn\b|mm\b|m\b)?", re.IGNORECASE)
@@ -642,20 +659,14 @@ TEACHING ANSWER: {answer}
 """
 
 
-def llm_rubric(
+def _rubric_from_payload(
+    payload: Any,
     answer: Answer,
-    question: CanonicalQuestion | None,
-    call: LlmCall,
     *,
-    model: str | None = None,
+    model: str | None,
 ) -> AnswerRubric | None:
-    """Rubric via prompt ``rubric-v1``; ``None`` when the output is unusable."""
-    prompt = RUBRIC_PROMPT.format(
-        question=(question.canonical_wording if question else ""),
-        answer=teaching_text(answer),
-    )
+    """Parse a ``rubric-v1`` reply; ``None`` when the shape is unusable."""
     try:
-        payload = call(prompt)
         if isinstance(payload, str):
             payload = json.loads(payload)
         kps = [
@@ -690,29 +701,126 @@ def llm_rubric(
         return None
 
 
+def _rubric_prompt(answer: Answer, question: CanonicalQuestion | None) -> str:
+    return RUBRIC_PROMPT.format(
+        question=(question.canonical_wording if question else ""),
+        answer=teaching_text(answer),
+    )
+
+
+def _served_model(call: Any, model: str | None) -> str | None:
+    """Model id actually served (``JsonCaller.last_model``) over the configured one."""
+    return getattr(call, "last_model", None) or model or getattr(call, "model", None)
+
+
+def llm_rubric(
+    answer: Answer,
+    question: CanonicalQuestion | None,
+    call: LlmCall,
+    *,
+    model: str | None = None,
+) -> AnswerRubric | None:
+    """Rubric via prompt ``rubric-v1``; ``None`` when the output is unusable."""
+    try:
+        payload = call(_rubric_prompt(answer, question))
+    except Exception:  # noqa: BLE001 — network / model failure; fall back
+        return None
+    return _rubric_from_payload(payload, answer, model=_served_model(call, model))
+
+
+def heuristic_confidence(rubric: AnswerRubric) -> float:
+    """How much an extractive rubric can be trusted without a model draft.
+
+    STAR / motivation templates are fixed (1.0). Two or more cued key points
+    clear the auto-approve bar; a single claim (thin answer) does not.
+    """
+    if rubric.kind == "star":
+        return 1.0
+    kps = rubric.key_points
+    if len(kps) >= 2 and all(kp.cues for kp in kps):
+        return 0.9
+    if len(kps) >= 2:
+        return AUTO_APPROVE_CONFIDENCE
+    return 0.5
+
+
+def _llm_step(
+    call: LlmCall, answer: Answer, question: CanonicalQuestion | None, model: str | None
+) -> Callable[[], AnswerRubric]:
+    """One tier's attempt: raises ``LlmValidationError`` when the draft is unusable."""
+    from ibpe_corpus.answers.llm_client import LlmValidationError
+
+    def run() -> AnswerRubric:
+        payload = call(_rubric_prompt(answer, question))  # hard failures propagate
+        candidate = _rubric_from_payload(payload, answer, model=_served_model(call, model))
+        if candidate is None:
+            raise LlmValidationError("rubric-v1 reply unusable", errors=["unparseable"])
+        errors = validate_rubric(candidate, answer=answer)
+        if not grounded(candidate, answer):
+            errors.append("ungrounded_key_point")
+        if errors:
+            raise LlmValidationError("rubric-v1 draft failed validation", errors=errors)
+        return candidate.model_copy(update={"review_status": "approved"})
+
+    return run
+
+
 def build_rubric(
     answer: Answer,
     question: CanonicalQuestion | None = None,
     *,
     llm_call: LlmCall | None = None,
     model: str | None = None,
+    escalate_call: LlmCall | None = None,
+    escalate_model: str | None = None,
+    routes: Any | None = None,
 ) -> AnswerRubric:
-    """Produce a validated rubric; ``review_status`` reflects the validators."""
+    """Produce a validated rubric; ``review_status`` reflects the validators.
+
+    Heuristic first. The model (``llm_call``, small tier) runs only when the
+    heuristic rubric fails validation or is below the auto-approve bar;
+    ``escalate_call`` (primary tier) runs only when the small draft fails
+    validation. ``routes`` records heuristic / small / primary / failed.
+    """
     from ibpe_corpus.answers.generate import is_placeholder_answer
+    from ibpe_corpus.answers.llm_client import run_tiered
+
+    def done(rubric: AnswerRubric, route: str) -> AnswerRubric:
+        if routes is not None:
+            routes.record(route)
+        return rubric
 
     if is_placeholder_answer(answer):
         # Placeholders are withheld from publish; never approve a rubric for one.
-        return heuristic_rubric(answer, question).model_copy(update={"review_status": "rejected"})
-    if llm_call is not None and not is_behavioural(question, answer):
-        candidate = llm_rubric(answer, question, llm_call, model=model)
-        if candidate is not None:
-            errors = validate_rubric(candidate, answer=answer)
-            if not errors and grounded(candidate, answer):
-                return candidate.model_copy(update={"review_status": "approved"})
+        rejected = heuristic_rubric(answer, question).model_copy(update={"review_status": "rejected"})
+        return done(rejected, "heuristic")
 
     rubric = heuristic_rubric(answer, question)
     errors = validate_rubric(rubric, answer=answer)
-    return rubric.model_copy(update={"review_status": "rejected" if errors else "approved"})
+    rubric = rubric.model_copy(update={"review_status": "rejected" if errors else "approved"})
+    _, answer_calc_errors = numeric_checks_from_calc(answer.calculation_representation)
+    required = bool(errors) or heuristic_confidence(rubric) < AUTO_APPROVE_CONFIDENCE
+    if (
+        llm_call is None
+        or not required
+        or is_behavioural(question, answer)
+        # The answer's own calculation is wrong: no rubric can validate, skip the model.
+        or answer_calc_errors
+    ):
+        return done(rubric, "heuristic")
+
+    steps: list[tuple[Any, Callable[[], AnswerRubric]]] = [
+        (getattr(llm_call, "tier", "small"), _llm_step(llm_call, answer, question, model))
+    ]
+    if escalate_call is not None:
+        steps.append(
+            (getattr(escalate_call, "tier", "primary"),
+             _llm_step(escalate_call, answer, question, escalate_model))
+        )
+    candidate, route = run_tiered(steps)
+    if candidate is not None:
+        return done(candidate, route)
+    return done(rubric, "failed")
 
 
 def attach_rubrics(
@@ -721,6 +829,9 @@ def attach_rubrics(
     *,
     llm_call: LlmCall | None = None,
     model: str | None = None,
+    escalate_call: LlmCall | None = None,
+    escalate_model: str | None = None,
+    routes: Any | None = None,
 ) -> tuple[list[Answer], dict[str, int]]:
     """Attach a rubric to every answer (existing approved human/source rubrics kept)."""
     by_id = {q.id: q for q in questions}
@@ -731,7 +842,15 @@ def attach_rubrics(
         if existing is not None and existing.provenance in {"human", "source"}:
             rubric = existing
         else:
-            rubric = build_rubric(ans, by_id.get(ans.canonical_question_id), llm_call=llm_call, model=model)
+            rubric = build_rubric(
+                ans,
+                by_id.get(ans.canonical_question_id),
+                llm_call=llm_call,
+                model=model,
+                escalate_call=escalate_call,
+                escalate_model=escalate_model,
+                routes=routes,
+            )
         stats["rubrics"] += 1
         stats[rubric.review_status] += 1
         if rubric.provenance == "llm":

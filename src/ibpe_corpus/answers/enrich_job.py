@@ -1,9 +1,16 @@
-"""Offline Gemini enrichment job — wires Mode A/B graph slices.
+"""Offline LLM enrichment job (OpenRouter) — wires Mode A/B graph slices.
 
 Must not run on the question-browse request path. Invoke from workers:
 
-    python -m ibpe_corpus.answers.enrich_job --limit 50
+    python -m ibpe_corpus.answers.enrich_job --limit 50            # small tier
+    python -m ibpe_corpus.answers.enrich_job --tier primary        # Jev tier
     # or apps/worker entry (see apps/worker/README.md)
+
+"Only when required": each question first gets the heuristic proposal; the
+model is called only when that proposal is below the auto-approve bar or fails
+validation, the small tier first, escalating to primary only when the small
+model's draft fails validation. Route counts (heuristic / small / primary /
+failed) land in the report JSON and CLI output.
 """
 
 from __future__ import annotations
@@ -21,11 +28,18 @@ from ibpe_corpus.answers.enrich_models import (
 )
 from ibpe_corpus.answers.editorial import EditorialReviewQueue
 from ibpe_corpus.answers.proposals import ProposalStore, proposal_id
-from ibpe_corpus.answers.gemini_client import (
+from ibpe_corpus.answers.llm_client import (
     ENRICH_PROMPT_VERSION,
-    GeminiEnrichClient,
+    EnrichClient,
+    LlmRouteCounts,
+    Tier,
     credentials_configured,
+    heuristic_proposal,
+    run_tiered,
+    validate_enrich_draft,
 )
+from ibpe_corpus.answers.enrich_models import EnrichDraft
+from ibpe_corpus.canonical.taxonomy_rules import AUTO_APPROVE_CONFIDENCE
 from ibpe_corpus.answers.provenance import (
     EnrichmentProvenance,
     assert_not_source_laundering,
@@ -41,7 +55,7 @@ from ibpe_corpus.schemas.models import (
 )
 
 
-JOB_NAME = "gemini_enrich"
+JOB_NAME = "llm_enrich"
 DEFAULT_REPORT = Path("reports/answer-enrichment-report.json")
 
 
@@ -70,7 +84,7 @@ def build_graph_slice(proposals: Sequence[EnrichmentProposal]) -> EnrichmentGrap
                         canonical_question_id=prop.canonical_question_id,
                         enrichment_id=prop.id,
                         soft_relevance=prop.mode_routing.company_prep_weight,
-                        provenance=EnrichmentProvenance.GEMINI_SYNTHESISED,
+                        provenance=EnrichmentProvenance.LLM_SYNTHESISED,
                     )
                 )
             for tag in tags:
@@ -81,7 +95,7 @@ def build_graph_slice(proposals: Sequence[EnrichmentProposal]) -> EnrichmentGrap
                         canonical_question_id=prop.canonical_question_id,
                         enrichment_id=prop.id,
                         soft_relevance=tag.relevance,
-                        provenance=EnrichmentProvenance.GEMINI_SYNTHESISED,
+                        provenance=EnrichmentProvenance.LLM_SYNTHESISED,
                     )
                 )
 
@@ -96,7 +110,7 @@ def build_graph_slice(proposals: Sequence[EnrichmentProposal]) -> EnrichmentGrap
                         prerequisites=[],
                         diagram_ids=[d.id for d in prop.diagram_drafts],
                         resource_ids=[r.id for r in prop.resource_drafts],
-                        provenance=EnrichmentProvenance.GEMINI_SYNTHESISED,
+                        provenance=EnrichmentProvenance.LLM_SYNTHESISED,
                     )
                 )
             for concept in concepts:
@@ -108,7 +122,7 @@ def build_graph_slice(proposals: Sequence[EnrichmentProposal]) -> EnrichmentGrap
                         prerequisites=list(concept.prerequisites),
                         diagram_ids=[d.id for d in prop.diagram_drafts],
                         resource_ids=[r.id for r in prop.resource_drafts],
-                        provenance=EnrichmentProvenance.GEMINI_SYNTHESISED,
+                        provenance=EnrichmentProvenance.LLM_SYNTHESISED,
                     )
                 )
 
@@ -143,10 +157,31 @@ def graph_proposal_records(prop: EnrichmentProposal) -> list[EnrichmentProposalR
     ]
 
 
+def heuristic_sufficient(prop: EnrichmentProposal) -> bool:
+    """The heuristic proposal is good enough to skip the model entirely.
+
+    Requires confidence at the taxonomy auto-approve bar *and* a draft that
+    passes the same validators a model reply must pass.
+    """
+    if prop.confidence < AUTO_APPROVE_CONFIDENCE:
+        return False
+    draft = EnrichDraft.model_validate(
+        prop.model_dump(mode="json", include=set(EnrichDraft.model_fields))
+    )
+    return not validate_enrich_draft(draft)
+
+
+def _llm_propose(client: object, cq: CanonicalQuestion) -> tuple[EnrichmentProposal | None, str]:
+    """Small tier first; primary only when the small draft fails validation."""
+    if getattr(client, "supports_tiers", False):
+        return client.propose_routed(cq)  # type: ignore[attr-defined]
+    return run_tiered([(Tier.SMALL, lambda: client.propose(cq))])  # type: ignore[attr-defined]
+
+
 def run_enrich_batch(
     questions: Sequence[CanonicalQuestion],
     *,
-    client: GeminiEnrichClient | None = None,
+    client: EnrichClient | None = None,
     existing_answers: Sequence[Answer] = (),
     limit: int | None = None,
     enqueue_low_confidence: bool = True,
@@ -160,7 +195,7 @@ def run_enrich_batch(
     ``proposal_store`` every proposal is persisted (plan P2.1) instead of
     living only in memory.
     """
-    client = client or GeminiEnrichClient()
+    client = client or EnrichClient()
     queue = review_queue or EditorialReviewQueue()
     answered_ids = {
         a.canonical_question_id
@@ -173,8 +208,19 @@ def run_enrich_batch(
         selected = selected[: max(0, limit)]
 
     proposals: list[EnrichmentProposal] = []
+    routes = LlmRouteCounts()
+    live = not getattr(client, "dry_run", True)
     for cq in selected:
-        prop = client.propose(cq)
+        heuristic = heuristic_proposal(cq, model=client.model)
+        if not live or heuristic_sufficient(heuristic):
+            prop = heuristic
+            routes.record("heuristic")
+        else:
+            llm_prop, route = _llm_propose(client, cq)
+            routes.record(route)
+            prop = llm_prop or heuristic.model_copy(
+                update={"metadata": {**heuristic.metadata, "llm_failed": True}}
+            )
         assert_not_source_laundering(
             provenance=prop.provenance.value,
             model_version=prop.model_version,
@@ -202,6 +248,16 @@ def run_enrich_batch(
         "dry_run": bool(client.dry_run),
         "credentials_configured": credentials_configured(),
         "model": client.model,
+        "tier": getattr(getattr(client, "default_tier", None), "value", "small"),
+        "llm_heuristic": routes.heuristic,
+        "llm_small": routes.small,
+        "llm_primary": routes.primary,
+        "llm_failed": routes.failed,
+        "llm_routes": routes.as_dict(),
+        "models_used": sorted(
+            {p.model_version for p in proposals if not (p.metadata or {}).get("dry_run")}
+        ),
+        "llm_usage": dict(getattr(client, "usage", {}) or {}),
         "prompt_version": ENRICH_PROMPT_VERSION,
         "answer_provenance_violations": len(violations),
         "answered_canonical_ids": len(answered_ids),
@@ -223,7 +279,8 @@ def write_enrichment_report(
         "generated_at": utcnow().isoformat(),
         "metrics": metrics,
         "provenance_rule": (
-            "Gemini enrichment is always gemini_synthesised; "
+            "LLM enrichment is always labelled gemini_synthesised (LLM-synthesised; "
+            "actual OpenRouter model id in model_version); "
             "never attributed to Glassdoor or to a GitHub path that lacked the text."
         ),
         "company_prep_sample": [
@@ -261,7 +318,7 @@ def job_result_from_metrics(
         output_count=int(metrics.get("proposals") or 0),
         parser_or_model_version=str(metrics.get("model") or ""),
         metrics={k: v for k, v in metrics.items() if isinstance(v, (int, float))},
-        message="gemini enrich batch complete" if ok else "gemini enrich failed",
+        message="llm enrich batch complete" if ok else "llm enrich failed",
     )
 
 
@@ -291,9 +348,20 @@ def _demo_questions() -> list[CanonicalQuestion]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Offline Gemini enrichment job")
+    parser = argparse.ArgumentParser(description="Offline LLM enrichment job (OpenRouter)")
     parser.add_argument("--limit", type=int, default=50)
     parser.add_argument("--dry-run", action="store_true", help="Force heuristic mode")
+    parser.add_argument(
+        "--tier",
+        choices=[t.value for t in Tier],
+        default=None,
+        help="LLM tier: small (LLM_SMALL_MODEL, default) or primary (LLM_PRIMARY_MODEL / Jev)",
+    )
+    parser.add_argument(
+        "--no-escalate",
+        action="store_true",
+        help="Do not retry small-model drafts that fail validation on the primary tier",
+    )
     parser.add_argument(
         "--report",
         type=Path,
@@ -341,7 +409,11 @@ def main(argv: list[str] | None = None) -> int:
         store = ProposalStore(corpus)
         queue = EditorialReviewQueue(corpus)
 
-    client = GeminiEnrichClient(dry_run=args.dry_run or not credentials_configured())
+    client = EnrichClient(
+        dry_run=args.dry_run or not credentials_configured(),
+        default_tier=args.tier,
+        escalate=not args.no_escalate,
+    )
     graph, queue, metrics = run_enrich_batch(
         questions, client=client, limit=args.limit, review_queue=queue, proposal_store=store
     )

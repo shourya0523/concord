@@ -5,8 +5,13 @@ Two proposers, one policy:
 * **Heuristic** (no key): :func:`classify_taxonomy` combines the source's own
   category / track / difficulty labels, keyword rules (migration 038 + v4) on
   the wording, and rules on the *source-provided* answer.
-* **LLM** (``enrich-v1`` via :class:`GeminiEnrichClient`) when a Gemini / AI
-  Gateway key exists and the client is not in dry-run mode.
+* **LLM** (``enrich-v1`` via :class:`~ibpe_corpus.answers.llm_client.EnrichClient`
+  on OpenRouter) when ``OPENROUTER_API_KEY`` is set and the client is not in
+  dry-run mode — **only when required**: the heuristic runs first and the model
+  is called only for questions whose topic / domain proposals the heuristic
+  could not auto-approve (difficulty-only gaps are skipped: an LLM difficulty
+  guess is never auto-approvable). Small tier first; primary only when the
+  small model's proposal fails validation (unknown topic slug / bad schema).
 
 Auto-approval: a topic proposal is approved only when the proposer's topic
 equals the keyword-rule topic **and** confidence ≥ 0.8. Domain is approved when
@@ -209,12 +214,28 @@ def _proposals_for_guess(
     return out
 
 
-def _llm_guess(q: CanonicalQuestion, hints: SourceHints, client: Any) -> TaxonomyGuess | None:
+def _llm_proposal(q: CanonicalQuestion, client: Any) -> tuple[Any | None, str]:
+    """enrich-v1 proposal via the client's tier plan; ``(proposal, route)``.
+
+    A proposal whose topic is not a known slug counts as a validation failure
+    (escalates small → primary); network / auth failures do not escalate.
+    """
+    from ibpe_corpus.answers.llm_client import LlmValidationError, Tier, run_tiered
+
+    def attempt(tier: Any) -> Any:
+        prop = client.propose(q, tier=tier) if tier is not None else client.propose(q)
+        if normalise_topic(prop.topic) is None:
+            raise LlmValidationError("unknown topic slug", errors=[f"unknown_topic:{prop.topic}"])
+        return prop
+
+    if getattr(client, "supports_tiers", False):
+        plan = list(client.tier_plan())
+        return run_tiered([(t, (lambda t=t: attempt(t))) for t in plan])
+    return run_tiered([(Tier.SMALL, lambda: attempt(None))])
+
+
+def _llm_guess(q: CanonicalQuestion, hints: SourceHints, prop: Any) -> TaxonomyGuess:
     """enrich-v1 proposal mapped onto the heuristic guess shape."""
-    try:
-        prop = client.propose(q)
-    except Exception:  # noqa: BLE001 — network / model failure → heuristic
-        return None
     topic = normalise_topic(prop.topic)
     base = classify_taxonomy(
         q.canonical_wording,
@@ -244,38 +265,58 @@ def _llm_guess(q: CanonicalQuestion, hints: SourceHints, client: Any) -> Taxonom
     )
 
 
+def heuristic_sufficient(records: Sequence[EnrichmentProposalRecord]) -> bool:
+    """Skip the model: every topic / domain proposal is already auto-approved.
+
+    Difficulty is excluded — an LLM difficulty guess is capped below the
+    auto-approve bar, so calling the model for it would never change status.
+    """
+    return all(r.status == "approved" for r in records if r.field in {"topic", "domain"})
+
+
 def propose_taxonomy(
     questions: Sequence[CanonicalQuestion],
     hints: dict[str, SourceHints],
     *,
     client: Any | None = None,
+    routes: Any | None = None,
 ) -> list[EnrichmentProposalRecord]:
-    """Proposals for every teaching question missing topic / domain / difficulty."""
+    """Proposals for every teaching question missing topic / domain / difficulty.
+
+    ``routes`` (an :class:`~ibpe_corpus.answers.llm_client.LlmRouteCounts`)
+    records whether each question was settled by the heuristic, the small or
+    primary model, or fell back after a failed model call.
+    """
     use_llm = client is not None and not getattr(client, "dry_run", True)
     out: list[EnrichmentProposalRecord] = []
     for q in questions:
         if not (_missing_topic(q) or _missing_domain(q) or not q.difficulty):
             continue
         h = hints.get(q.id) or SourceHints()
-        guess: TaxonomyGuess | None = None
-        model, prompt_version = HEURISTIC_MODEL, HEURISTIC_PROMPT_VERSION
-        if use_llm:
-            guess = _llm_guess(q, h, client)
-            if guess is not None:
-                from ibpe_corpus.answers.gemini_client import ENRICH_PROMPT_VERSION
+        heuristic = classify_taxonomy(
+            q.canonical_wording,
+            source_category=h.category,
+            source_track=h.track,
+            source_domain=h.domain,
+            source_difficulty=h.difficulty,
+            source_answer_text=h.answer_text,
+        )
+        records = _proposals_for_guess(
+            q, heuristic, model=HEURISTIC_MODEL, prompt_version=HEURISTIC_PROMPT_VERSION
+        )
+        route = "heuristic"
+        if use_llm and not heuristic_sufficient(records):
+            prop, route = _llm_proposal(q, client)
+            if prop is not None:
+                from ibpe_corpus.answers.llm_client import ENRICH_PROMPT_VERSION
 
-                model = str(getattr(client, "model", "gemini"))
-                prompt_version = ENRICH_PROMPT_VERSION
-        if guess is None:
-            guess = classify_taxonomy(
-                q.canonical_wording,
-                source_category=h.category,
-                source_track=h.track,
-                source_domain=h.domain,
-                source_difficulty=h.difficulty,
-                source_answer_text=h.answer_text,
-            )
-        out.extend(_proposals_for_guess(q, guess, model=model, prompt_version=prompt_version))
+                model = str(prop.model_version or getattr(client, "model", "llm"))
+                records = _proposals_for_guess(
+                    q, _llm_guess(q, h, prop), model=model, prompt_version=ENRICH_PROMPT_VERSION
+                )
+        if routes is not None:
+            routes.record(route)
+        out.extend(records)
     return out
 
 
@@ -319,11 +360,12 @@ def run_taxonomy_enrichment(
     proposal_store: ProposalStore | None = None,
     review_queue: EditorialReviewQueue | None = None,
     client: Any | None = None,
+    routes: Any | None = None,
 ) -> tuple[list[CanonicalQuestion], list[EnrichmentProposalRecord], dict[str, Any]]:
     """Propose → persist → queue reviews → apply approved. Returns metrics."""
     store = proposal_store or ProposalStore()
     queue = review_queue or EditorialReviewQueue()
-    proposals = store.upsert_many(propose_taxonomy(questions, hints, client=client))
+    proposals = store.upsert_many(propose_taxonomy(questions, hints, client=client, routes=routes))
     for p in proposals:
         sampled = bool((p.proposal_json or {}).get("review_sample"))
         if p.status == "pending" or sampled:
