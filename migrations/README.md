@@ -90,3 +90,7 @@ The migrate runner splits statements on `;` even inside `--` comments, so keep s
 | `046_notifications_leagues.sql` | `app.notification_log`, `push_subscriptions`, `league_memberships` (+ league read policy) |
 
 Every new `app.*` table ships with RLS + FORCE + a self policy and a conditional `GRANT … TO concord_app`, so the 042 guard keeps passing. Verified on a local Postgres 16 + pgvector: 043–046 apply cleanly, re-apply idempotently, and a re-run of 042's guard passes.
+
+## 054 (retention track, plan 2026-09-23-001 P5.2/P5.5/P5.6)
+
+`054_activity_events.sql` — `app.activity_events`, the learning-activity ledger written by `apps/web/lib/data/activity.ts` (`recordLearningActivity`). One row per graded action (attempt, drill, mock, placement) plus the daily-goal bonus; it backs the "same subject within 24 h earns half XP" rule, the graded-card / first-drill / first-mock achievement counters and an auditable XP history. The 045 aggregates (`daily_activity`, `user_streaks`) keep their semantics and remain what other tracks read. RLS + FORCE + self policy + conditional `GRANT … TO concord_app`, so 042's guard still passes.

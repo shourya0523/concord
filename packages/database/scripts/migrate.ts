@@ -39,6 +39,7 @@ const FILES = [
   "044_rubrics_enrichment.sql",
   "045_retention_core.sql",
   "046_notifications_leagues.sql",
+  "054_activity_events.sql",
 ] as const;
 
 function splitSql(sqlText: string): string[] {

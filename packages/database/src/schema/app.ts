@@ -218,6 +218,20 @@ export const readinessSnapshots = appSchema.table(
   (t) => [primaryKey({ columns: [t.userId, t.firmId, t.localDate] })],
 );
 
+/** Learning-activity ledger (migration 054): XP repeat rule + achievement counters. */
+export const activityEvents = appSchema.table("activity_events", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  kind: text("kind").notNull(),
+  subjectId: text("subject_id"),
+  score: doublePrecision("score"),
+  scoreSource: text("score_source"),
+  countsTowardGoal: boolean("counts_toward_goal").notNull().default(false),
+  xp: integer("xp").notNull().default(0),
+  localDate: date("local_date").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const userAchievements = appSchema.table(
   "user_achievements",
   {

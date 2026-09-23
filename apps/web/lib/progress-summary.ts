@@ -17,7 +17,12 @@ export function weekStart(date: Date): string {
   return isoDate(new Date(date.getTime() - (day - 1) * DAY_MS))
 }
 
-/** Consecutive active days ending today (or yesterday if today is idle). */
+/**
+ * Legacy fallback: consecutive active UTC days ending today (or yesterday if
+ * today is idle). The product streak is the stored daily-goal streak in the
+ * learner's timezone (lib/data/streaks.ts, app.user_streaks); this is used
+ * only when no stored streak exists (e.g. in-memory mode before any activity).
+ */
 export function streakFromDates(dates: string[], now: Date = new Date()): number {
   if (dates.length === 0) return 0
   const days = new Set(dates)
