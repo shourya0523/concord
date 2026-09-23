@@ -15,6 +15,17 @@ export const PrepProfileSchema = z.object({
   interview_date: z.string().nullable().default(null),
   availability_minutes: z.number().int().positive().nullable().default(null),
   focus_prompt: z.string().nullable().default(null),
+  /** IANA timezone (streaks, daily set and reminders use the local day). */
+  timezone: z.string().nullable().default(null),
+  /** Local hour 0–23 for the daily reminder; null = no reminder. */
+  reminder_hour: z.number().int().min(0).max(23).nullable().default(null),
+  notify_email: z.boolean().default(true),
+  notify_push: z.boolean().default(false),
+  weekly_recap: z.boolean().default(true),
+  /** Opt-in weekly XP league. */
+  league_opt_in: z.boolean().default(false),
+  /** Placement check finished or skipped (ISO time). */
+  placement_completed_at: z.string().nullable().default(null),
   updated_at: z.string().nullable().default(null),
 });
 export type PrepProfile = z.infer<typeof PrepProfileSchema>;
