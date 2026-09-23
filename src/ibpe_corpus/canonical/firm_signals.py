@@ -6,7 +6,8 @@ Glassdoor never supplies teaching answers — only directional firm preferences
 Plan P2.7 additions:
 
 * every signal gets a topic (keyword rules v4, mirroring migration 038; an
-  optional LLM tagger fills what the rules leave ``untagged``);
+  optional Jev tagger — :func:`jev_topic_tagger` — fills what the rules leave
+  ``untagged``);
 * the occurrence → teaching join records ``join_method`` (``exact`` |
   ``fuzzy`` | ``embedding``) and ``join_score`` in [0, 1], mirroring
   ``canonical.question_occurrences`` (migration 044);
@@ -176,6 +177,7 @@ def join_firm_signals(
         if n_hash not in topic_cache:
             topic_cache[n_hash] = tag_signal_topic(text)
 
+    tagger_method = str(getattr(topic_tagger, "method", "llm"))
     if topic_tagger is not None:
         untagged = [(h, t) for (_, _, t, h) in candidates if topic_cache.get(h) == UNTAGGED]
         seen: dict[str, str] = {}
@@ -221,7 +223,7 @@ def join_firm_signals(
                 "signal_hash": n_hash,
                 "signal_text": text,
                 "topic": topic,
-                "topic_method": "rules" if infer_topic(text) == topic else "llm",
+                "topic_method": "rules" if infer_topic(text) == topic else tagger_method,
                 "canonical_question_id": cq_id,
                 "join_score": score if cq_id else None,
                 "join_method": method,
@@ -338,4 +340,41 @@ def llm_topic_tagger(call: Callable[[str], dict[str, Any]], *, batch_size: int =
             out.extend(t if t in TOPIC_SLUGS else None for t in topics)
         return out
 
+    return _tag
+
+
+def jev_topic_tagger(
+    decider: Any,
+    *,
+    batch_size: int = 10,
+    min_confidence: float | None = None,
+) -> TopicTagger:
+    """Jev topic tagger: one Decisions request per batch, one ``choice`` per signal.
+
+    Each signal text sits in ``state.signals.sN`` and gets its own independent
+    topic question over the migration 038 slugs. A tag is kept only at
+    confidence ≥ ``min_confidence`` (default ``JEV_AUTO_APPROVE``); anything
+    less stays ``untagged``. Failures leave the whole batch untagged.
+    """
+    from ibpe_corpus.answers.decisions_client import jev_auto_approve
+    from ibpe_corpus.answers.jev_questions import signal_topic_questions
+    from ibpe_corpus.answers.llm_client import LlmError
+
+    def _tag(texts: list[str]) -> list[str | None]:
+        bar = jev_auto_approve() if min_confidence is None else min_confidence
+        out: list[str | None] = []
+        for i in range(0, len(texts), batch_size):
+            chunk = texts[i : i + batch_size]
+            keys = [f"s{n + 1}" for n in range(len(chunk))]
+            try:
+                resp = decider.decide({"signals": dict(zip(keys, chunk))}, signal_topic_questions(keys))
+            except LlmError:
+                out.extend([None] * len(chunk))
+                continue
+            for key in keys:
+                ans = resp.choice(key)
+                out.append(ans.choice if ans.choice in TOPIC_SLUGS and ans.conf >= bar else None)
+        return out
+
+    _tag.method = "jev"  # type: ignore[attr-defined]
     return _tag

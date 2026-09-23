@@ -11,8 +11,11 @@ handler's deterministic explanation is offered as an appendix, labelled
 With ``OPENROUTER_API_KEY`` the small model (prompt ``expand-v1``) drafts an
 appendix **only when required** — for answers whose topic has no deterministic
 handler (``generic``), where the heuristic produces nothing. Drafts must pass
-:func:`validate_expansion`; a failed small draft escalates once to the primary
-tier. Model drafts are always ``pending`` proposals, never auto-applied.
+:func:`validate_expansion` and then Jev verification against the source answer
+(``supported`` at ≥ ``JEV_ACCEPT_CONFIDENCE``); with ``--escalate`` a rejected
+draft is retried once with the small model. Anything else leaves the answer
+without a proposal. Accepted drafts are still ``pending`` proposals — never
+auto-applied.
 """
 
 from __future__ import annotations
@@ -46,6 +49,11 @@ class ExpansionDraft(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0, default=0.5)
 
 
+RETRY_NOTE = (
+    "\nThe previous draft was rejected (validation or verification). Stay strictly consistent with the "
+    "SOURCE ANSWER and add no new facts or numbers."
+)
+
 EXPAND_PROMPT = """You extend a short IB/PE interview answer for a learning product.
 Write 2-5 sentences that explain the reasoning behind the SOURCE ANSWER. Do not
 contradict it, do not invent firm-specific facts, never mention Glassdoor.
@@ -74,27 +82,45 @@ def validate_expansion(appendix: str, answer: Answer) -> list[str]:
 def _llm_expansion(
     ans: Answer,
     q: CanonicalQuestion,
-    steps_calls: list[tuple[Any, LlmCall, str | None]],
-) -> tuple[tuple[ExpansionDraft, str | None] | None, str]:
-    from ibpe_corpus.answers.llm_client import LlmValidationError, run_tiered
+    call: LlmCall,
+    model: str | None,
+    verifier: Any,
+    attempts: int,
+    routes: Any | None,
+) -> tuple[tuple[ExpansionDraft, str | None, Any] | None, str]:
+    """Small draft → validators → Jev verification; ``((draft, model, verdict) | None, route)``."""
+    from ibpe_corpus.answers.jev_questions import EXPANSION_VERIFY
+    from ibpe_corpus.answers.llm_client import LlmValidationError, run_verified
 
     prompt = EXPAND_PROMPT.format(question=q.canonical_wording, answer=ans.expanded_explanation)
+    tries = {"n": 0}
 
-    def step(call: LlmCall, model: str | None) -> Callable[[], tuple[ExpansionDraft, str | None]]:
-        def run() -> tuple[ExpansionDraft, str | None]:
-            try:
-                draft = ExpansionDraft.model_validate(call(prompt))
-            except ValueError as exc:  # pydantic ValidationError is a ValueError
-                raise LlmValidationError("expand-v1 reply unusable", errors=[str(exc)[:120]]) from None
-            errors = validate_expansion(draft.appendix, ans)
-            if errors:
-                raise LlmValidationError("expand-v1 draft failed validation", errors=errors)
-            served = getattr(call, "last_model", None) or model or getattr(call, "model", None)
-            return draft, served
+    def draft() -> tuple[ExpansionDraft, str | None]:
+        text = prompt + (RETRY_NOTE if tries["n"] else "")
+        tries["n"] += 1
+        try:
+            d = ExpansionDraft.model_validate(call(text))
+        except ValueError as exc:  # pydantic ValidationError is a ValueError
+            raise LlmValidationError("expand-v1 reply unusable", errors=[str(exc)[:120]]) from None
+        errors = validate_expansion(d.appendix, ans)
+        if errors:
+            raise LlmValidationError("expand-v1 draft failed validation", errors=errors)
+        served = getattr(call, "last_model", None) or model or getattr(call, "model", None)
+        return d, served
 
-        return run
+    def verify(value: tuple[ExpansionDraft, str | None]) -> Any:
+        return verifier.verify(
+            source=ans.expanded_explanation,
+            question=q.canonical_wording,
+            draft=value[0].appendix,
+            instructions=EXPANSION_VERIFY["instructions"],
+            criteria=EXPANSION_VERIFY["criteria"],
+        )
 
-    return run_tiered([(tier, step(call, model)) for tier, call, model in steps_calls])
+    value, route, verdicts = run_verified(draft, verify, attempts=attempts, counts=routes)
+    if value is None:
+        return None, route
+    return (value[0], value[1], verdicts[-1]), route
 
 
 def propose_expansions(
@@ -103,10 +129,16 @@ def propose_expansions(
     *,
     llm_call: LlmCall | None = None,
     model: str | None = None,
-    escalate_call: LlmCall | None = None,
-    escalate_model: str | None = None,
+    verifier: Any | None = None,
+    attempts: int | None = None,
     routes: Any | None = None,
 ) -> list[EnrichmentProposalRecord]:
+    """Expansion proposals for shallow source answers.
+
+    Known topics get the deterministic handler's appendix; ``generic`` topics
+    get a small-model draft only when both ``llm_call`` and a Jev ``verifier``
+    are configured (unverified drafts are never proposed).
+    """
     by_id = {q.id: q for q in questions}
     out: list[EnrichmentProposalRecord] = []
     for ans in answers:
@@ -122,19 +154,15 @@ def propose_expansions(
             continue
         if topic_key == "generic":
             # No deterministic handler: the model is required (when configured).
-            if llm_call is None:
+            if llm_call is None or verifier is None or getattr(verifier, "dry_run", False):
                 continue
-            steps: list[tuple[Any, LlmCall, str | None]] = [
-                (getattr(llm_call, "tier", "small"), llm_call, model)
-            ]
-            if escalate_call is not None:
-                steps.append((getattr(escalate_call, "tier", "primary"), escalate_call, escalate_model))
-            result, route = _llm_expansion(ans, q, steps)
+            n = attempts if attempts is not None else int(getattr(llm_call, "attempts", 1) or 1)
+            result, route = _llm_expansion(ans, q, llm_call, model, verifier, n, routes)
             if routes is not None:
                 routes.record(route)
             if result is None:
                 continue
-            draft, served = result
+            draft, served, verdict = result
             appendix = draft.appendix.strip()
             out.append(
                 EnrichmentProposalRecord(
@@ -149,6 +177,7 @@ def propose_expansions(
                         "enrichment_provenance": "gemini_synthesised",
                         "topic_handler": topic_key,
                         "canonical_question_id": ans.canonical_question_id,
+                        "jev_verdict": verdict.as_dict(),
                     },
                     current_json={"value": ans.expanded_explanation},
                     model=served,
@@ -156,7 +185,7 @@ def propose_expansions(
                     confidence=round(float(draft.confidence), 4),
                     status="pending",
                     auto_approved=False,
-                    review_note="LLM appendix for a short source answer — editor approval required",
+                    review_note="Jev-verified LLM appendix for a short source answer — editor approval required",
                 )
             )
             continue
