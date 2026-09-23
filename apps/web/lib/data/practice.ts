@@ -197,7 +197,8 @@ export async function getPracticeSession(
     id: row.id,
     user_id: row.user_id,
     mode,
-    learning_mode: meta.learning_mode,
+    // Sessions store learning_mode: null when unset; the contract wants it absent.
+    learning_mode: meta.learning_mode ?? undefined,
     firm_ids: (meta.firm_ids as string[]) ?? (row.firm_id ? [row.firm_id] : []),
     concept_ids: (meta.concept_ids as string[]) ?? [],
     question_ids: (meta.question_ids as string[]) ?? [],

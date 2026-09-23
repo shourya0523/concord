@@ -55,6 +55,18 @@ describe("planActivity", () => {
     assert.equal(mock.xp_event, 50)
     assert.equal(mock.counts_after.mocks, 1)
   })
+
+  it("does not count a retry of the same subject as another card", () => {
+    const retry = planActivity(
+      { ...read, repeated: true },
+      { kind: "drill", score: 1, scoreSource: "numeric", countsTowardGoal: true },
+      "2026-09-23",
+      8,
+    )
+    assert.equal(retry.cards_inc, 0)
+    assert.equal(retry.goal_met_now, false)
+    assert.equal(retry.xp_event, 5)
+  })
 })
 
 describe("recordLearningActivity (in-memory)", () => {

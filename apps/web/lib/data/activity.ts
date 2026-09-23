@@ -100,7 +100,9 @@ export function planActivity(
   fallbackGoal: number,
 ): ActivityPlan {
   const rollover = rolloverStreak(read.streak, today)
-  const cardsInc = countsAsCard(event) ? 1 : 0
+  // A card counts once per subject per 24 h: retrying the same question or
+  // drill must not fill the daily goal on its own.
+  const cardsInc = countsAsCard(event) && !read.repeated ? 1 : 0
   const goal = read.today?.goal_met ? read.today.goal : (read.set_goal ?? read.today?.goal ?? fallbackGoal)
   const cardsAfter = (read.today?.cards_done ?? 0) + cardsInc
   const goalMetNow = !read.today?.goal_met && cardsAfter >= goal && cardsInc > 0
