@@ -14,7 +14,7 @@ Built as seven parallel tracks on shared contracts (`packages/contracts/src/lear
 | 4 Daily loop | SM-2-lite review driven by grade (kept from #42), per-day frozen daily set, `/today`, nav regrouped (Today / Practice / Learn / Firms / Progress), placement check | `lib/data/daily-set.ts`, `app/(product)/today`, `components/app-shell.tsx` |
 | 5 Gamification | Timezone-aware streaks with earned freezes, XP (quality-weighted, half on repeats), readiness % per target firm with weekly delta, achievements, Warren mood, simulator stage-topic selection + cited after-action report | `lib/data/{activity,streaks,xp,readiness}.ts`, `lib/achievements.ts`, `app/api/practice/sessions/[id]/report` |
 | 6 Notifications | Settings UI, Resend email (reminder / streak-at-risk / weekly recap, signed unsubscribe), Web Push, daily idempotent cron (hourly optional) with 2/day cap | `lib/notify/**`, `app/api/cron/notify`, `public/sw.js` |
-| 7 Depth | Voice answers (MediaRecorder → Gemini transcription, delivery score, behind `voice_answers`), interactive fill-in diagrams, opt-in weekly leagues with anonymised handles | `components/voice-answer*.tsx`, `packages/ui/src/components/diagram-fill-blank.tsx`, `lib/data/leagues.ts` |
+| 7 Depth | Voice answers (MediaRecorder → OpenRouter Whisper transcription, delivery score, behind `voice_answers`), interactive fill-in diagrams, opt-in weekly leagues with anonymised handles | `components/voice-answer*.tsx`, `packages/ui/src/components/diagram-fill-blank.tsx`, `lib/data/leagues.ts` |
 
 ## Corpus before → after (exports/)
 
@@ -32,17 +32,17 @@ Built as seven parallel tracks on shared contracts (`packages/contracts/src/lear
 
 | Check | Result |
 |-------|--------|
-| `npm test --workspace=@ibpe/web` | 403 pass, 0 fail |
-| `npm test --workspace=@ibpe/domain` / `@ibpe/search` | 28 / 8 pass |
-| `python3 -m pytest` | 195 passed |
+| `npm test --workspace=@ibpe/web` | 452 pass, 0 fail |
+| `npm test --workspace=@ibpe/ai` / `@ibpe/domain` / `@ibpe/search` | 29 / 28 / 8 pass |
+| `python3 -m pytest` | 229 passed |
 | `tsc --noEmit` (web, database, contracts, config) | clean |
 | `npm run lint --workspace=@ibpe/web` | 0 errors (39 warnings, baseline 42) |
 | `npm run build --workspace=@ibpe/web` | passes |
 | `build-migrations.ts --check` | curriculum SQL in sync with source |
-| Migrations 043–061 on local Postgres 16 + pgvector | apply cleanly, re-apply idempotently, 042 RLS guard passes |
+| Migrations 043–062 on local Postgres 16 + pgvector | apply cleanly, re-apply idempotently, 042 RLS guard passes |
 | Full local deployment via `publish:teaching` + `seed:bank` (docs/deployment/local-e2e.md) | 666 Q / 666 A / 666 rubrics published, 1 610 proposals, 3 492 occurrences |
 | `scripts/qa_learning_loop_smoke.sh` — no DB | 20/20 |
-| `scripts/qa_learning_loop_smoke.sh` — DB as `concord_app` under RLS | 20/20 (grade persisted with rubric items, injection capped at 0, drill exact-graded, streak/XP/achievement rows written) |
+| `scripts/qa_learning_loop_smoke.sh` — DB as `concord_app` under RLS (re-run on the final Jev/OpenRouter build) | 20/20 (grade persisted with rubric items, injection capped at 0, drill exact-graded, streak/XP/achievement rows written) |
 | Browser (Playwright) on DB-backed app | `/today`, `/study` (graded card with evidence + follow-up), `/learn/module_dcf_wacc`, `/drills`, `/progress` render with 0 page errors — `reports/qa-evidence/e2e-db-*.png` |
 | Grader eval (deterministic, no LLM key) | MAE 0.153, Spearman 0.805, correct-accuracy 0.97, injection resistance 1.0 |
 
