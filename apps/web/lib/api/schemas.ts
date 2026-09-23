@@ -289,6 +289,7 @@ export const CreateAttemptRequestSchema = z.object({
   time_spent_ms: z.number().int().nonnegative().nullable().optional(),
   /** Spaced-review button; derived from confidence / grade when omitted. */
   rating: z.enum(["again", "hard", "good", "easy"]).optional(),
+  revealed_at: z.string().datetime().optional(),
 })
 export type CreateAttemptRequest = z.infer<typeof CreateAttemptRequestSchema>
 

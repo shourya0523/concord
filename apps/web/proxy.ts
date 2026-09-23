@@ -15,6 +15,7 @@ export const config = {
     "/practice/:path*",
     "/account/:path*",
     "/api/practice/:path*",
+    "/api/transcribe",
     "/api/notes/:path*",
     "/api/mastery/:path*",
     "/api/drills/:path*",
