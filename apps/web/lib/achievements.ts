@@ -78,7 +78,7 @@ const STATIC_ACHIEVEMENTS: StaticAchievement[] = [
   {
     id: "first_drill",
     title: "First numeric drill",
-    description: "Solved your first auto-graded numeric drill.",
+    description: "Completed your first auto-graded numeric drill.",
     test: (ctx) => ctx.drills >= 1,
   },
   {
