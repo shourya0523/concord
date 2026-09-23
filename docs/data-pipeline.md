@@ -48,12 +48,12 @@ The architecture diagram once implied a single stage chain. In practice the prod
 | Extract | T/S | GitHub importers; Glassdoor parse → `ExtractedRecord` | Unchanged semantics (`docs/extraction.md`) |
 | Classify PE | T/S | `pe/classifier.py` on role metadata | Also tag teaching domain IB/PE (today skewed `other`) |
 | Canonicalise | T vs S | Teaching fuzzy ≥92; signals exact-hash; `strip_question_prefix` before hashing; compound Qs with one paired source answer are never split | Keep split; never let bank volume disable teaching fuzzy |
-| Join signals | S→T | `join_firm_signals`: exact → fuzzy 88 → hashing-embedding cosine ≥0.82; keyword rules v4 topic per signal (small-tier LLM tagger `signal-topic-v1` for what the rules leave `untagged`, when keyed) → `exports/occurrence_joins.jsonl` | publish-teaching sets `canonical_question_id` / `join_score` / `join_method` / `topic` |
-| Enrich taxonomy | T | `answers/taxonomy_enrich.py`: heuristic (source labels + rules v4 + source answer) first; `enrich-v1` (small tier → primary on validation failure) only for questions whose topic/domain the heuristic cannot auto-approve; durable proposals (SQLite `enrichment_proposals`, `exports/enrichment_proposals.jsonl`); auto-approve only rule-agreeing ≥0.8 | Human review of pending + 10% samples |
+| Join signals | S→T | `join_firm_signals`: exact → fuzzy 88 → hashing-embedding cosine ≥0.82; keyword rules v4 topic per signal (Jev `choice` over the 038 slugs for what the rules leave `untagged`, when keyed; kept at ≥ `JEV_AUTO_APPROVE`) → `exports/occurrence_joins.jsonl` | publish-teaching sets `canonical_question_id` / `join_score` / `join_method` / `topic` |
+| Enrich taxonomy | T | `answers/taxonomy_enrich.py`: heuristic (source labels + rules v4 + source answer) first; Jev (`typesafe/jev-1.13`, one Decisions request per question: `choice` topic / domain, `score` difficulty, `choice` PE strategy for PE questions) only for missing fields the heuristic cannot auto-approve — no chat model; durable proposals (SQLite `enrichment_proposals`, `exports/enrichment_proposals.jsonl`); auto-approve heuristic only when rule-agreeing ≥0.8, Jev when ≥ `JEV_AUTO_APPROVE` (0.8) and rule-agreeing or ≥0.9 alone | Human review of pending + 10% samples |
 | Answer fill | T only | `fill_answers`: source → match → synth | LLM enrich as optional post-step, not in fixture critical path |
 | Validate | T only | Four validators + depth tag (`needs_expansion`); placeholders → `needs_generation` (withheld); source answers validated too | Re-run (or attest) before Neon stamp |
-| Rubrics | T only | `answers/rubric.py` (`rubric-v1`): heuristic extractive / STAR first; LLM draft (small → primary) only when the heuristic fails validation or is below the 0.8 bar; validators gate `approved` | Human spot-check; grader reads `rubric_json` when `rubric_status='approved'` |
-| Depth | T only | `answers/depth.py`: pending expansion proposals for shallow source answers (topic handler; `expand-v1` LLM draft only when no handler exists) | Editor approves → publish applies |
+| Rubrics | T only | `answers/rubric.py` (`rubric-v1`): heuristic extractive / STAR first; small-model draft only when the heuristic fails validation or is below the 0.8 bar, Jev-verified against the teaching answer (`supported` ≥ `JEV_ACCEPT_CONFIDENCE`), one small-model retry with `--escalate`; validators + verdict gate `approved` | Human spot-check; grader reads `rubric_json` when `rubric_status='approved'` |
+| Depth | T only | `answers/depth.py`: pending expansion proposals for shallow source answers (topic handler; `expand-v1` small-model draft only when no handler exists, kept only when Jev verifies it `supported`) | Editor approves → publish applies |
 | Score quality | T | `JOB_NAMES` stub only | Implement or drop the name |
 | Export | T/S | `export_all` → `exports/*.jsonl` + reports | Teaching JSONL ≠ firm_signals JSONL (already) |
 | Publish | T | `npm run publish:teaching` (answers + `rubric_json`, proposals upsert/apply, occurrence joins, placeholder retire, `--retire-missing`) | Separate signal import path; never Glassdoor as answers |
@@ -73,8 +73,8 @@ source .venv/bin/activate
 
 # Assemble offline teaching + signal corpus (SQLite + exports/ + reports/)
 ibpe run-pipeline --mode fixtures --force          # heuristic enrich/rubrics (no key)
-ibpe run-pipeline --mode fixtures --force --llm    # OpenRouter small tier, only where heuristics fall short
-ibpe run-pipeline --mode fixtures --force --llm --tier primary   # start on LLM_PRIMARY_MODEL (Jev)
+ibpe run-pipeline --mode fixtures --force --llm    # Jev decisions + Jev-verified small-model drafts, only where heuristics fall short
+ibpe run-pipeline --mode fixtures --force --llm --no-escalate   # no second small-model attempt after a rejected draft
 PYTHONPATH=src python3 -m ibpe_corpus.metrics.completeness   # reports only, from exports
 ibpe proposals --status pending                     # review queue
 ibpe review-proposal <id> approved --reviewer you@example.com
@@ -230,7 +230,7 @@ Order inside `run_fixture_pipeline` (offline, no key needed):
 8. **Depth proposals** — synthesised appendices for shallow source answers, pending editor approval.
 9. **Export + reports** — `answers.jsonl` carries `rubric`, `quality_tags`, `coaching_notes`; reports are computed from exports.
 
-Honesty notes: heuristic taxonomy auto-approvals and heuristic rubrics are **rule-validated, not human-reviewed**; ~10% of auto-approvals are queued as review samples. LLM paths (`enrich-v1`, `rubric-v1`, `expand-v1`, `signal-topic-v1`) run only with `OPENROUTER_API_KEY`, only for items the heuristics cannot auto-approve, and fall back to heuristics on any failure. `run-summary.json` → `enrichment.llm_routes` counts heuristic / small / primary / failed per stage (see ADR 0007).
+Honesty notes: heuristic taxonomy auto-approvals and heuristic rubrics are **rule-validated, not human-reviewed**; ~10% of auto-approvals are queued as review samples. Model paths run only with `OPENROUTER_API_KEY`, only for items the heuristics cannot auto-approve, and fall back to heuristics on any failure: Jev (decision model) for taxonomy and signal topics; the small chat model for `rubric-v1` / `expand-v1` drafts, each Jev-verified. `run-summary.json` → `enrichment.llm_routes` counts heuristic / jev / small / failed per stage and `enrichment.jev_rejected_drafts` counts drafts Jev refused (see ADR 0007).
 
 ## Job orchestration (honest catalog)
 
@@ -251,5 +251,5 @@ Workers (`apps/worker`) host: scrape enqueue, `run-pipeline`, LLM enrich (OpenRo
 - [answer-generation.md](./answer-generation.md) / [answer-validation.md](./answer-validation.md)
 - [private-equity-coverage.md](./private-equity-coverage.md)
 - [decisions/0002-data-thesis-github-glassdoor-gemini.md](./decisions/0002-data-thesis-github-glassdoor-gemini.md)
-- [decisions/0007-openrouter-llm-stack.md](./decisions/0007-openrouter-llm-stack.md) — OpenRouter tiers, "only when required"
+- [decisions/0007-openrouter-llm-stack.md](./decisions/0007-openrouter-llm-stack.md) — Jev decision tier + Jev-verified small LLM, "only when required"
 - Plan: [plans/2026-08-01-001-architecture-data-pipeline-rethink-plan.md](./plans/2026-08-01-001-architecture-data-pipeline-rethink-plan.md)

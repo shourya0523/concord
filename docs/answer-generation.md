@@ -49,10 +49,17 @@ LLMs never write teaching answers directly. Downstream enrichment uses OpenRoute
 (ADR 0007) **only when required**: rubric drafts (`rubric-v1`) when the extractive
 rubric fails validation or is below the 0.8 auto-approve bar, and expansion
 appendices (`expand-v1`) only for short source answers with no topic handler.
-Both start on the small tier (`LLM_SMALL_MODEL`, default `deepseek/deepseek-v4-flash`)
-and escalate to the primary tier (`LLM_PRIMARY_MODEL`, "Jev") only when the small
-draft fails validation. Model output is always a pending proposal or a validated
-rubric, with the served OpenRouter model id recorded in `model`.
+Both are drafted by the small model (`LLM_SMALL_MODEL`, default
+`deepseek/deepseek-v4-flash`) and then **verified by Jev** (`typesafe/jev-1.13`,
+the OpenRouter decision model) against the source teaching answer: a `choice` of
+`supported | unsupported | declined`, accepted only when `supported` at
+≥ `JEV_ACCEPT_CONFIDENCE` (default 0.8). With `--escalate` (default) a draft that
+fails validation or verification gets one more small-model attempt; `declined`
+stops immediately. Rejected drafts keep the heuristic rubric / produce no
+expansion proposal. There is no larger chat tier. Model output is always a
+pending proposal or a validated + verified rubric, with the served OpenRouter
+model id recorded in `model` (and the Jev verdict in `proposal_json.jev_verdict`
+for expansions).
 
 ## Pipeline integration
 
