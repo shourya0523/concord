@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react"
 import "@ibpe/ui/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@ibpe/ui/lib/utils"
+import { Analytics } from "@vercel/analytics/next"
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     >
       <body>
         <ThemeProvider>{children}</ThemeProvider>
+        <Analytics />
       </body>
     </html>
   )
