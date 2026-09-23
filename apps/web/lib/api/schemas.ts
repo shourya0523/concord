@@ -283,13 +283,14 @@ export type MultiFirmHeatResponse = z.infer<typeof MultiFirmHeatResponseSchema>
 export const CreateAttemptRequestSchema = z.object({
   canonical_question_id: z.string().optional(),
   question_id: z.string().optional(),
-  response_text: z.string().trim().optional(),
+  response_text: z.string().trim().max(4000).optional(),
   confidence: z.number().min(0).max(1).nullable().optional(),
   correct: z.boolean().nullable().optional(),
   time_spent_ms: z.number().int().nonnegative().nullable().optional(),
   /** Spaced-review button; derived from confidence / grade when omitted. */
   rating: z.enum(["again", "hard", "good", "easy"]).optional(),
-  revealed_at: z.string().datetime().optional(),
+  /** When the learner revealed the gold answer for this question (anti-gaming). */
+  revealed_at: z.string().datetime({ offset: true }).nullable().optional(),
 })
 export type CreateAttemptRequest = z.infer<typeof CreateAttemptRequestSchema>
 

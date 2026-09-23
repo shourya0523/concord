@@ -13,6 +13,12 @@ import {
 import { ensureAppUserQuery } from "./users";
 import { memoryStore } from "./memory-store";
 
+/**
+ * Rating glue for graded attempts: explicit button → graded score → self
+ * confidence; null (skip scheduling) for reveal-copy answers.
+ */
+export { ratingForAttempt, ratingFromGrade } from "@/lib/grading/review-rating";
+
 export type ReviewItem = {
   question_id: string;
   due_at: string;

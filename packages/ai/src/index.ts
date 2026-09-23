@@ -18,6 +18,12 @@ export {
   isEmbeddingConfigured,
   toPgVectorLiteral,
 } from "./embeddings.js";
+export {
+  DEFAULT_GRADE_MODEL,
+  gradeModelConfig,
+  gradeModelId,
+  type GradeModelConfig,
+} from "./grade.js";
 
 /** Newest stable flash-class Gemini via AI Gateway (fetch models before bumping). */
 export const DEFAULT_ENRICH_MODEL = "google/gemini-2.5-flash";
