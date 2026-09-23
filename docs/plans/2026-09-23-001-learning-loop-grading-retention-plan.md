@@ -6,6 +6,7 @@ execution: code
 title: Learning Loop, Grading v2, Content Enrichment & Retention - Plan
 date: 2026-09-23
 updated: 2026-09-23
+status: implemented — see reports/learning-loop-release.md
 ---
 
 # Learning Loop, Grading v2, Content Enrichment & Retention - Plan
@@ -38,6 +39,8 @@ replace it.
 | Bug | Practice mode `rag` inserted but DB CHECK only allows `pseudo_rag` | `lib/data/practice.ts:22`, `migrations/032_learning_flows.sql:126` |
 | Retention | Streak = any attempt on a UTC day, capped at 28-day window; no goal, freeze, XP, achievements, reminders | `lib/data/progress.ts:50-80` |
 | CI | Web `node:test` files exist but are not run in CI | `.github/workflows/ci.yml`, `apps/web/lib/**/*.test.ts` |
+
+> **Status (2026-09-23):** all phases implemented and verified locally; Neon rollout and secrets pending. See [`reports/learning-loop-release.md`](../../reports/learning-loop-release.md).
 
 ## Reconciliation with main (2026-09-23, before implementation)
 
