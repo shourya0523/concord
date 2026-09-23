@@ -1,0 +1,10 @@
+{
+  "bytes": 218928,
+  "commit_sha": "d3f524b2f76e122ef2c7f41ec0fff31143da3a35",
+  "content_hash": "34ef488adde609ebcc87518224ecaa669f22b3279959eed101ed6a10b8bb7ed9",
+  "fetch_method": "git clone --depth 1 (read-only via agent git proxy)",
+  "path": "index.html",
+  "repo": "coryjburk/intv-playbook-pe_vc",
+  "retrieved_at": "2026-09-23T00:54:00+00:00",
+  "source_url": "https://raw.githubusercontent.com/coryjburk/intv-playbook-pe_vc/d3f524b2f76e122ef2c7f41ec0fff31143da3a35/index.html"
+}

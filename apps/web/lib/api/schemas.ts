@@ -4,14 +4,18 @@
  */
 import { z } from "zod"
 import {
+  ActivityResultSchema,
   AttemptSchema,
+  AttemptScoreSourceEnum,
   BankQuestionSchema,
   BookmarkSchema,
   CanonicalQuestionSchema,
   CollectionItemSchema,
   CollectionSchema,
   ConceptSchema,
+  DeliveryScoreSchema,
   DiagramRefSchema,
+  GradeDetailSchema,
   LearningModuleCheckpointSchema,
   LearningModuleSchema,
   LearningResourceSchema,
@@ -248,7 +252,9 @@ export const PrepRagResponseSchema = z.object({
   ),
   source: DataSourceSchema,
   brief: z.string(),
-  brief_source: z.enum(["gemini", "template"]),
+  brief_source: z.enum(["llm", "template"]),
+  /** True only when an AI draft passed Jev verification. */
+  brief_verified: z.boolean().optional(),
   brief_citations: z
     .array(
       z.object({
@@ -280,17 +286,21 @@ export type MultiFirmHeatResponse = z.infer<typeof MultiFirmHeatResponseSchema>
 export const CreateAttemptRequestSchema = z.object({
   canonical_question_id: z.string().optional(),
   question_id: z.string().optional(),
-  response_text: z.string().trim().optional(),
+  response_text: z.string().trim().max(4000).optional(),
   confidence: z.number().min(0).max(1).nullable().optional(),
   correct: z.boolean().nullable().optional(),
   time_spent_ms: z.number().int().nonnegative().nullable().optional(),
   /** Spaced-review button; derived from confidence / grade when omitted. */
   rating: z.enum(["again", "hard", "good", "easy"]).optional(),
+  /** When the learner revealed the gold answer for this question (anti-gaming). */
+  revealed_at: z.string().datetime({ offset: true }).nullable().optional(),
+  /** Client-computed voice delivery (P7.1) — coaching only, never affects mastery. */
+  delivery: DeliveryScoreSchema.nullable().optional(),
 })
 export type CreateAttemptRequest = z.infer<typeof CreateAttemptRequestSchema>
 
-export const AttemptGradeResponseSchema = z.object({
-  score_source: z.enum(["self", "llm", "deterministic"]),
+export const AttemptGradeResponseSchema = GradeDetailSchema.partial().extend({
+  score_source: AttemptScoreSourceEnum,
   score: z.number().min(0).max(1),
   feedback: z.string().optional(),
   weak_topics: z.array(z.string()).default([]),
@@ -318,6 +328,8 @@ export const AttemptResponseSchema = z.object({
       interval_days: z.number().nonnegative(),
     })
     .optional(),
+  /** Streak / XP / achievements after this attempt (null when retention is off). */
+  activity: ActivityResultSchema.nullable().optional(),
   source: DataSourceSchema,
   note: z.string().optional(),
 })

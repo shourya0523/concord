@@ -21,6 +21,23 @@ export const FeatureFlagsSchema = z.object({
   publish_synthesised_answers: z.boolean().default(false),
   /** Company prep rooms use Glassdoor topic heat. */
   firm_topic_heat: z.boolean().default(true),
+  /**
+   * Learning-loop flags (plan 2026-09-23-001). Each degrades gracefully:
+   * grader v2 falls back to v1/deterministic, notifications no-op without
+   * provider keys, leagues are opt-in per user.
+   */
+  /** Rubric judge + numeric checks + anti-gaming (Phase 3). */
+  grader_v2: z.boolean().default(true),
+  /** Daily set + Today home (Phase 4). */
+  daily_set: z.boolean().default(true),
+  /** Streaks, freezes, XP, readiness, achievements (Phase 5). */
+  gamification: z.boolean().default(true),
+  /** Email / web-push reminders (Phase 6). */
+  notifications: z.boolean().default(true),
+  /** Spoken answers + transcription (Phase 7). Needs mic + OPENROUTER_API_KEY. */
+  voice_answers: z.boolean().default(false),
+  /** Opt-in weekly XP leagues (Phase 7). */
+  leagues: z.boolean().default(true),
 });
 export type FeatureFlags = z.infer<typeof FeatureFlagsSchema>;
 
@@ -32,6 +49,12 @@ const ENV_FLAG_MAP: Record<keyof FeatureFlags, string> = {
   scrape_bff_default: "FLAG_SCRAPE_BFF_DEFAULT",
   publish_synthesised_answers: "FLAG_PUBLISH_SYNTHESISED",
   firm_topic_heat: "FLAG_FIRM_TOPIC_HEAT",
+  grader_v2: "FLAG_GRADER_V2",
+  daily_set: "FLAG_DAILY_SET",
+  gamification: "FLAG_GAMIFICATION",
+  notifications: "FLAG_NOTIFICATIONS",
+  voice_answers: "FLAG_VOICE_ANSWERS",
+  leagues: "FLAG_LEAGUES",
 };
 
 function parseBool(raw: string | undefined, fallback: boolean): boolean {

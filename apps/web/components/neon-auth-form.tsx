@@ -9,7 +9,7 @@ import { Input } from "@ibpe/ui/components/input"
 import { Label } from "@ibpe/ui/components/label"
 
 import { authClient } from "@/lib/auth/client"
-import { resolvePostAuthPath } from "@/lib/auth/post-auth"
+import { POST_AUTH_HOME, resolvePostAuthPath } from "@/lib/auth/post-auth"
 
 type Mode = "sign-in" | "sign-up"
 
@@ -80,7 +80,7 @@ export function NeonAuthForm({ mode, configured }: Props) {
     try {
       const result = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/dashboard",
+        callbackURL: POST_AUTH_HOME,
         newUserCallbackURL: "/onboarding",
         errorCallbackURL: mode === "sign-up" ? "/sign-up" : "/sign-in",
       })

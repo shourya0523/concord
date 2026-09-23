@@ -1,0 +1,10 @@
+{
+  "bytes": 11841,
+  "commit_sha": "849a2b08c2c39b58936b49f76841b007b477b280",
+  "content_hash": "c661f836fd8befdcad7bcf2ee1b6fa002af0f59c279f053f1bf74abae0b154c1",
+  "fetch_method": "git clone --depth 1 (read-only via agent git proxy)",
+  "path": "README.md",
+  "repo": "coryjburk/intv-playbook-ib_vc",
+  "retrieved_at": "2026-09-23T00:54:00+00:00",
+  "source_url": "https://raw.githubusercontent.com/coryjburk/intv-playbook-ib_vc/849a2b08c2c39b58936b49f76841b007b477b280/README.md"
+}

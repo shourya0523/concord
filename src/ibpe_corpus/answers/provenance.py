@@ -1,9 +1,9 @@
-"""Provenance rules for answers and Gemini enrichment.
+"""Provenance rules for answers and LLM (OpenRouter) enrichment.
 
 Invariants (enforced in code, not just docs):
 
 1. Corpus / GitHub ``source_provided`` answers are preferred over synthesis.
-2. Gemini (and other LLM) output is always labelled synthesised / enrichment —
+2. LLM output (any OpenRouter model) is always labelled synthesised / enrichment —
    never ``source_provided``, never Glassdoor, never a GitHub path that lacked
    the text.
 3. Glassdoor text is firm-signal only; never promoted to teaching answers here.
@@ -17,7 +17,7 @@ from typing import Any, Iterable
 from ibpe_corpus.schemas.models import Answer, AnswerProvenance
 
 # Product-facing enrichment provenance (aligns with contracts ProvenanceEnum).
-FORBIDDEN_GEMINI_ATTRIBUTIONS = frozenset(
+FORBIDDEN_LLM_ATTRIBUTIONS = frozenset(
     {
         "glassdoor",
         "glassdoor_occurrence",
@@ -27,6 +27,9 @@ FORBIDDEN_GEMINI_ATTRIBUTIONS = frozenset(
         "static_seed",
     }
 )
+
+# Back-compat alias (pre-OpenRouter name).
+FORBIDDEN_GEMINI_ATTRIBUTIONS = FORBIDDEN_LLM_ATTRIBUTIONS
 
 ALLOWED_SYNTHESIS_PROVENANCE = frozenset(
     {
@@ -39,15 +42,30 @@ ALLOWED_SYNTHESIS_PROVENANCE = frozenset(
 
 
 class EnrichmentProvenance(str, Enum):
-    """Labels for Gemini enrichment artefacts (not teaching answer origins)."""
+    """Labels for LLM enrichment artefacts (not teaching answer origins).
+
+    The stored value stays ``gemini_synthesised``: it is part of the shared
+    ``ProvenanceEnum`` in ``packages/contracts/src/enums.ts`` and existing Neon
+    rows, so renaming it would break the TypeScript contract. It now means
+    "synthesised by an LLM" — the actual OpenRouter model id is recorded in
+    ``model_version`` / ``model``. ``LLM_SYNTHESISED`` is the preferred Python
+    name (an alias of the same member); ``llm_synthesised`` is accepted on read.
+    """
 
     GEMINI_SYNTHESISED = "gemini_synthesised"
+    LLM_SYNTHESISED = "gemini_synthesised"  # alias — same member, same stored value
     EDITORIAL = "editorial"
     DETERMINISTIC_CALCULATION = "deterministic_calculation"
 
+    @classmethod
+    def _missing_(cls, value: object) -> "EnrichmentProvenance | None":
+        if isinstance(value, str) and value.strip().lower() == "llm_synthesised":
+            return cls.GEMINI_SYNTHESISED
+        return None
+
 
 class ProvenanceError(ValueError):
-    """Raised when an attribution would launder Gemini/editorial as corpus source."""
+    """Raised when an attribution would launder LLM/editorial output as corpus source."""
 
 
 def assert_not_source_laundering(
@@ -60,15 +78,15 @@ def assert_not_source_laundering(
 ) -> None:
     """Fail closed if synthesised/enrichment output is attributed to corpus sources.
 
-    Call before publishing any Gemini or editorial artefact.
+    Call before publishing any LLM or editorial artefact.
     """
     lowered = (provenance or "").strip().lower()
     is_model_output = bool(generator_version) or bool(model_version)
 
-    if is_model_output and lowered in FORBIDDEN_GEMINI_ATTRIBUTIONS:
+    if is_model_output and lowered in FORBIDDEN_LLM_ATTRIBUTIONS:
         raise ProvenanceError(
             f"Refusing to attribute model/editorial output as {provenance!r}. "
-            "Use gemini_synthesised / synthesised_* / editorial instead."
+            "Use gemini_synthesised (LLM-synthesised) / synthesised_* / editorial instead."
         )
 
     if claimed_github_path and github_path_contained_text is False:
@@ -79,7 +97,7 @@ def assert_not_source_laundering(
 
     if lowered in {"glassdoor", "glassdoor_occurrence"} and is_model_output:
         raise ProvenanceError(
-            "Never attribute Gemini output to Glassdoor."
+            "Never attribute LLM output to Glassdoor."
         )
 
 
@@ -126,7 +144,7 @@ def label_enrichment_record(
 ) -> dict[str, Any]:
     """Stamp enrichment staging records with mandatory provenance metadata."""
     out = dict(record)
-    provenance = EnrichmentProvenance.GEMINI_SYNTHESISED.value
+    provenance = EnrichmentProvenance.LLM_SYNTHESISED.value
     assert_not_source_laundering(
         provenance=provenance,
         model_version=model_version,

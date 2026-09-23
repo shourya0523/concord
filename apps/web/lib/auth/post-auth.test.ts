@@ -1,7 +1,27 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
-import { hasPrepProfile } from "./post-auth"
+import {
+  POST_AUTH_HOME,
+  hasPrepProfile,
+  homePathFor,
+  postAuthPathFor,
+} from "./post-auth"
+
+describe("post-auth routing", () => {
+  it("sends returning users to Today and new users to onboarding", () => {
+    assert.equal(POST_AUTH_HOME, "/today")
+    assert.equal(postAuthPathFor({ profile: { track: "IB" } }), "/today")
+    assert.equal(postAuthPathFor({ profile: null }), "/onboarding")
+    assert.equal(postAuthPathFor(null), "/onboarding")
+  })
+
+  it("falls back to the dashboard when the daily set is off", () => {
+    assert.equal(homePathFor(true), "/today")
+    assert.equal(homePathFor(false), "/dashboard")
+    assert.equal(postAuthPathFor({ profile: { track: "PE" } }, homePathFor(false)), "/dashboard")
+  })
+})
 
 describe("hasPrepProfile", () => {
   it("returns false for empty / missing profile", () => {

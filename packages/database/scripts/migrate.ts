@@ -9,8 +9,10 @@ import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { neonConfig, Pool } from "@neondatabase/serverless";
 import ws from "ws";
+import { applyLocalNeonProxy } from "./local-neon";
 
 neonConfig.webSocketConstructor = ws;
+applyLocalNeonProxy();
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "../../..");
@@ -35,6 +37,16 @@ const FILES = [
   "040_diagram_coverage_expand.sql",
   "041_review_queue_scheduling.sql",
   "042_app_rls_role.sql",
+  "043_attempt_grades.sql",
+  "044_rubrics_enrichment.sql",
+  "045_retention_core.sql",
+  "046_notifications_leagues.sql",
+  "054_activity_events.sql",
+  "057_league_sizes.sql",
+  "059_diagrams_core.sql",
+  "060_curriculum_lessons.sql",
+  "061_interactive_diagrams.sql",
+  "062_score_source_jev.sql",
 ] as const;
 
 function splitSql(sqlText: string): string[] {

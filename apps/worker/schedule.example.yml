@@ -15,10 +15,24 @@ schedules:
       ibpe run-pipeline --mode fixtures --force
     env_from: worker-secrets
 
-  - name: gemini-enrich-nightly
+  # Taxonomy + rubric enrichment runs inside run-pipeline (heuristic without a key;
+  # with OPENROUTER_API_KEY, Jev classifies what heuristics cannot auto-approve and
+  # the small model drafts thin rubrics / expansions, each Jev-verified — ADR 0007).
+  # Proposals persist in the corpus DB and exports/enrichment_proposals.jsonl;
+  # publish applies approved ones.
+  - name: llm-enrich-nightly
     cron: "0 8 * * *"
     command: >
-      echo "Wire to answers enrich CLI when available"
+      ibpe run-pipeline --mode fixtures --force --llm
+      && python -m ibpe_corpus.answers.enrich_job --questions-jsonl exports/questions.jsonl
+      --db data/db/corpus.db --limit 200
+    env_from: worker-secrets
+
+  - name: publish-teaching-nightly
+    cron: "0 9 * * *"
+    command: >
+      npm run publish:teaching -w @ibpe/database -- --retire-missing
+      && npm run embed:rag -w @ibpe/database
     env_from: worker-secrets
 
 # Optional: Vercel Cron hits a short enqueue API; worker pulls the job.

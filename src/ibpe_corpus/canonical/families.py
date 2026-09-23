@@ -7,7 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 from rapidfuzz import fuzz
 
-from ibpe_corpus.canonical.embeddings import cosine_similarity, hashing_embed
+from ibpe_corpus.canonical.embeddings import sparse_cosine, sparse_hashing_embed
 from ibpe_corpus.canonical.normalise import normalise_for_hash
 from ibpe_corpus.schemas.models import CanonicalQuestion, QuestionVariant, new_id
 
@@ -115,7 +115,9 @@ def build_relationship_graph(
             )
         )
 
-    embeddings = {q.id: hashing_embed(q.canonical_wording) for q in questions}
+    # Sparse unit vectors: identical cosine values to dense hashing_embed, far
+    # cheaper for the O(n²) pair loop.
+    embeddings = {q.id: sparse_hashing_embed(q.canonical_wording) for q in questions}
     norms = {q.id: normalise_for_hash(q.canonical_wording) for q in questions}
 
     for i, qa in enumerate(questions):
@@ -142,7 +144,7 @@ def build_relationship_graph(
                 else:
                     _add(qa.id, qb.id, "related", conf, via="topic_ladder")
 
-            cos = cosine_similarity(embeddings[qa.id], embeddings[qb.id])
+            cos = sparse_cosine(embeddings[qa.id], embeddings[qb.id])
             if cos >= related_cosine and fuzzy < duplicate_threshold:
                 _add(qa.id, qb.id, "related", float(cos), cosine=cos)
 

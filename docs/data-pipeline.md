@@ -2,7 +2,7 @@
 
 How Concord turns raw sources into **teachable questions**, **firm signals**, and **practice-ready sessions** — and how we know the corpus is complete enough to ship.
 
-> **Thesis (ADR 0002):** GitHub/curated Q/A = teaching truth. Glassdoor = firm signals only. Gemini = enrich with explicit synthesised provenance. Never treat Glassdoor review prose as answers.
+> **Thesis (ADR 0002):** GitHub/curated Q/A = teaching truth. Glassdoor = firm signals only. LLMs (OpenRouter, ADR 0007) = enrich with explicit synthesised provenance, only when heuristics fall short. Never treat Glassdoor review prose as answers.
 
 ## Three lanes (not one conveyor)
 
@@ -47,14 +47,17 @@ The architecture diagram once implied a single stage chain. In practice the prod
 | Fetch / archive | S | Patchright `login` + `batch`; fixtures offline | Worker-hosted only; Blob for raw HTML |
 | Extract | T/S | GitHub importers; Glassdoor parse → `ExtractedRecord` | Unchanged semantics (`docs/extraction.md`) |
 | Classify PE | T/S | `pe/classifier.py` on role metadata | Also tag teaching domain IB/PE (today skewed `other`) |
-| Canonicalise | T vs S | Teaching fuzzy ≥92; signals exact-hash | Keep split; never let bank volume disable teaching fuzzy |
-| Join signals | S→T | `join_firm_signals` (fuzzy 88) | Persist `canonical_question_id` on Neon occurrences (today often null in prod) |
-| Answer fill | T only | `fill_answers`: source → match → synth | Gemini enrich as optional post-step, not in fixture critical path |
-| Validate | T only | Four Python validators | Re-run (or attest) before Neon stamp; stop blind `validated` stamp |
+| Canonicalise | T vs S | Teaching fuzzy ≥92; signals exact-hash; `strip_question_prefix` before hashing; compound Qs with one paired source answer are never split | Keep split; never let bank volume disable teaching fuzzy |
+| Join signals | S→T | `join_firm_signals`: exact → fuzzy 88 → hashing-embedding cosine ≥0.82; keyword rules v4 topic per signal (Jev `choice` over the 038 slugs for what the rules leave `untagged`, when keyed; kept at ≥ `JEV_AUTO_APPROVE`) → `exports/occurrence_joins.jsonl` | publish-teaching sets `canonical_question_id` / `join_score` / `join_method` / `topic` |
+| Enrich taxonomy | T | `answers/taxonomy_enrich.py`: heuristic (source labels + rules v4 + source answer) first; Jev (`typesafe/jev-1.13`, one Decisions request per question: `choice` topic / domain, `score` difficulty, `choice` PE strategy for PE questions) only for missing fields the heuristic cannot auto-approve — no chat model; durable proposals (SQLite `enrichment_proposals`, `exports/enrichment_proposals.jsonl`); auto-approve heuristic only when rule-agreeing ≥0.8, Jev when ≥ `JEV_AUTO_APPROVE` (0.8) and rule-agreeing or ≥0.9 alone | Human review of pending + 10% samples |
+| Answer fill | T only | `fill_answers`: source → match → synth | LLM enrich as optional post-step, not in fixture critical path |
+| Validate | T only | Four validators + depth tag (`needs_expansion`); placeholders → `needs_generation` (withheld); source answers validated too | Re-run (or attest) before Neon stamp |
+| Rubrics | T only | `answers/rubric.py` (`rubric-v1`): heuristic extractive / STAR first; small-model draft only when the heuristic fails validation or is below the 0.8 bar, Jev-verified against the teaching answer (`supported` ≥ `JEV_ACCEPT_CONFIDENCE`), one small-model retry with `--escalate`; validators + verdict gate `approved` | Human spot-check; grader reads `rubric_json` when `rubric_status='approved'` |
+| Depth | T only | `answers/depth.py`: pending expansion proposals for shallow source answers (topic handler; `expand-v1` small-model draft only when no handler exists, kept only when Jev verifies it `supported`) | Editor approves → publish applies |
 | Score quality | T | `JOB_NAMES` stub only | Implement or drop the name |
 | Export | T/S | `export_all` → `exports/*.jsonl` + reports | Teaching JSONL ≠ firm_signals JSONL (already) |
-| Publish | T | `npm run publish:teaching` | Separate signal import path; never Glassdoor as answers |
-| Embed | T | `npm run embed:rag` | Cron after every teaching publish |
+| Publish | T | `npm run publish:teaching` (answers + `rubric_json`, proposals upsert/apply, occurrence joins, placeholder retire, `--retire-missing`) | Separate signal import path; never Glassdoor as answers |
+| Embed | T | `npm run embed:rag` — kinds `canonical_question`, `answer_chunk` (~800 chars, de-duped vs concise), `concept`, `diagram`; re-embeds only changed content hashes | Cron after every teaching publish |
 
 ### Provenance hard rules
 
@@ -68,16 +71,21 @@ The architecture diagram once implied a single stage chain. In practice the prod
 ```bash
 source .venv/bin/activate
 
-# Assemble offline teaching + signal corpus (SQLite + exports/)
-ibpe run-pipeline --mode fixtures
+# Assemble offline teaching + signal corpus (SQLite + exports/ + reports/)
+ibpe run-pipeline --mode fixtures --force          # heuristic enrich/rubrics (no key)
+ibpe run-pipeline --mode fixtures --force --llm    # Jev decisions + Jev-verified small-model drafts, only where heuristics fall short
+ibpe run-pipeline --mode fixtures --force --llm --no-escalate   # no second small-model attempt after a rejected draft
+PYTHONPATH=src python3 -m ibpe_corpus.metrics.completeness   # reports only, from exports
+ibpe proposals --status pending                     # review queue
+ibpe review-proposal <id> approved --reviewer you@example.com
 
 # Live Glassdoor (worker / residential session) — signals only
 python main.py login
 python main.py batch --track PE --limit 1
 
 # Publish teaching truth to Neon + RAG index
-DATABASE_URL=… npm run publish:teaching -w @ibpe/database
-DATABASE_URL=… GEMINI_API_KEY=… npm run embed:rag -w @ibpe/database
+DATABASE_URL=… npm run publish:teaching -w @ibpe/database -- --retire-missing
+DATABASE_URL=… OPENROUTER_API_KEY=… npm run embed:rag -w @ibpe/database   # text-embedding-3-small @768 (ADR 0007)
 ```
 
 ## Practice interviews (Lane P)
@@ -116,7 +124,7 @@ response_text
   → load firm context pack (signals only):
         topic heat rows + occurrence snippets for firm_ids
         + RAG hits for this question/topic (teaching docs only)
-  → Gemini structured grade (rubric):
+  → LLM structured grade via OpenRouter (rubric):
         correctness 0–1, coverage of key points, red flags,
         firm_alignment note ("this firm heat skews to X — you missed…")
         citations restricted to teaching answer ids + heat topic ids
@@ -129,7 +137,7 @@ Hard rules for the grader:
 1. Glassdoor text is **context for weighting / coaching**, never the gold answer.
 2. Every firm-specific claim in feedback must cite heat topic or occurrence id — same cite-only discipline as `rag-brief.ts`.
 3. Numerical questions prefer deterministic checks from `calculation_representation` before/alongside LLM.
-4. Fail open to self-score with `score_source=self` when `GEMINI_API_KEY` missing; never invent firm facts.
+4. Fail open to self-score with `score_source=self` when `OPENROUTER_API_KEY` missing; never invent firm facts.
 
 ### Glassdoor leverage (efficient use)
 
@@ -164,7 +172,7 @@ Schema exists: `canonical.diagrams` + `diagram_versions` (`format=mermaid|intera
 | Gap | Target |
 |-----|--------|
 | Few diagrams / weak concept links | Every core concept (DCF, LBO, 3-statement, WACC, …) has ≥1 published mermaid version |
-| Enrich may invent diagrams without publish gate | Gemini diagram drafts → review → `diagram_versions` with provenance |
+| Enrich may invent diagrams without publish gate | LLM diagram drafts → review → `diagram_versions` with provenance |
 | Checkpoints reference empty `diagram_id` / drills | Module checkpoints point at real `diagram_id` + question_ids |
 | RAG index ignores diagram a11y text | Embed diagram title + a11y_fallback into `rag_documents` for concept retrieval |
 
@@ -186,10 +194,14 @@ Completeness is **product-aware**, not “row count went up.”
 | C8 | License | High-priority GitHub sources cleared | `reports/license-review.md` |
 | C9 | LLM practice scoring | ≥1 firm simulator/company attempt path returns `score_source=llm` with citations | Attempt API / eval fixture |
 | C10 | Diagram coverage | Core concepts each have ≥1 mermaid `diagram_versions` row linked from modules | Neon diagram + checkpoint SQL |
+| C11 | Rubric coverage | ≥90% publishable answers have an approved `rubric_json` | `reports/answer-coverage-report.md` |
+| C12 | Grader quality | Eval MAE ≤0.12, `correct` accuracy ≥90% on the gold set | Grader eval harness |
+| C13 | Daily loop live | Daily set + streak engine on in prod; notification idempotency verified | Product checks |
+| C14 | Drill coverage | Every core calc concept has ≥1 numeric drill template with calculator parity tests | Drill registry + tests |
 
 ### Scoreboard
 
-Maintain one living table in `reports/pipeline-completeness.md` (regenerated by export or a small script). Columns: dimension, current, target, status, blocker.
+`reports/pipeline-completeness.md` is regenerated from the exports on every `run-pipeline` (and by `python -m ibpe_corpus.metrics.completeness`); never hand-edit it. Columns: dimension, current, target, status, blocker.
 
 Product UI / APIs may expose a slim readiness payload later (`GET /api/admin/pipeline-readiness`) — not required for Lane T/S offline runs.
 
@@ -198,10 +210,27 @@ Product UI / APIs may expose a slim readiness payload later (`GET /api/admin/pip
 | Gate | Blocks |
 |------|--------|
 | Placeholders / topic_signal in teaching export | `questions.jsonl` publish |
-| License BLOCKING (high-priority) | Expanding production teaching corpus |
+| License BLOCKING (high-priority) | Expanding production teaching corpus (cleared by owner attestation 2026-09-23) |
+| Generic placeholder answer / `needs_generation` | That answer (withheld; publish-teaching retires old rows) |
 | Answer `rejected` / empty | That question's publishable flag |
 | Module checkpoints empty | `concept` mode start (API 422 typed) |
 | Firm heat empty + no RAG | `company` / `simulator` start for that firm |
+
+## Content enrichment stages (plan 2026-09-23-001)
+
+Order inside `run_fixture_pipeline` (offline, no key needed):
+
+1. **Import** — seed, behavioural seed (`fixtures/corpus/behavioural_seed.json`, 60 synthesised fit Qs), GitHub sources (ddeng5, coryjburk IB/PE playbooks, offergenie, HireAbo), bank signals.
+2. **Canonicalise** — `strip_question_prefix` on wording + hash; paired compound questions stay whole. Stable ids: prior `exports/*.jsonl` act as the id registry so published ids survive re-runs.
+3. **Signal join** — topic tag + exact/fuzzy/embedding join (`occurrence_joins.jsonl`).
+4. **Taxonomy enrichment** — proposals persisted; approved rows applied before answers are routed.
+5. **Answers** — source → corpus match → topic synthesis (18 handlers + facets); generic placeholder is `needs_generation` and withheld.
+6. **Validate** — incl. `needs_expansion` tag; source answers validated too.
+7. **Rubrics** — `rubric-v1` on every answer (heuristic unless keyed); `review_status` from validators.
+8. **Depth proposals** — synthesised appendices for shallow source answers, pending editor approval.
+9. **Export + reports** — `answers.jsonl` carries `rubric`, `quality_tags`, `coaching_notes`; reports are computed from exports.
+
+Honesty notes: heuristic taxonomy auto-approvals and heuristic rubrics are **rule-validated, not human-reviewed**; ~10% of auto-approvals are queued as review samples. Model paths run only with `OPENROUTER_API_KEY`, only for items the heuristics cannot auto-approve, and fall back to heuristics on any failure: Jev (decision model) for taxonomy and signal topics; the small chat model for `rubric-v1` / `expand-v1` drafts, each Jev-verified. `run-summary.json` → `enrichment.llm_routes` counts heuristic / jev / small / failed per stage and `enrichment.jev_rejected_drafts` counts drafts Jev refused (see ADR 0007).
 
 ## Job orchestration (honest catalog)
 
@@ -212,7 +241,7 @@ Product UI / APIs may expose a slim readiness payload later (`GET /api/admin/pip
 3. Collapsed jobs (`answers:fill+validate:v2`) stay collapsed if atomic; document the composite key.
 4. Neon publish + embed are **post-export worker steps**, not pretend Python jobs.
 
-Workers (`apps/worker`) host: scrape enqueue, `run-pipeline`, Gemini enrich, `publish:teaching`, `embed:rag`. Never long scrapes inside Vercel request timeouts.
+Workers (`apps/worker`) host: scrape enqueue, `run-pipeline`, LLM enrich (OpenRouter), `publish:teaching`, `embed:rag`. Never long scrapes inside Vercel request timeouts.
 
 ## Related docs
 
@@ -222,4 +251,5 @@ Workers (`apps/worker`) host: scrape enqueue, `run-pipeline`, Gemini enrich, `pu
 - [answer-generation.md](./answer-generation.md) / [answer-validation.md](./answer-validation.md)
 - [private-equity-coverage.md](./private-equity-coverage.md)
 - [decisions/0002-data-thesis-github-glassdoor-gemini.md](./decisions/0002-data-thesis-github-glassdoor-gemini.md)
+- [decisions/0007-openrouter-llm-stack.md](./decisions/0007-openrouter-llm-stack.md) — Jev decision tier + Jev-verified small LLM, "only when required"
 - Plan: [plans/2026-08-01-001-architecture-data-pipeline-rethink-plan.md](./plans/2026-08-01-001-architecture-data-pipeline-rethink-plan.md)

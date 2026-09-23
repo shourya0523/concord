@@ -21,7 +21,8 @@ import {
   SemanticPill,
   WarrenCallout,
 } from "@/components/paper"
-import { conceptIdForTopic, topicLabel } from "@/lib/topics"
+import type { TodayResponse } from "@/lib/api/retention-schemas"
+import { topicLabel } from "@/lib/topics"
 import { weakTopicsFromMastery, type WeakTopic } from "@/lib/weak-topics"
 
 type MasteryItem = { score: number; subject_id: string; subject_type: string }
@@ -38,23 +39,12 @@ type DashboardData = {
   loadedAtMs: number
 }
 
-type HeatPayload = {
-  topics: Array<{
-    firm_id: string
-    topic_id: string
-    intensity: number
-    sample_size: number
-  }>
-}
-
 type MasteryPayload = { items?: MasteryItem[] }
 type PlanPayload = { plan?: { items?: DashboardData["planItems"] } }
 type ModulePayload = { items?: DashboardData["modules"] }
 type ProfilePayload = { profile?: { interview_date?: string | null } }
 type ProgressPayload = { streak_days?: number }
 type ReviewPayload = { due_count?: number; scheduled_count?: number }
-
-const HOT_THRESHOLD = 0.5
 
 function readinessTier(percent: number): { label: string; tone: "milestone" } {
   if (percent < 40) return { label: "Needs work", tone: "milestone" }
@@ -99,7 +89,7 @@ export function DashboardIsland() {
   const [mode, setMode] = React.useState<"company_prep" | "concept_learn">(
     "company_prep"
   )
-  const [heatTopics, setHeatTopics] = React.useState<HeatPayload["topics"]>([])
+  const [today, setToday] = React.useState<TodayResponse | null>(null)
   const [data, setData] = React.useState<DashboardData>({
     mastery: [],
     planItems: [],
@@ -190,23 +180,24 @@ export function DashboardIsland() {
     }
   }, [])
 
+  // Readiness (P5.4: heat-weighted concept mastery), streak and Warren's
+  // mood come from /api/today for the selected targets.
   React.useEffect(() => {
-    if (targets.length === 0) {
-      return
-    }
     const controller = new AbortController()
     const params = targets
       .map((id) => `firm_id=${encodeURIComponent(id)}`)
       .join("&")
-    fetch(`/api/prep/heat?${params}`, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) return { topics: [] }
-        return (await response.json()) as HeatPayload
-      })
-      .then((payload) => setHeatTopics(payload.topics ?? []))
+    fetch(`/api/today${params ? `?${params}` : ""}`, {
+      signal: controller.signal,
+      cache: "no-store",
+    })
+      .then(async (response) =>
+        response.ok ? ((await response.json()) as TodayResponse) : null
+      )
+      .then((payload) => setToday(payload))
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setHeatTopics([])
+          setToday(null)
         }
       })
     return () => controller.abort()
@@ -232,39 +223,19 @@ export function DashboardIsland() {
         )
       : null
   const weakest = data.weakTopics[0]
-  const masteryByConcept = new Map(
-    data.mastery
-      .filter((item) => item.subject_type === "concept")
-      .map((item) => [item.subject_id, item.score])
-  )
   const weakTopicSet = new Set(data.weakTopics.map((weak) => weak.topic))
-  const readinessRows = targets.map((firmId) => {
-    const hotTopics = heatTopics.filter(
-      (row) =>
-        row.firm_id === firmId &&
-        row.intensity >= HOT_THRESHOLD &&
-        row.topic_id !== "untagged"
-    )
-    const conceptIds = [
-      ...new Set(
-        hotTopics
-          .map((row) => conceptIdForTopic(row.topic_id))
-          .filter((id): id is string => id !== null)
-      ),
-    ]
-    const percent =
-      conceptIds.length === 0
-        ? null
-        : Math.round(
-            (conceptIds.reduce(
-              (sum, id) => sum + (masteryByConcept.get(id) ?? 0),
-              0
-            ) /
-              conceptIds.length) *
-              100
-          )
-    return { firmId, hotTopics, conceptIds, percent }
-  })
+  const readinessRows =
+    targets.length === 0
+      ? []
+      : (today?.readiness ?? []).map((row) => ({
+          firmId: row.firm_id,
+          firmName: row.firm_name,
+          topics: row.topics,
+          weeklyDelta: row.weekly_delta,
+          percent:
+            row.readiness === null ? null : Math.round(row.readiness * 100),
+        }))
+  const streakDays = today?.streak.current ?? data.streakDays
   const urgency = daysUntil === null ? null : urgencyCopy(daysUntil)
   const suggestedReason = weakest
     ? `${primary?.name ?? "Your target"} heat ∩ your ${topicLabel(weakest.topic)} weakness (${Math.round(weakest.score * 100)}% mastery)`
@@ -416,8 +387,8 @@ export function DashboardIsland() {
             </div>
             {readinessRows.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Select targets to score readiness against each firm&apos;s
-                hot-topic labs.
+                Select targets to score readiness — heat-weighted mastery of
+                each firm&apos;s most-asked topics.
               </p>
             ) : (
               <ul className="space-y-3">
@@ -425,6 +396,10 @@ export function DashboardIsland() {
                   const firm = firmNames.get(row.firmId)
                   const tier =
                     row.percent === null ? null : readinessTier(row.percent)
+                  const delta =
+                    row.weeklyDelta === null
+                      ? null
+                      : Math.round(row.weeklyDelta * 100)
                   return (
                     <li
                       key={row.firmId}
@@ -432,8 +407,7 @@ export function DashboardIsland() {
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                          {firm?.name ??
-                            row.firmId.replace(/^firm_/, "").replace(/-/g, " ")}
+                          {firm?.name ?? row.firmName}
                         </span>
                         {row.percent === null ? (
                           <SemanticPill tone="neutral" icon={false}>
@@ -447,18 +421,26 @@ export function DashboardIsland() {
                             <SemanticPill tone={tier!.tone}>
                               {tier!.label}
                             </SemanticPill>
+                            {delta !== null && delta !== 0 ? (
+                              <span className="text-xs text-muted-foreground tabular-nums">
+                                {delta > 0 ? "+" : "−"}
+                                {Math.abs(delta)} this week
+                              </span>
+                            ) : null}
                           </>
                         )}
                       </div>
-                      {row.hotTopics.length > 0 ? (
+                      {row.topics.length > 0 ? (
                         <HeatStrip
                           compact
                           className="mt-3"
-                          entries={row.hotTopics.slice(0, 4).map((topic) => ({
-                            topic: topic.topic_id,
-                            intensity: topic.intensity,
+                          entries={row.topics.slice(0, 4).map((topic) => ({
+                            topic: topic.topic,
+                            intensity: topic.weight,
                             sampleSize: topic.sample_size,
-                            weak: weakTopicSet.has(topic.topic_id),
+                            weak:
+                              weakTopicSet.has(topic.topic) ||
+                              topic.mastery < 0.68,
                           }))}
                         />
                       ) : (
@@ -490,17 +472,31 @@ export function DashboardIsland() {
 
           <section className="inline-flex items-center gap-4 border border-ink/20 bg-streak/10 px-4 py-3 hover:-translate-y-0.5 motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out motion-reduce:transform-none">
             <CircledNumber
-              value={String(data.streakDays)}
+              value={String(streakDays)}
               label="day streak"
               size="sm"
             />
             <div className="space-y-1">
               <SemanticPill tone="streak">
-                {data.streakDays > 0 ? "active streak" : "start streak"}
+                {today?.streak.goal_met_today
+                  ? "goal met today"
+                  : streakDays > 0
+                    ? "active streak"
+                    : "start streak"}
               </SemanticPill>
               <p className="text-xs text-muted-foreground">
-                Keep one calm rep moving each day.
+                {today
+                  ? `Daily goal: ${today.daily_set.goal} graded cards · ${today.streak.freezes} freeze${today.streak.freezes === 1 ? "" : "s"} banked.`
+                  : "Keep one calm rep moving each day."}
               </p>
+              {today?.flags.daily_set ? (
+                <Link
+                  href="/today"
+                  className="text-xs text-foreground underline-offset-4 hover:underline"
+                >
+                  Today&apos;s set →
+                </Link>
+              ) : null}
             </div>
           </section>
 
@@ -556,8 +552,17 @@ export function DashboardIsland() {
               </Annotate>
             </p>
             <div className="mt-3">
-              <WarrenCallout mood="thinking" bracket size={48}>
+              <WarrenCallout
+                mood={today?.warren.mood ?? "thinking"}
+                bracket
+                size={48}
+              >
                 {suggestedReason}.
+                {today ? (
+                  <span className="mt-1 block text-muted-foreground">
+                    {today.warren.message}
+                  </span>
+                ) : null}
               </WarrenCallout>
             </div>
             <InkHoverScope className="mt-4 flex flex-wrap gap-2">

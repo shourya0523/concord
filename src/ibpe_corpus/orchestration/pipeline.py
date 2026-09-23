@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -10,12 +11,30 @@ from ibpe_corpus import GENERATOR_VERSION, PARSER_VERSION, VALIDATOR_VERSION
 from ibpe_corpus.adapters.github.adapter import GitHubSourceAdapter
 from ibpe_corpus.adapters.glassdoor.parse import parse_html
 from ibpe_corpus.adapters.glassdoor.question_bank import import_question_bank
+from ibpe_corpus.adapters.static.behavioural_seed import (
+    behavioural_answers,
+    load_behavioural_seed,
+)
 from ibpe_corpus.adapters.static.seed_corpus import load_seed_corpus
+from ibpe_corpus.answers.depth import propose_expansions
+from ibpe_corpus.answers.editorial import EditorialReviewQueue
 from ibpe_corpus.answers.ingest_source import ingest_extracted_record
 from ibpe_corpus.answers.pipeline import fill_answers
+from ibpe_corpus.answers.proposals import ProposalStore
+from ibpe_corpus.answers.rubric import attach_rubrics
+from ibpe_corpus.answers.taxonomy_enrich import (
+    SourceHints,
+    hints_from_answers,
+    run_taxonomy_enrichment,
+)
 from ibpe_corpus.canonical.canonicalise import canonicalise
 from ibpe_corpus.canonical.families import build_relationship_graph
-from ibpe_corpus.canonical.firm_signals import join_firm_signals
+from ibpe_corpus.canonical.firm_signals import (
+    join_firm_signals,
+    jev_topic_tagger,
+    signal_join_summary,
+)
+from ibpe_corpus.orchestration.id_registry import assign_stable_ids, load_prior_ids
 from ibpe_corpus.canonical.publish_gate import (
     filter_extracted_for_publish,
     filter_publishable_answers,
@@ -41,6 +60,7 @@ from ibpe_corpus.schemas.models import (
 )
 from ibpe_corpus.storage.db import (
     CorpusStore,
+    answer_rubrics as rubric_table,
     answers as answers_table,
     canonical_questions as cq_table,
     interview_occurrences as occ_table,
@@ -191,6 +211,46 @@ def _answers_from_extracted(
     return out
 
 
+def _source_hints(
+    variants: list,
+    teaching_extracted: list[ExtractedRecord],
+    corpus_answers: list[Answer],
+) -> dict[str, SourceHints]:
+    """Source-declared category / track / difficulty per canonical question."""
+    from ibpe_corpus.canonical.canonicalise import split_multi_questions
+    from ibpe_corpus.canonical.normalise import normalised_hash
+
+    meta_by_hash: dict[str, dict[str, Any]] = {}
+    for rec in teaching_extracted:
+        if rec.record_type not in {
+            ExtractionClass.EXACT_QUESTION,
+            ExtractionClass.PARAPHRASED_QUESTION,
+        }:
+            continue
+        meta = rec.extracted_metadata or {}
+        keys = {normalised_hash(rec.exact_source_text)}
+        keys.update(normalised_hash(seg) for seg, _ in split_multi_questions(rec.exact_source_text))
+        for key in keys:
+            meta_by_hash.setdefault(key, meta)
+    answer_text = hints_from_answers(corpus_answers)
+    hints: dict[str, SourceHints] = {}
+    for v in variants:
+        meta = meta_by_hash.get(v.normalised_hash)
+        if meta is None or v.canonical_question_id in hints:
+            continue
+        domain = str(meta.get("domain") or "").lower() or None
+        hints[v.canonical_question_id] = SourceHints(
+            category=meta.get("title_label") or meta.get("category") or meta.get("topic"),
+            track=meta.get("track"),
+            domain=domain if domain in {"ib", "pe", "both"} else None,
+            difficulty=meta.get("difficulty"),
+            answer_text=answer_text.get(v.canonical_question_id),
+        )
+    for cq_id, text in answer_text.items():
+        hints.setdefault(cq_id, SourceHints(answer_text=text))
+    return hints
+
+
 def run_fixture_pipeline(
     *,
     db_path: Path | str = DEFAULT_DB,
@@ -198,13 +258,58 @@ def run_fixture_pipeline(
     reports_dir: Path | str = REPORTS_DIR,
     force: bool = False,
     include_question_bank: bool = True,
+    llm: bool | None = None,
+    llm_escalate: bool = True,
 ) -> dict[str, Any]:
-    """Run the full controlled collection pipeline in fixture/offline mode."""
+    """Run the full controlled collection pipeline in fixture/offline mode.
+
+    ``llm=None`` enables the OpenRouter stage (Jev decisions + small-model
+    drafts) only when ``OPENROUTER_API_KEY`` is set and ``IBPE_ENRICH_LLM`` is
+    not ``0``; otherwise every enrichment stage runs in deterministic heuristic
+    mode with no network calls. Even with a key, work goes to a model only when
+    the heuristic result is not auto-approvable:
+
+    * taxonomy + signal topic tags → Jev (``LLM_DECISION_MODEL``), one request
+      per question / signal batch — no chat model;
+    * rubric drafts + expansion appendices (text) → small model
+      (``LLM_SMALL_MODEL``), always Jev-verified; ``llm_escalate`` retries a
+      rejected draft once with the small model.
+
+    Route counts (heuristic / jev / small / failed) are reported per stage.
+    """
     db_path = Path(db_path)
     exports_dir = Path(exports_dir)
     reports_dir = Path(reports_dir)
     exports_dir.mkdir(parents=True, exist_ok=True)
     reports_dir.mkdir(parents=True, exist_ok=True)
+    # Registry of already-exported (and possibly published) ids — read before
+    # this run overwrites the exports.
+    prior_ids = load_prior_ids(exports_dir)
+
+    from ibpe_corpus.answers.decisions_client import DecisionsClient
+    from ibpe_corpus.answers.depth import ExpansionDraft
+    from ibpe_corpus.answers.llm_client import (
+        LlmRouteCounts,
+        OpenRouterClient,
+        credentials_configured,
+    )
+    from ibpe_corpus.answers.rubric import RubricDraft
+
+    if llm is None:
+        llm = credentials_configured() and os.environ.get("IBPE_ENRICH_LLM", "1") != "0"
+    llm_client = OpenRouterClient(escalate=llm_escalate) if llm else None
+    decider = DecisionsClient() if llm else None
+    llm_live = llm_client is not None and not llm_client.dry_run
+    jev = decider if decider is not None and not decider.dry_run else None
+
+    tagger = jev_topic_tagger(jev) if jev is not None else None
+    rubric_call = llm_client.json_caller(RubricDraft) if llm_live and jev is not None else None
+    expand_call = llm_client.json_caller(ExpansionDraft) if llm_live and jev is not None else None
+    llm_routes = {
+        "taxonomy": LlmRouteCounts(),
+        "rubric": LlmRouteCounts(),
+        "expansion": LlmRouteCounts(),
+    }
 
     store = CorpusStore(db_path)
     runner = JobRunner(store)
@@ -217,6 +322,11 @@ def run_fixture_pipeline(
     all_responses: list[QuestionResponse] = []
     rejected: list[dict[str, Any]] = []
     placeholder_rejects: list[dict[str, Any]] = []
+    behavioural_items: list = []
+    signal_join_rows: list[dict[str, Any]] = []
+    enrichment_metrics: dict[str, Any] = {}
+    rubric_stats: dict[str, int] = {}
+    proposals_out: list = []
 
     def _record(job_name: str, key: str, payload: dict[str, Any], **kwargs: Any) -> None:
         # Work already executed for in-memory assembly; runner enforces idempotent job rows.
@@ -299,6 +409,7 @@ def run_fixture_pipeline(
     # --- import static seed + github teaching corpora + bank firm signals ---
     def import_corpora() -> dict[str, Any]:
         nonlocal all_extracted, teaching_extracted, signal_extracted, placeholder_rejects
+        nonlocal behavioural_items
         count = 0
         sources = 0
         github_q = 0
@@ -314,6 +425,19 @@ def run_fixture_pipeline(
         count += len(seed_kept)
         sources += 1
         metrics.add_from(seed.metrics)
+
+        # Curated behavioural / fit bank (P2.11) — synthesised, never Glassdoor.
+        beh, behavioural_items = load_behavioural_seed()
+        if beh.extracted:
+            _persist_artefacts(store, beh.artefacts)
+            beh_kept, beh_rej = filter_extracted_for_publish(beh.extracted)
+            placeholder_rejects.extend(beh_rej)
+            _persist_extracted(store, beh_kept)
+            teaching_extracted.extend(beh_kept)
+            all_extracted.extend(beh_kept)
+            count += len(beh_kept)
+            sources += 1
+            metrics.add_from(beh.metrics)
 
         adapter = GitHubSourceAdapter(
             config_path=GITHUB_SOURCES,
@@ -456,33 +580,45 @@ def run_fixture_pipeline(
 
         teaching_qs = list(teaching_canon.questions)
         teaching_vars = list(teaching_canon.variants)
-        # Join cost is O(signals × teaching); teaching stays small so fuzzy is fine.
-        joined_occs, join_audits = join_firm_signals(
-            teaching_qs,
-            teaching_vars,
-            signal_rows,
-            fuzzy_threshold=88.0,
-        )
-        canon_result.occurrences.extend(joined_occs)
-        canon_result.merge_audits.extend(join_audits)
 
+        # Stable ids: prior exports first (they are what publish-teaching
+        # already upserted), then the local SQLite store for anything new.
+        id_remap: dict[str, str] = assign_stable_ids(
+            canon_result.questions, canon_result.variants, prior_ids
+        )
+        stable_ids = set(id_remap.values())
         existing_cq = {
             row["normalised_hash"]: row["id"]
             for row in store.fetch_all(cq_table)
             if row.get("normalised_hash")
         }
-        id_remap: dict[str, str] = {}
+        taken = {q.id for q in canon_result.questions}
         for cq in canon_result.questions:
+            if cq.id in stable_ids:
+                continue
             if cq.normalised_hash and cq.normalised_hash in existing_cq:
                 prior = existing_cq[cq.normalised_hash]
-                if prior != cq.id:
+                if prior != cq.id and prior not in taken:
                     id_remap[cq.id] = prior
+                    taken.add(prior)
                     cq.id = prior
         if id_remap:
             for v in canon_result.variants:
                 v.canonical_question_id = id_remap.get(
                     v.canonical_question_id, v.canonical_question_id
                 )
+
+        # Join cost is O(signals × teaching); teaching stays small so fuzzy is fine.
+        joined_occs, join_audits = join_firm_signals(
+            teaching_qs,
+            teaching_vars,
+            signal_rows,
+            fuzzy_threshold=88.0,
+            join_rows=signal_join_rows,
+            topic_tagger=tagger,
+        )
+        canon_result.occurrences.extend(joined_occs)
+        canon_result.merge_audits.extend(join_audits)
 
         existing_variant_hashes = {
             row["normalised_hash"] for row in store.fetch_all(qv_table) if row.get("normalised_hash")
@@ -589,7 +725,7 @@ def run_fixture_pipeline(
     teaching_for_graph = [q for q in canon_result.questions if q.review_state != "topic_signal"]
     relationships = (
         build_relationship_graph(teaching_for_graph)
-        if len(teaching_for_graph) <= 500
+        if len(teaching_for_graph) <= 1000
         else []
     )
 
@@ -597,11 +733,49 @@ def run_fixture_pipeline(
     filled_answers: list[Answer] = []
 
     def do_answers() -> dict[str, Any]:
-        nonlocal filled_answers
+        nonlocal filled_answers, enrichment_metrics, rubric_stats, proposals_out
         publishable_qs, _withheld_qs = filter_publishable_questions(canon_result.questions)
         corpus_answers = _answers_from_extracted(
             publishable_qs, canon_result.variants, teaching_extracted
         )
+        hash_to_cq = {v.normalised_hash: v.canonical_question_id for v in canon_result.variants}
+        beh_answers = behavioural_answers(behavioural_items, hash_to_cq)
+
+        # --- taxonomy enrichment (P2.2) before synthesis so routing sees topics ---
+        hints = _source_hints(canon_result.variants, teaching_extracted, corpus_answers)
+        enriched_qs, proposals_out, enrichment_metrics = run_taxonomy_enrichment(
+            publishable_qs,
+            hints,
+            proposal_store=ProposalStore(store),
+            review_queue=EditorialReviewQueue(store),
+            decider=jev,
+            routes=llm_routes["taxonomy"],
+        )
+        by_id = {q.id: q for q in enriched_qs}
+        canon_result.questions = [by_id.get(q.id, q) for q in canon_result.questions]
+        publishable_qs = enriched_qs
+        for cq in enriched_qs:
+            store.upsert_dict(
+                cq_table,
+                {
+                    "id": cq.id,
+                    "canonical_wording": cq.canonical_wording,
+                    "question_type": cq.question_type,
+                    "topic": cq.topic,
+                    "subtopic": cq.subtopic,
+                    "domain": cq.domain.value,
+                    "pe_strategy": cq.pe_strategy,
+                    "pe_relevance": cq.pe_relevance.value if cq.pe_relevance else None,
+                    "seniority": cq.seniority,
+                    "difficulty": cq.difficulty,
+                    "review_state": cq.review_state,
+                    "normalised_hash": cq.normalised_hash,
+                },
+            )
+        seen_answer_q = {a.canonical_question_id for a in corpus_answers}
+        existing_answers = list(corpus_answers) + [
+            a for a in beh_answers if a.canonical_question_id not in seen_answer_q
+        ]
         mapped_responses: list[QuestionResponse] = []
         qtn_to_cq: dict[str, str] = {}
         for occ in canon_result.occurrences:
@@ -651,10 +825,18 @@ def run_fixture_pipeline(
 
         filled_answers = fill_answers(
             publishable_qs,
-            existing_answers=corpus_answers,
+            existing_answers=existing_answers,
             source_responses=mapped_responses,
             corpus_answers=corpus_answers,
-            max_generate=150 if len(publishable_qs) > 500 else None,
+            max_generate=300 if len(publishable_qs) > 1500 else None,
+        )
+        # --- rubrics (P2.3): heuristic unless an LLM key is configured ---
+        filled_answers, rubric_stats = attach_rubrics(
+            filled_answers,
+            publishable_qs,
+            llm_call=rubric_call,
+            verifier=jev,
+            routes=llm_routes["rubric"],
         )
         filled_answers, withheld_ans = filter_publishable_answers(
             filled_answers, [q.id for q in publishable_qs]
@@ -672,7 +854,9 @@ def run_fixture_pipeline(
         }
         source_n = matched_n = gen_n = val_n = rej_n = 0
         for ans in filled_answers:
-            if ans.canonical_question_id in existing_ans:
+            if ans.canonical_question_id in prior_ids.answer_ids:
+                ans.id = prior_ids.answer_ids[ans.canonical_question_id]
+            elif ans.canonical_question_id in existing_ans:
                 ans.id = existing_ans[ans.canonical_question_id]
             if ans.provenance_type == AnswerProvenance.SOURCE_PROVIDED:
                 source_n += 1
@@ -715,6 +899,33 @@ def run_fixture_pipeline(
                     "references_json": store.dumps(ans.references),
                 },
             )
+            if ans.rubric is not None:
+                store.upsert_dict(
+                    rubric_table,
+                    {
+                        "answer_id": ans.id,
+                        "canonical_question_id": ans.canonical_question_id,
+                        "rubric_json": store.dumps(ans.rubric.model_dump(mode="json")),
+                        "rubric_status": ans.rubric.review_status,
+                        "quality_tags_json": store.dumps(ans.quality_tags),
+                    },
+                )
+        # --- depth (P2.4): expansion proposals for shallow source answers ---
+        expansion_props = ProposalStore(store).upsert_many(
+            propose_expansions(
+                filled_answers,
+                publishable_qs,
+                llm_call=expand_call,
+                verifier=jev,
+                routes=llm_routes["expansion"],
+            )
+        )
+        proposals_out = list(proposals_out) + expansion_props
+        enrichment_metrics["expansion_proposals"] = len(expansion_props)
+        total_routes = LlmRouteCounts()
+        for counts in llm_routes.values():
+            total_routes = total_routes.merge(counts)
+        enrichment_metrics.update({f"llm_{k}": v for k, v in total_routes.as_dict().items()})
         return {
             "input_count": len(publishable_qs),
             "output_count": len(filled_answers),
@@ -724,6 +935,13 @@ def run_fixture_pipeline(
                 "generated_answers": gen_n,
                 "validated_answers": val_n,
                 "rejected_answers": rej_n,
+                "behavioural_seed_answers": len(beh_answers),
+                **{
+                    k: v
+                    for k, v in enrichment_metrics.items()
+                    if isinstance(v, (int, float)) and not isinstance(v, bool)
+                },
+                **{f"rubric_{k}": v for k, v in rubric_stats.items()},
             },
         }
 
@@ -771,6 +989,26 @@ def run_fixture_pipeline(
             relationships=relationships,
             coverage=coverage,
             alerts=metrics.alerts,
+            proposals=proposals_out,
+            signal_join_rows=signal_join_rows,
+            enrichment={
+                **enrichment_metrics,
+                **{f"rubric_{k}": v for k, v in rubric_stats.items()},
+                "signal_join": signal_join_summary(signal_join_rows),
+                "llm_enabled": bool(llm_live),
+                "llm_gateway": "openrouter",
+                "llm_escalate": (bool(llm_escalate) if llm_client else None),
+                "llm_models": (
+                    {"decision": decider.model, "small": llm_client.small_model}
+                    if llm_client and decider
+                    else None
+                ),
+                "llm_routes": {k: v.as_dict() for k, v in llm_routes.items()},
+                "jev_rejected_drafts": {k: v.jev_rejected for k, v in llm_routes.items()},
+                "llm_usage": (
+                    {"jev": decider.usage, "small": llm_client.usage} if llm_live and decider else None
+                ),
+            },
         )
         return {
             "input_count": len(canon_result.questions),
@@ -790,6 +1028,10 @@ def run_fixture_pipeline(
     )
     job_results.append(jr2.model_dump(mode="json"))
 
+    if llm_client is not None:
+        llm_client.close()
+    if decider is not None:
+        decider.close()
     snap = metrics.snapshot()
     return {
         "db_path": str(db_path),
@@ -798,4 +1040,5 @@ def run_fixture_pipeline(
         "answers": len(filled_answers),
         "jobs": job_results,
         "alerts": metrics.alerts,
+        "llm_routes": {k: v.as_dict() for k, v in llm_routes.items()},
     }

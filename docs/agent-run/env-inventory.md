@@ -1,6 +1,6 @@
 # Env variable inventory
 
-Updated: 2026-07-30 · Wave 3 promote · ADR 0006 (Neon Auth + manual scrape)
+Updated: 2026-09-23 · reminders + leagues vars (docs/deployment/notifications.md) · earlier: 2026-07-30 Wave 3 promote · ADR 0006
 
 Split: **scrape/worker secrets** never go to Vercel public / `NEXT_PUBLIC_*`. **Product** vars are Neon + Blob + cron + public app URL.
 
@@ -16,7 +16,7 @@ Split: **scrape/worker secrets** never go to Vercel public / `NEXT_PUBLIC_*`. **
 | `HTTPS_PROXY` | secret | Optional; **not required** for supported manual-captcha path |
 | `CURL_CFFI_IMPERSONATE` | config | Optional legacy BFF |
 | `CAPSOLVER_API_KEY` | secret | Optional |
-| `GEMINI_API_KEY` | secret | Enrichment workers (prefer AI Gateway on Vercel web) |
+| `GEMINI_API_KEY` | secret | Legacy — no longer read by the web app / `embed:rag` (Python enrich worker only, pending its own migration) |
 
 Session artefacts (never env-public): `data/glassdoor_state.json`, `data/glassdoor_session.json`.
 
@@ -28,8 +28,18 @@ Session artefacts (never env-public): `data/glassdoor_state.json`, `data/glassdo
 | `NEON_AUTH_BASE_URL` | secret/server | Neon Console → Auth → Configuration |
 | `NEON_AUTH_COOKIE_SECRET` | secret | `openssl rand -base64 32` (≥32 chars) — **unset → auth stub** |
 | `NEXT_PUBLIC_APP_URL` | public | App origin (e.g. `https://concord-umber.vercel.app`) |
-| `AI_GATEWAY_*` / model ids | secret | Prefer Gateway over raw Gemini in app |
-| `CRON_SECRET` | secret | Scheduled enqueue handlers only |
+| `OPENROUTER_API_KEY` | secret | Web LLM stack via OpenRouter (grading, briefs, coaching, embeddings, STT) — server-only |
+| `LLM_DECISION_MODEL` / `LLM_SMALL_MODEL` / `LLM_EMBED_MODEL` / `LLM_STT_MODEL`, `OPENROUTER_BASE_URL`, `OPENROUTER_DECISIONS_URL`, `OPENROUTER_APP_URL`, `JEV_CONFIDENCE_FLOOR`, `JEV_ACCEPT_CONFIDENCE` | config | Model tiers — `docs/deployment/llm-stack.md` (decision tier defaults to Jev `typesafe/jev-1.13`; all optional) |
+| `CRON_SECRET` | secret | Scheduled handlers only; Vercel cron sends `Authorization: Bearer $CRON_SECRET` to `/api/cron/notify` (hourly, `apps/web/vercel.json`) |
+| `CRON_DATABASE_URL` | secret | Owner / `BYPASSRLS` Neon URL for cross-user cron work (notify run, league XP refresh). Falls back to `DATABASE_URL`; **required** once `DATABASE_URL` is `concord_app`. See `docs/deployment/notifications.md` |
+| `RESEND_API_KEY` | secret | Reminder / recap email (Resend). Unset → email no-op (`skipped`) |
+| `NOTIFY_FROM_EMAIL` | server | Sender, e.g. `Concord <reminders@…>` on a verified Resend domain. Required with `RESEND_API_KEY` |
+| `NOTIFY_REPLY_TO` | server | Optional reply-to for reminder emails |
+| `NOTIFY_SIGNING_SECRET` | secret | HMAC key for one-click unsubscribe tokens; falls back to `CRON_SECRET`. Rotating it invalidates old links |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | secret (private) | Web Push keys (`npx web-push generate-vapid-keys`). Unset → push no-op |
+| `VAPID_SUBJECT` | server | `mailto:` or https contact for push services; defaults to `mailto:$NOTIFY_FROM_EMAIL` |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | public | Same value as `VAPID_PUBLIC_KEY` (VAPID public keys are meant to be public). Never put the private key in `NEXT_PUBLIC_*` |
+| `FLAG_NOTIFICATIONS` / `FLAG_LEAGUES` | server | Feature flags (default on in `packages/config`); off → cron skips, league routes 404 |
 | `BLOB_READ_WRITE_TOKEN` | secret | Raw artefact storage |
 | `UPSTASH_REDIS_REST_URL` / `TOKEN` | secret | Optional cache / rate limits |
 | `EDGE_CONFIG` | secret/server | Optional feature flags |

@@ -12,6 +12,7 @@ import { listQuestions } from "@/lib/data/questions";
 import { buildRealPrepRagPack } from "@/lib/data/rag";
 import { weakTopicsFromMastery } from "@/lib/weak-topics";
 import { topicForConceptId } from "@/lib/topics";
+import { stageTopics } from "@/lib/simulator/select";
 
 export type FirmContextSnapshot = {
   firm_ids: string[];
@@ -32,16 +33,11 @@ export type PracticePackResult = {
   stage_topic_map?: Record<string, string[]>;
 };
 
-const STAGE_TOPICS: Record<string, string[]> = {
-  ib_fit: ["behavioural", "fit"],
-  ib_accounting: ["accounting", "three_statements"],
-  ib_valuation: ["valuation", "dcf", "wacc"],
-  ib_deal_judgement: ["ma", "markets", "deal"],
-  pe_fit: ["behavioural", "fit"],
-  pe_lbo: ["lbo", "returns", "paper_lbo"],
-  pe_ic: ["investment_committee", "deal", "judgement"],
-  pe_portfolio: ["portfolio_operations", "value_creation"],
-};
+/**
+ * Simulator stage → topic slugs live in lib/simulator/select.ts (STAGE_CONCEPT)
+ * so the pack builder and the client's per-stage selection agree.
+ */
+const SIMULATOR_CANDIDATES_PER_STAGE = 2;
 
 function uniqueIds(ids: string[], limit: number): string[] {
   const out: string[] = [];
@@ -310,18 +306,20 @@ async function packSimulator(
   const notes: string[] = [`Simulator track bias: ${trackHint}`];
 
   for (const stageId of stageIds) {
-    const topics = STAGE_TOPICS[stageId] ?? [];
+    const topics = stageTopics(stageId);
     stage_topic_map[stageId] = topics;
     const stageIdsCollected: string[] = [];
     for (const topic of topics) {
-      if (stageIdsCollected.length >= 2) break;
+      if (stageIdsCollected.length >= SIMULATOR_CANDIDATES_PER_STAGE) break;
       const listed = await listQuestions({
         topic,
-        limit: 2,
+        limit: SIMULATOR_CANDIDATES_PER_STAGE + 1,
         offset: 0,
       });
       for (const q of listed.items) {
-        if (stageIdsCollected.length >= 2) break;
+        if (stageIdsCollected.length >= SIMULATOR_CANDIDATES_PER_STAGE) break;
+        // Never repeat a question across stages.
+        if (ids.includes(q.id) || stageIdsCollected.includes(q.id)) continue;
         stageIdsCollected.push(q.id);
       }
     }
@@ -330,10 +328,10 @@ async function packSimulator(
         query: topics.join(" ") || stageId,
         firm_ids: firmIds,
         weak_topics: topics,
-        limit: 2,
+        limit: SIMULATOR_CANDIDATES_PER_STAGE,
         heat,
       });
-      stageIdsCollected.push(...rag.pack.item_ids);
+      stageIdsCollected.push(...rag.pack.item_ids.filter((id) => !ids.includes(id)));
       notes.push(`Stage ${stageId} filled via RAG.`);
     }
     ids.push(...stageIdsCollected);
@@ -341,7 +339,10 @@ async function packSimulator(
 
   return {
     mode: "simulator",
-    question_ids: uniqueIds(ids, Math.max(input.limit, stageIds.length * 2)),
+    question_ids: uniqueIds(
+      ids,
+      Math.max(input.limit, stageIds.length * SIMULATOR_CANDIDATES_PER_STAGE),
+    ),
     firm_context_snapshot: snapshotFromHeat(firmIds, heat, "topic_list", notes),
     stage_topic_map,
   };

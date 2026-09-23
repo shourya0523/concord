@@ -1,7 +1,21 @@
 /**
  * Resolve where to send a user after Neon Auth sign-in / sign-up.
- * New accounts (no prep profile) go to onboarding; returning users to dashboard.
+ * New accounts (no prep profile) go to onboarding; returning users go home.
+ *
+ * Home is Today (plan 2026-09-23-001 P4.4). The /today page itself redirects
+ * to /dashboard when the `daily_set` flag is off, so client code can always
+ * target POST_AUTH_HOME without reading server flags.
  */
+
+export const TODAY_PATH = "/today"
+export const DASHBOARD_PATH = "/dashboard"
+/** Post-login landing for returning users. */
+export const POST_AUTH_HOME = TODAY_PATH
+
+/** Home route for a flag state (server components / redirects). */
+export function homePathFor(dailySetEnabled: boolean): string {
+  return dailySetEnabled ? TODAY_PATH : DASHBOARD_PATH
+}
 
 export type PrepProfileProbe = {
   profile?: {
@@ -27,6 +41,14 @@ export function hasPrepProfile(payload: PrepProfileProbe | null | undefined): bo
   return false
 }
 
+/** Pure decision: onboarding for new users, home for returning ones. */
+export function postAuthPathFor(
+  payload: PrepProfileProbe | null | undefined,
+  home: string = POST_AUTH_HOME,
+): string {
+  return hasPrepProfile(payload) ? home : "/onboarding"
+}
+
 /** Client helper — probes /api/profile with session cookies. */
 export async function resolvePostAuthPath(
   preferOnboarding: boolean,
@@ -40,7 +62,7 @@ export async function resolvePostAuthPath(
     })
     if (!response.ok) return "/onboarding"
     const payload = (await response.json()) as PrepProfileProbe
-    return hasPrepProfile(payload) ? "/dashboard" : "/onboarding"
+    return postAuthPathFor(payload)
   } catch {
     return "/onboarding"
   }

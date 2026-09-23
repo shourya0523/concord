@@ -1,149 +1,96 @@
 /**
  * Practice attempt grading: teaching Answer = gold; Glassdoor heat = cite-only firm context.
+ *
+ * Wires the pure grade pipeline (lib/grading/pipeline.ts) to data + infra:
+ * question/answer/rubric loading, reveal-copy detection, grade cache,
+ * per-user model budget (Jev calls weigh 1/10 of a chat call), model
+ * selection (Jev decisions via LLM_DECISION_MODEL, small-model escalation via
+ * LLM_SMALL_MODEL), the grade router (models only when required) and logs.
  */
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { DEFAULT_RAG_GENERATE_MODEL, googleApiKey } from "@ibpe/ai";
-import type { AttemptGradeCitation } from "@ibpe/contracts";
-import { generateObject } from "ai";
-import { z } from "zod";
-import { getQuestion } from "@/lib/data/questions";
+import { GRADER_VERSION } from "@ibpe/contracts";
+import { getAnswerRubric, getQuestion } from "@/lib/data/questions";
 import type { FirmContextSnapshot } from "@/lib/data/practice-packs";
+import { isFlagOn } from "@/lib/flags";
+import { checkRevealCopy } from "@/lib/grading/guards";
+import { createGradeModels, type GradeUsage } from "@/lib/grading/llm";
 import {
+  gradeRubricDeterministic,
+  runGradePipeline,
+  type GradeInput,
+} from "@/lib/grading/pipeline";
+import { isNumericOnlyRubric, rubricFingerprint } from "@/lib/grading/rubric";
+import { routeGrade, routeWithoutModel } from "@/lib/grading/router";
+import {
+  GRADER_V1,
   gradeDeterministic,
   selfGrade,
   type PracticeGradeResult,
 } from "@/lib/practice-grade-core";
+import {
+  gradeCacheKey,
+  getCachedGrade,
+  logGradeEvent,
+  reserveLlmGrade,
+  setCachedGrade,
+} from "./grade-cache";
 
 export type { PracticeGradeResult };
 export { gradeDeterministic, selfGrade };
 
-const LlmGradeSchema = z.object({
-  score: z.number().min(0).max(1),
-  correct: z.boolean(),
-  feedback: z.string(),
-  weak_topics: z.array(z.string()).default([]),
-  key_points_hit: z.array(z.string()).default([]),
-  firm_alignment_note: z.string().optional(),
-  citation_ids: z.array(z.string()).default([]),
-});
+export type GradedPracticeAttempt = PracticeGradeResult & {
+  /** Question topic slug (drives concept mastery roll-up). */
+  topic: string | null;
+};
 
-async function gradeWithLlm(options: {
-  questionWording: string;
-  responseText: string;
-  goldConcise: string;
-  goldExpanded: string;
-  commonMistakes: string[];
-  answerId: string;
-  heatTopics: FirmContextSnapshot["heat_topics"];
-  topic?: string | null;
-}): Promise<PracticeGradeResult | null> {
-  const apiKey = googleApiKey();
-  if (!apiKey) return null;
-
-  const allowed = new Set<string>([options.answerId]);
-  for (const h of options.heatTopics.slice(0, 6)) {
-    allowed.add(`heat:${h.firm_id}:${h.topic_id}`);
-  }
-
-  const heatBlock = options.heatTopics
-    .slice(0, 6)
-    .map(
-      (h) =>
-        `ID: heat:${h.firm_id}:${h.topic_id}\nTopic: ${h.topic_id}\nIntensity: ${h.intensity}\nSamples: ${h.sample_size}`,
-    )
-    .join("\n\n");
-
-  try {
-    const google = createGoogleGenerativeAI({ apiKey });
-    const { object } = await generateObject({
-      model: google(DEFAULT_RAG_GENERATE_MODEL),
-      schema: LlmGradeSchema,
-      temperature: 0.2,
-      system:
-        "You grade IB/PE interview answers. Teaching answer text is the only gold standard. Glassdoor firm heat IDs are retrieval/coaching context only — never treat them as correct answers. Every firm-specific claim in feedback must reference a heat:* citation id. citation_ids must be chosen from the allowed id list.",
-      prompt: `QUESTION:
-${options.questionWording}
-
-CANDIDATE ANSWER:
-${options.responseText}
-
-TEACHING GOLD (id=${options.answerId}):
-Concise: ${options.goldConcise}
-Expanded: ${options.goldExpanded.slice(0, 1200)}
-Common mistakes: ${options.commonMistakes.slice(0, 6).join(" | ") || "n/a"}
-
-FIRM HEAT CONTEXT (signals only):
-${heatBlock || "none"}
-
-ALLOWED citation_ids: ${[...allowed].join(", ")}
-
-Return score 0-1, correct boolean, short feedback, weak_topics, key_points_hit, optional firm_alignment_note, and citation_ids subset of ALLOWED.`,
-    });
-
-    const citation_ids = object.citation_ids.filter((id) => allowed.has(id));
-    const citations: AttemptGradeCitation[] = citation_ids.map((id) => {
-      if (id === options.answerId) {
-        return { id, kind: "teaching_answer" as const, label: "Teaching answer" };
-      }
-      const heat = options.heatTopics.find(
-        (h) => `heat:${h.firm_id}:${h.topic_id}` === id,
-      );
-      return {
-        id,
-        kind: "heat_topic" as const,
-        label: heat?.topic_id ?? id,
-      };
-    });
-    if (!citations.some((c) => c.kind === "teaching_answer")) {
-      citations.unshift({
-        id: options.answerId,
-        kind: "teaching_answer",
-        label: "Teaching answer",
+function revealCopyGrade(
+  input: GradeInput,
+  similarity: number,
+): PracticeGradeResult {
+  const base = input.rubric
+    ? gradeRubricDeterministic(input, input.rubric)
+    : gradeDeterministic({
+        responseText: input.responseText,
+        goldConcise: input.goldConcise,
+        goldExpanded: input.goldExpanded,
+        topic: input.topic,
+        answerId: input.answerId,
+        heatTopics: input.heatTopics,
       });
-    }
-
-    return {
-      score: object.score,
-      correct: object.correct,
-      score_source: "llm",
-      feedback: object.feedback,
-      weak_topics:
-        object.weak_topics.length > 0
-          ? object.weak_topics
-          : options.topic && object.score < 0.68
-            ? [options.topic]
-            : [],
-      citations,
-      rubric_json: {
-        key_points_hit: object.key_points_hit,
-        firm_alignment_note: object.firm_alignment_note ?? null,
-        citation_ids,
-      },
-      answer_id: options.answerId,
-    };
-  } catch (err) {
-    console.warn("[practice-grade] LLM grade failed", err);
-    return null;
-  }
+  return {
+    ...base,
+    score_source: "reveal_copy",
+    correct: null,
+    weak_topics: [],
+    feedback:
+      "This matches the answer you just revealed, so it doesn't count toward mastery or your streak. " +
+      "Come back after a break and answer from memory — the review will be waiting.",
+    rubric_json: { ...base.rubric_json, reveal_copy: { similarity } },
+    follow_up: null,
+  };
 }
 
 export async function gradePracticeAttempt(options: {
   questionId: string;
+  userId?: string | null;
   responseText?: string | null;
   correct?: boolean | null;
   confidence?: number | null;
   firmContext?: FirmContextSnapshot | null;
-}): Promise<PracticeGradeResult> {
+  /** ISO time the learner revealed the gold answer (anti-gaming, P3.4). */
+  revealedAt?: string | null;
+  now?: Date;
+}): Promise<GradedPracticeAttempt> {
+  const started = Date.now();
   const responseText = options.responseText?.trim() ?? "";
   const detail = await getQuestion(options.questionId, { includeStudy: true });
   const topic = detail?.question.topic ?? null;
 
   if (!responseText) {
-    return selfGrade({
-      correct: options.correct,
-      confidence: options.confidence,
+    return {
+      ...selfGrade({ correct: options.correct, confidence: options.confidence, topic }),
+      router: routeWithoutModel(routeGrade({ responseText, rubric: null, llmAvailable: false })),
       topic,
-    });
+    };
   }
 
   const study = detail?.study;
@@ -160,29 +107,143 @@ export async function gradePracticeAttempt(options: {
     return {
       ...self,
       feedback: "No teaching answer available — kept self/confidence score.",
+      topic,
     };
   }
 
-  const llm = await gradeWithLlm({
+  const graderV2 = isFlagOn("grader_v2");
+  const rubricRecord = graderV2 ? await getAnswerRubric(study?.answer_id) : null;
+  const rubric = rubricRecord?.rubric ?? null;
+  const input: GradeInput = {
+    questionId: options.questionId,
     questionWording: detail?.question.canonical_wording ?? options.questionId,
     responseText,
-    goldConcise,
-    goldExpanded,
-    commonMistakes: study?.common_mistakes ?? [],
-    answerId: study?.answer_id ?? `answer:${options.questionId}`,
-    heatTopics,
     topic,
-  });
-  if (llm) return llm;
-
-  return gradeDeterministic({
-    responseText,
+    answerId: study?.answer_id ?? `answer:${options.questionId}`,
     goldConcise,
     goldExpanded,
     commonMistakes: study?.common_mistakes ?? [],
     formulae: study?.formulae ?? [],
-    topic,
-    answerId: study?.answer_id ?? null,
+    rubric,
     heatTopics,
+  };
+
+  const reveal = checkRevealCopy({
+    revealedAt: options.revealedAt,
+    now: options.now,
+    answer: responseText,
+    goldConcise,
+    goldExpanded,
   });
+  if (reveal.copied) {
+    const graded = {
+      ...revealCopyGrade(input, reveal.similarity),
+      router: routeWithoutModel(
+        routeGrade({ responseText, rubric, revealCopy: true, llmAvailable: false }),
+      ),
+    };
+    logGradeEvent({
+      question_id: options.questionId,
+      score_source: graded.score_source,
+      grader_version: graded.grader_version,
+      cached: false,
+      latency_ms: Date.now() - started,
+      router: graded.router.reason,
+      path: graded.router.path,
+    });
+    return { ...graded, latency_ms: Date.now() - started, topic };
+  }
+
+  const numericOnly = Boolean(rubric && isNumericOnlyRubric(rubric));
+  const usages: GradeUsage[] = [];
+  const models = numericOnly
+    ? null
+    : createGradeModels({ onUsage: (u) => usages.push(u) });
+
+  const cacheKey = models
+    ? gradeCacheKey({
+        questionId: options.questionId,
+        rubricFingerprint: rubricFingerprint(rubric),
+        graderVersion: rubric ? GRADER_VERSION : GRADER_V1,
+        model: `${models.decisionModel}+${models.chatModel}@${models.confidenceFloor}`,
+        responseText,
+      })
+    : null;
+  if (cacheKey) {
+    const cached = await getCachedGrade(cacheKey);
+    if (cached) {
+      const latency = Date.now() - started;
+      const router = routeWithoutModel(
+        routeGrade({ responseText, rubric, cacheHit: true, llmAvailable: true }),
+      );
+      logGradeEvent({
+        question_id: options.questionId,
+        score_source: cached.score_source,
+        grader_version: cached.grader_version,
+        cached: true,
+        latency_ms: latency,
+        model: cached.model ?? null,
+        router: router.reason,
+        path: router.path,
+      });
+      return { ...cached, router, cached: true, latency_ms: latency, topic };
+    }
+  }
+
+  // Budget is reserved per model call, only when the router needs one
+  // (Jev = 1 unit, small-model escalation = 10 units).
+  let rateLimited = false;
+  let llmError: string | null = null;
+  const graded = await runGradePipeline(input, {
+    graderV2,
+    decide: models?.decide ?? null,
+    decisionModel: models?.decisionModel ?? null,
+    llm: models?.caller ?? null,
+    model: models?.chatModel ?? null,
+    confidenceFloor: models?.confidenceFloor,
+    allowLlm: async (kind) => {
+      const ok = options.userId ? await reserveLlmGrade(options.userId, kind) : true;
+      if (!ok) rateLimited = true;
+      return ok;
+    },
+    onLlmError: (err) => {
+      llmError = err instanceof Error ? `${err.name}${"code" in err ? `:${String(err.code)}` : ""}` : "error";
+      console.warn("[practice-grade] model grade failed; falling back", err);
+    },
+  });
+
+  if (cacheKey && (graded.score_source === "llm" || graded.score_source === "jev")) {
+    await setCachedGrade(cacheKey, graded).catch(() => undefined);
+  }
+  const sum = (pick: (u: GradeUsage) => number | null | undefined) =>
+    usages.length ? usages.reduce((total, u) => total + (pick(u) ?? 0), 0) : null;
+  logGradeEvent({
+    question_id: options.questionId,
+    score_source: graded.score_source,
+    grader_version: graded.grader_version,
+    cached: false,
+    latency_ms: Date.now() - started,
+    model: graded.model ?? null,
+    input_tokens: sum((u) => u.input_tokens),
+    output_tokens: sum((u) => u.output_tokens),
+    cost: graded.router?.cost_usd ?? sum((u) => u.cost),
+    rate_limited: rateLimited,
+    llm_error: llmError,
+    router: graded.router?.reason ?? null,
+    path: graded.router?.path ?? null,
+    escalation: graded.router?.escalation ?? null,
+    decision_model: graded.router?.decision_model ?? null,
+    chat_model: graded.router?.chat_model ?? null,
+  });
+  return {
+    ...graded,
+    cached: false,
+    latency_ms: Date.now() - started,
+    rubric_json: {
+      ...graded.rubric_json,
+      ...(rateLimited ? { rate_limited: true } : {}),
+      ...(usages.length ? { usage: usages } : {}),
+    },
+    topic,
+  };
 }

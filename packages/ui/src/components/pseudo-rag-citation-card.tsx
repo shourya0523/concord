@@ -24,7 +24,7 @@ const provenanceLabel: Record<CitationProvenance, string> = {
   "github-corpus": "Teaching corpus",
   "glassdoor-signal": "Firm signal",
   editorial: "Editorial",
-  "gemini-enriched": "Gemini enriched",
+  "gemini-enriched": "AI enriched",
   "user-note": "Your note",
 }
 

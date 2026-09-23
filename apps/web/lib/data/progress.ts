@@ -6,14 +6,23 @@ import { z } from "zod";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
 import { applyCheckpoint, streakFromDates, summariseAttempts } from "@/lib/progress-summary";
+import { getRetentionState, hasStubActivity } from "./activity";
 import { listStubAttempts } from "./attempts";
+import { viewStreak } from "./streaks";
 import { listStubSessions } from "./practice";
 import { ensureAppUserQuery } from "./users";
 import { memoryStore } from "./memory-store";
 
 export const ProgressResponseSchema = z.object({
   activity: z.array(z.object({ date: z.string(), attempts: z.number().int() })),
+  /**
+   * Daily-goal streak in the learner's local timezone (app.user_streaks, KD-6).
+   * Falls back to consecutive active UTC days only when no streak is stored.
+   */
   streak_days: z.number().int().nonnegative(),
+  streak_longest: z.number().int().nonnegative().optional(),
+  streak_freezes: z.number().int().nonnegative().optional(),
+  streak_source: z.enum(["goal", "activity"]).optional(),
   total_attempts: z.number().int().nonnegative(),
   accuracy: z.array(
     z.object({
@@ -164,9 +173,36 @@ export async function setModuleCheckpoint(options: {
   }
 }
 
+/** Stored goal streak (local timezone, freezes applied) layered onto a progress payload. */
+async function withStoredStreak(
+  userId: string,
+  progress: ProgressResponse,
+  options: { stored: boolean },
+): Promise<ProgressResponse> {
+  if (!options.stored) return { ...progress, streak_source: "activity" };
+  try {
+    const state = await getRetentionState({ userId });
+    const view = viewStreak(state.streak, state.today);
+    return {
+      ...progress,
+      streak_days: view.current,
+      streak_longest: view.longest,
+      streak_freezes: view.freezes,
+      streak_source: "goal",
+    };
+  } catch (err) {
+    console.warn("[progress] stored streak read failed; using activity streak", err);
+    return { ...progress, streak_source: "activity" };
+  }
+}
+
 export async function getUserProgress(userId: string): Promise<ProgressResponse> {
   if (!isDatabaseConfigured()) {
-    return stubProgress(userId, "DATABASE_URL unset — progress from this server session only.");
+    return withStoredStreak(
+      userId,
+      stubProgress(userId, "DATABASE_URL unset — progress from this server session only."),
+      { stored: hasStubActivity(userId) },
+    );
   }
 
   try {
@@ -240,7 +276,7 @@ export async function getUserProgress(userId: string): Promise<ProgressResponse>
       return { ...EMPTY, note: "No practice history yet — complete an attempt to start progress." };
     }
 
-    return ProgressResponseSchema.parse({
+    const progress = ProgressResponseSchema.parse({
       activity,
       streak_days: streakFromDates(activity.map((row) => row.date)),
       total_attempts: total,
@@ -265,6 +301,7 @@ export async function getUserProgress(userId: string): Promise<ProgressResponse>
       })),
       source: "published",
     });
+    return withStoredStreak(userId, progress, { stored: true });
   } catch (err) {
     console.warn("[progress] DB read failed", err);
     return stubProgress(userId, "Progress read failed — showing this server session only.");

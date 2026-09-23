@@ -45,6 +45,26 @@ def hashing_embed(text: str, dim: int = DEFAULT_DIM) -> list[float]:
     return [v / norm for v in vec]
 
 
+def sparse_hashing_embed(text: str, dim: int = DEFAULT_DIM) -> dict[int, float]:
+    """Sparse form of :func:`hashing_embed` — same values, non-zero dims only."""
+    vec: dict[int, float] = {}
+    for token in _tokens(text):
+        h = _stable_token_hash(token)
+        idx = h % dim
+        vec[idx] = vec.get(idx, 0.0) + (1.0 if (h & 1) == 0 else -1.0)
+    norm = math.sqrt(sum(v * v for v in vec.values()))
+    if norm == 0.0:
+        return {}
+    return {k: v / norm for k, v in vec.items() if v}
+
+
+def sparse_cosine(a: dict[int, float], b: dict[int, float]) -> float:
+    """Cosine of two unit-normalised sparse vectors (dot product)."""
+    if len(a) > len(b):
+        a, b = b, a
+    return sum(v * b.get(k, 0.0) for k, v in a.items())
+
+
 def cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
     """Cosine similarity between two equal-length vectors."""
     if len(a) != len(b):

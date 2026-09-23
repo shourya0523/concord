@@ -5,6 +5,7 @@
 import { z } from "zod";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
+import { isValidTimeZone } from "@/lib/local-day";
 import { ensureAppUserQuery } from "./users";
 import { memoryStore } from "./memory-store";
 
@@ -15,6 +16,17 @@ export const PrepProfileSchema = z.object({
   interview_date: z.string().nullable().default(null),
   availability_minutes: z.number().int().positive().nullable().default(null),
   focus_prompt: z.string().nullable().default(null),
+  /** IANA timezone (streaks, daily set and reminders use the local day). */
+  timezone: z.string().nullable().default(null),
+  /** Local hour 0–23 for the daily reminder; null = no reminder. */
+  reminder_hour: z.number().int().min(0).max(23).nullable().default(null),
+  notify_email: z.boolean().default(true),
+  notify_push: z.boolean().default(false),
+  weekly_recap: z.boolean().default(true),
+  /** Opt-in weekly XP league. */
+  league_opt_in: z.boolean().default(false),
+  /** Placement check finished or skipped (ISO time). */
+  placement_completed_at: z.string().nullable().default(null),
   updated_at: z.string().nullable().default(null),
 });
 export type PrepProfile = z.infer<typeof PrepProfileSchema>;
@@ -27,6 +39,37 @@ export const PrepProfileResponseSchema = z.object({
 export type PrepProfileResponse = z.infer<typeof PrepProfileResponseSchema>;
 
 const EMPTY_PROFILE: PrepProfile = PrepProfileSchema.parse({});
+
+/**
+ * PUT /api/profile body: every field optional. Omitted keys keep their stored
+ * value (a settings save that predates a new field must not wipe it); an
+ * explicit `null` clears a nullable field.
+ */
+export const PrepProfilePatchSchema = PrepProfileSchema.omit({ updated_at: true }).partial();
+export type PrepProfilePatch = z.infer<typeof PrepProfilePatchSchema>;
+
+/** Only the keys the caller actually sent (undefined = "not supplied"). */
+export function definedPatch(patch: PrepProfilePatch): PrepProfilePatch {
+  const out = Object.fromEntries(
+    Object.entries(patch).filter(([, value]) => value !== undefined),
+  ) as PrepProfilePatch;
+  // Unknown IANA zones are dropped rather than stored (streaks fall back to UTC).
+  if (typeof out.timezone === "string" && !isValidTimeZone(out.timezone)) out.timezone = null;
+  return out;
+}
+
+/** Merge a partial update onto the stored profile; result is fully validated. */
+export function mergePrepProfile(
+  existing: PrepProfile | null | undefined,
+  patch: PrepProfilePatch,
+  now: Date = new Date(),
+): PrepProfile {
+  return PrepProfileSchema.parse({
+    ...(existing ?? EMPTY_PROFILE),
+    ...definedPatch(patch),
+    updated_at: now.toISOString(),
+  });
+}
 
 const stubProfiles = memoryStore<string, PrepProfile>("profiles");
 
@@ -64,21 +107,33 @@ export async function getPrepProfile(userId: string): Promise<PrepProfileRespons
   }
 }
 
+/**
+ * Save a (partial) prep profile. Supplied keys are merged onto the stored
+ * profile — in the DB via jsonb `||`, so concurrent saves of different fields
+ * do not clobber each other.
+ */
 export async function putPrepProfile(options: {
   userId: string;
   email?: string | null;
-  input: Omit<PrepProfile, "updated_at">;
+  input: PrepProfilePatch;
 }): Promise<PrepProfileResponse> {
-  const { userId, email, input } = options;
-  const profile = PrepProfileSchema.parse({
-    ...input,
-    updated_at: new Date().toISOString(),
-  });
+  const { userId, email } = options;
+  const now = new Date();
+  const patch = definedPatch(options.input);
 
   if (!isDatabaseConfigured()) {
+    const profile = mergePrepProfile(stubProfiles.get(userId), patch, now);
     stubProfiles.set(userId, profile);
     return { profile, source: "stub", note: "DATABASE_URL unset — saved in memory." };
   }
+
+  const current = await getPrepProfile(userId);
+  const profile = mergePrepProfile(
+    current.source === "published" ? current.profile : stubProfiles.get(userId),
+    patch,
+    now,
+  );
+  const patchJson = JSON.stringify({ ...patch, updated_at: profile.updated_at });
 
   try {
     const sql = requireSql();
@@ -92,7 +147,14 @@ export async function putPrepProfile(options: {
         )
         ON CONFLICT (user_id) DO UPDATE SET
           preferences_json = app.user_profiles.preferences_json ||
-            jsonb_build_object('profile', ${JSON.stringify(profile)}::jsonb)
+            jsonb_build_object(
+              'profile',
+              CASE
+                WHEN jsonb_typeof(app.user_profiles.preferences_json -> 'profile') = 'object'
+                  THEN (app.user_profiles.preferences_json -> 'profile') || ${patchJson}::jsonb
+                ELSE ${JSON.stringify(profile)}::jsonb
+              END
+            )
       `,
     ]);
     return { profile, source: "published" };

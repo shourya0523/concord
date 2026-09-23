@@ -1,6 +1,11 @@
 /**
  * Real RAG data access — pgvector retrieve + pack build + search.
  * Falls back to lexical @ibpe/search when embeddings/API unavailable.
+ *
+ * Dense paths only use rows embedded with the current `LLM_EMBED_MODEL`
+ * (`rag_documents.model_id`): vectors from another model live in a different
+ * space, so until `embed:rag` re-runs they are skipped and search falls back
+ * to lexical ranking.
  */
 import {
   buildPseudoRagPack,
@@ -11,6 +16,7 @@ import {
 } from "@ibpe/search";
 import {
   embedText,
+  embeddingModelId,
   isEmbeddingConfigured,
   toPgVectorLiteral,
 } from "@ibpe/ai";
@@ -106,22 +112,38 @@ function mapProvenance(p: string): TeachingDocument["provenance"] {
   return "github_source";
 }
 
-/** Load embedded teaching docs from Neon (optional topic/limit). */
+/**
+ * Load embedded teaching docs from Neon (optional limit). Pass `modelId` when
+ * the vectors will be compared with a query embedding (same-model rows only).
+ */
 export async function loadEmbeddedDocuments(opts?: {
   limit?: number;
+  modelId?: string;
 }): Promise<EmbeddedDocument[]> {
   if (!isDatabaseConfigured()) return [];
   try {
     const sql = requireSql();
     const limit = opts?.limit ?? 500;
-    const rows = (await sql`
+    const rows = (
+      opts?.modelId
+        ? await sql`
+      SELECT id, title, body, topic, domain, difficulty, provenance, embedding::text AS embedding
+      FROM canonical.rag_documents
+      WHERE embedding IS NOT NULL
+        AND provenance <> 'glassdoor_occurrence'
+        AND model_id = ${opts.modelId}
+      ORDER BY updated_at DESC NULLS LAST
+      LIMIT ${limit}
+    `
+        : await sql`
       SELECT id, title, body, topic, domain, difficulty, provenance, embedding::text AS embedding
       FROM canonical.rag_documents
       WHERE embedding IS NOT NULL
         AND provenance <> 'glassdoor_occurrence'
       ORDER BY updated_at DESC NULLS LAST
       LIMIT ${limit}
-    `) as RagRow[];
+    `
+    ) as RagRow[];
 
     const out: EmbeddedDocument[] = [];
     for (const row of rows) {
@@ -148,13 +170,14 @@ export async function loadEmbeddedDocuments(opts?: {
   }
 }
 
-/** Neon ANN retrieve by query vector (cosine distance). */
+/** Neon ANN retrieve by query vector (cosine distance), same embedding model only. */
 export async function vectorSearch(
   queryEmbedding: number[],
-  opts?: { limit?: number },
+  opts?: { limit?: number; modelId?: string },
 ): Promise<EmbeddedDocument[]> {
   if (!isDatabaseConfigured()) return [];
   const limit = opts?.limit ?? 40;
+  const modelId = opts?.modelId ?? embeddingModelId();
   try {
     const sql = requireSql();
     const literal = toPgVectorLiteral(queryEmbedding);
@@ -166,6 +189,7 @@ export async function vectorSearch(
       FROM canonical.rag_documents
       WHERE embedding IS NOT NULL
         AND provenance <> 'glassdoor_occurrence'
+        AND model_id = ${modelId}
       ORDER BY embedding <=> ${literal}::vector
       LIMIT ${limit}
     `) as Array<RagRow & { score: number }>;
@@ -306,7 +330,7 @@ export async function buildRealPrepRagPack(input: {
       const queryEmbedding = await embedText(input.query);
       let embedded = await vectorSearch(queryEmbedding, { limit: 60 });
       if (embedded.length === 0) {
-        embedded = await loadEmbeddedDocuments({ limit: 250 });
+        embedded = await loadEmbeddedDocuments({ limit: 250, modelId: embeddingModelId() });
       }
       if (embedded.length > 0) {
         const result = buildRealRagPack({

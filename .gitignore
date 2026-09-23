@@ -74,3 +74,6 @@ pnpm-lock.yaml
 .env.*.local
 # Vercel CLI link metadata (use CI secrets; do not commit tokens)
 .vercel
+
+# Claude Code agent worktrees
+.claude/worktrees/

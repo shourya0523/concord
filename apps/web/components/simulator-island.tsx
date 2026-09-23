@@ -5,7 +5,11 @@ import Link from "next/link"
 
 import { Button } from "@ibpe/ui/components/button"
 
+import type { ActivityResult, DeliveryScore } from "@ibpe/contracts"
+
 import { DiagramIsland } from "@/components/diagram-island"
+import { ActivityPills, GradeFeedbackCard } from "@/components/grade-feedback-card"
+import { VoiceAnswer } from "@/components/voice-answer"
 import {
   Annotate,
   CircledNumber,
@@ -25,12 +29,30 @@ import {
   fetchFirmOptions,
   readStoredTargets,
 } from "@/components/target-select-island"
+import type { AttemptGradeResponse } from "@/lib/api/schemas"
+import type { MockReportResponse } from "@/lib/api/grading-ui-schemas"
+import {
+  followUpResponseText,
+  gradeStatus,
+  postAttempt,
+  withDelivery,
+} from "@/lib/simulator/attempt-client"
+import {
+  STAGE_CONCEPT,
+  selectStageQuestions,
+  type StageSelection,
+} from "@/lib/simulator/select"
+import { topicLabel } from "@/lib/topics"
 
 /**
  * Interview simulator (DESIGN.md §10.11) — firm-templated mock.
  * Self-ratings map Again/Hard/Good/Easy → confidence 0.25/0.5/0.75/1; the
  * attempt POST is the confirmed result, so the score reveal (and Warren's
  * celebration) only render after the last attempt save succeeds.
+ *
+ * Plan 2026-09-23-001 P5.8: each stage's question is picked by stage topic
+ * (STAGE_CONCEPT) from the frozen firm pack, every answer shows its grade,
+ * and the reveal renders the cited after-action report.
  */
 
 type StageTemplate = { id: string; label: string; minutes: number }
@@ -48,18 +70,6 @@ const STAGE_TEMPLATES: Record<"ib" | "pe", StageTemplate[]> = {
     { id: "pe_ic", label: "IC judgement", minutes: 12 },
     { id: "pe_portfolio", label: "Portfolio operations", minutes: 10 },
   ],
-}
-
-/** Stage → concept lab for the after-action recommendations. */
-const STAGE_CONCEPT: Record<string, { slug: string; title: string }> = {
-  ib_fit: { slug: "behavioural-story", title: "Behavioural story" },
-  ib_accounting: {
-    slug: "accounting-foundations",
-    title: "Accounting foundations",
-  },
-  ib_valuation: { slug: "dcf-wacc", title: "DCF & WACC" },
-  pe_fit: { slug: "behavioural-story", title: "Behavioural story" },
-  pe_lbo: { slug: "lbo-paper-lbo", title: "Paper LBO" },
 }
 
 const STAGE_DIAGRAM_PROMPT: Record<
@@ -132,8 +142,13 @@ type StageResult = {
   stage: StageTemplate
   confidence: number
   correct: boolean
+  questionId: string
   questionTopic: string | null
+  grade: AttemptGradeResponse | null
+  followUpGrade: AttemptGradeResponse | null
 }
+
+type MockReport = MockReportResponse["report"]
 
 type Phase = "setup" | "starting" | "running" | "reveal"
 
@@ -178,7 +193,20 @@ function stageClock(
   return { label: `+${mmss(Math.abs(remaining))}`, overtime: true }
 }
 
-export function SimulatorIsland() {
+/** Stage score: the grade when present, else the self-rating. */
+function stageScore(result: StageResult): number {
+  if (result.grade) return result.grade.score_source === "reveal_copy" ? 0 : result.grade.score
+  return result.confidence
+}
+
+function scoreTone(score: number | null) {
+  if (score == null) return "neutral" as const
+  if (score >= 0.7) return "success" as const
+  if (score >= 0.45) return "streak" as const
+  return "error" as const
+}
+
+export function SimulatorIsland({ voiceEnabled = false }: { voiceEnabled?: boolean } = {}) {
   const [phase, setPhase] = React.useState<Phase>("setup")
   const [firms, setFirms] = React.useState<FirmOption[]>([])
   const [firmId, setFirmId] = React.useState<string>("")
@@ -195,6 +223,17 @@ export function SimulatorIsland() {
   const [typing, setTyping] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
   const [results, setResults] = React.useState<StageResult[]>([])
+  const [stagePlan, setStagePlan] = React.useState<StageSelection[]>([])
+  const [stageGrade, setStageGrade] = React.useState<AttemptGradeResponse | null>(null)
+  const [stageActivity, setStageActivity] = React.useState<ActivityResult | null>(null)
+  const [delivery, setDelivery] = React.useState<DeliveryScore | null>(null)
+  const [report, setReport] = React.useState<MockReport | null>(null)
+  const [reportActivity, setReportActivity] = React.useState<ActivityResult | null>(null)
+  const [reportState, setReportState] = React.useState<"idle" | "loading" | "ready" | "failed">(
+    "idle"
+  )
+  const [liveStatus, setLiveStatus] = React.useState("")
+  const questionCache = React.useRef(new Map<string, QuestionPayload["question"]>())
   const [error, setError] = React.useState<string | null>(null)
   const [elapsedMs, setElapsedMs] = React.useState(0)
   const elapsedMsRef = React.useRef(0)
@@ -223,26 +262,61 @@ export function SimulatorIsland() {
   const stages = STAGE_TEMPLATES[trackKey]
   const interviewerId = interviewerForFirm(firm?.name ?? "")
 
+  const fetchQuestion = React.useCallback(
+    async (questionId: string): Promise<QuestionPayload["question"] | null> => {
+      const cached = questionCache.current.get(questionId)
+      if (cached) return cached
+      const response = await fetch(
+        `/api/questions/${encodeURIComponent(questionId)}?view=study`
+      )
+      if (!response.ok) return null
+      const payload = (await response.json()) as QuestionPayload
+      questionCache.current.set(questionId, payload.question)
+      return payload.question
+    },
+    []
+  )
+
+  /** Prefetch pack questions (for their topics) and pick one per stage by topic. */
+  const planStages = React.useCallback(
+    async (
+      sessionData: SessionPayload["session"],
+      stageList: StageTemplate[]
+    ): Promise<StageSelection[]> => {
+      const candidates = await Promise.all(
+        sessionData.question_ids.map(async (id) => {
+          try {
+            const loaded = await fetchQuestion(id)
+            return { id, topic: loaded?.topic ?? null }
+          } catch {
+            return { id, topic: null }
+          }
+        })
+      )
+      return selectStageQuestions(stageList, candidates)
+    },
+    [fetchQuestion]
+  )
+
   const loadStageQuestion = React.useCallback(
-    async (sessionData: SessionPayload["session"], index: number) => {
-      const ids = sessionData.question_ids
-      const questionId = ids[index % ids.length]
+    async (plan: StageSelection[], index: number) => {
+      const questionId = plan[index]?.questionId
       if (!questionId) {
-        setError("The session returned no questions.")
+        setError("The session ran out of questions for this stage.")
         return
       }
       setQuestionLoading(true)
       setError(null)
+      setStageGrade(null)
+      setStageActivity(null)
+      setDelivery(null)
       try {
-        const response = await fetch(
-          `/api/questions/${encodeURIComponent(questionId)}?view=study`
-        )
-        if (!response.ok) {
-          setError(`The stage question didn't load (HTTP ${response.status}).`)
+        const loaded = await fetchQuestion(questionId)
+        if (!loaded) {
+          setError("The stage question didn't load.")
           return
         }
-        const payload = (await response.json()) as QuestionPayload
-        setQuestion(payload.question)
+        setQuestion(loaded)
         setAnswer("")
         startedAt.current = Date.now()
         elapsedMsRef.current = 0
@@ -253,7 +327,7 @@ export function SimulatorIsland() {
         setQuestionLoading(false)
       }
     },
-    []
+    [fetchQuestion]
   )
 
   async function start() {
@@ -262,6 +336,10 @@ export function SimulatorIsland() {
     setError(null)
     setResults([])
     setStageIndex(0)
+    setReport(null)
+    setReportActivity(null)
+    setReportState("idle")
+    questionCache.current.clear()
     try {
       const response = await fetch("/api/practice/sessions", {
         method: "POST",
@@ -294,8 +372,10 @@ export function SimulatorIsland() {
         return
       }
       setSession(payload.session)
+      const plan = await planStages(payload.session, stages)
+      setStagePlan(plan)
       setPhase("running")
-      await loadStageQuestion(payload.session, 0)
+      await loadStageQuestion(plan, 0)
     } catch {
       setError(
         "The simulator session failed to start — the network request failed."
@@ -305,7 +385,7 @@ export function SimulatorIsland() {
   }
 
   async function submitRating(confidence: number) {
-    if (!session || !question || submitting) return
+    if (!session || !question || submitting || stageGrade) return
     const stage = stages[stageIndex]
     if (!stage) return
     setSubmitting(true)
@@ -316,39 +396,43 @@ export function SimulatorIsland() {
       Math.round(elapsedMsRef.current || elapsedMs)
     )
     try {
-      const response = await fetch(
-        `/api/practice/sessions/${session.id}/attempts`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            canonical_question_id: question.id,
-            response_text: answer,
-            confidence,
-            correct,
-            time_spent_ms: timeSpentMs,
-          }),
-        }
-      )
-      if (!response.ok) {
+      const result = await postAttempt(session.id, {
+        canonical_question_id: question.id,
+        response_text: answer,
+        confidence,
+        // A written answer is graded; a blank one keeps the self-rating.
+        correct: answer.trim() ? null : correct,
+        time_spent_ms: timeSpentMs,
+        delivery,
+      })
+      if (!result.ok) {
         setError(
-          `The rating didn't save (HTTP ${response.status}). Your answer is still here — try again.`
+          `The rating didn't save (HTTP ${result.status}). Your answer is still here — try again.`
         )
         return
       }
+      const grade = result.grade ? withDelivery(result.grade, delivery) : null
       const nextResults = [
         ...results,
-        { stage, confidence, correct, questionTopic: question.topic ?? null },
+        {
+          stage,
+          confidence,
+          correct,
+          questionId: question.id,
+          questionTopic: question.topic ?? null,
+          grade,
+          followUpGrade: null,
+        },
       ]
       setResults(nextResults)
-      if (stageIndex + 1 >= stages.length) {
-        // Confirmed final attempt — only now may the score reveal render.
-        setPhase("reveal")
+      if (grade) {
+        // Show this stage's grade; the learner advances when ready.
+        setStageGrade(grade)
+        setStageActivity(result.activity)
+        setLiveStatus(`${stage.label}: ${gradeStatus(grade)}.`)
         return
       }
-      const nextIndex = stageIndex + 1
-      setStageIndex(nextIndex)
-      await loadStageQuestion(session, nextIndex)
+      await advance(nextResults)
     } catch {
       setError(
         "The rating didn't save — the network request failed. Your answer is still here."
@@ -358,12 +442,90 @@ export function SimulatorIsland() {
     }
   }
 
+  /** Optional second try on the interviewer follow-up — same question, same rubric. */
+  async function submitFollowUp(
+    followUpAnswer: string,
+    followUp: string
+  ): Promise<AttemptGradeResponse | null> {
+    if (!session || !question) return null
+    const questionId = question.id
+    const result = await postAttempt(session.id, {
+      canonical_question_id: questionId,
+      response_text: followUpResponseText(followUp, followUpAnswer),
+      correct: null,
+      time_spent_ms: Math.max(0, Math.round(elapsedMsRef.current || elapsedMs)),
+    }).catch(() => null)
+    if (!result?.ok || !result.grade) return null
+    const followUpGrade = result.grade
+    setResults((current) =>
+      current.map((item) =>
+        item.questionId === questionId ? { ...item, followUpGrade } : item
+      )
+    )
+    setLiveStatus(`Follow-up: ${gradeStatus(followUpGrade)}.`)
+    return followUpGrade
+  }
+
+  async function advance(currentResults: StageResult[] = results) {
+    if (!session) return
+    if (stageIndex + 1 >= stages.length) {
+      // Confirmed final attempt — only now may the score reveal render.
+      setPhase("reveal")
+      void loadReport(session.id, currentResults)
+      return
+    }
+    const nextIndex = stageIndex + 1
+    setStageIndex(nextIndex)
+    await loadStageQuestion(stagePlan, nextIndex)
+  }
+
+  async function loadReport(sessionId: string, finalResults: StageResult[]) {
+    setReportState("loading")
+    try {
+      const response = await fetch(
+        `/api/practice/sessions/${encodeURIComponent(sessionId)}/report`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            firm_name: firm?.name ?? null,
+            complete: true,
+            stages: finalResults.map((result) => ({
+              stage_id: result.stage.id,
+              label: result.stage.label,
+              question_id: result.questionId,
+              topic: result.questionTopic,
+              grades: [result.grade, result.followUpGrade].filter(Boolean),
+            })),
+          }),
+        }
+      )
+      if (!response.ok) {
+        setReportState("failed")
+        return
+      }
+      const payload = (await response.json()) as MockReportResponse
+      setReport(payload.report)
+      setReportActivity(payload.activity ?? null)
+      setReportState("ready")
+    } catch {
+      setReportState("failed")
+    }
+  }
+
   function resetToSetup() {
     setPhase("setup")
     setSession(null)
     setQuestion(null)
     setStageIndex(0)
     setResults([])
+    setStagePlan([])
+    setStageGrade(null)
+    setStageActivity(null)
+    setDelivery(null)
+    setReport(null)
+    setReportActivity(null)
+    setReportState("idle")
     setAnswer("")
     setError(null)
     elapsedMsRef.current = 0
@@ -401,15 +563,44 @@ export function SimulatorIsland() {
   }, [phase, questionLoading, stage, stageIndex])
 
   if (phase === "reveal") {
-    const passed = results.filter((result) => result.correct).length
-    const overall =
-      results.length > 0 ? Math.round((passed / results.length) * 100) : 0
-    const weakStages = results.filter((result) => !result.correct)
-    const conceptLinks = new Map(
-      weakStages.flatMap((result) => {
-        const concept = STAGE_CONCEPT[result.stage.id]
-        return concept ? [[concept.slug, concept] as const] : []
-      })
+    const graded = results.filter((result) => result.grade)
+    const allSelfRated = graded.length === 0
+    const localOverall =
+      results.length > 0
+        ? results.reduce((sum, result) => sum + stageScore(result), 0) /
+          results.length
+        : 0
+    const overallScore = report?.overall_score ?? localOverall
+    const overall = Math.round(overallScore * 100)
+    const passed = results.filter((result) => stageScore(result) >= 0.7).length
+    const weakStages = results.filter((result) => stageScore(result) < 0.7)
+    const fallbackConcepts = [
+      ...new Map(
+        weakStages.flatMap((result) => {
+          const concept = STAGE_CONCEPT[result.stage.id]
+          return concept
+            ? [
+                [
+                  concept.slug,
+                  {
+                    slug: concept.slug,
+                    title: concept.title,
+                    reason: `for your weaker ${result.stage.label.toLowerCase()} stage`,
+                  },
+                ] as const,
+              ]
+            : []
+        })
+      ).values(),
+    ]
+    const concepts =
+      report?.recommended_concepts.map((concept) => ({
+        slug: concept.slug,
+        title: concept.title,
+        reason: concept.reason,
+      })) ?? fallbackConcepts
+    const reportStageById = new Map(
+      (report?.stages ?? []).map((stage) => [stage.stage_id, stage])
     )
     return (
       <div className="space-y-6">
@@ -430,7 +621,7 @@ export function SimulatorIsland() {
             <div className="flex flex-wrap items-start gap-6">
               <CircledNumber
                 value={`${overall}%`}
-                label="self-rated readiness"
+                label={allSelfRated ? "self-rated readiness" : "graded readiness"}
                 size="lg"
               />
               <div className="min-w-0 flex-1 space-y-3">
@@ -439,42 +630,144 @@ export function SimulatorIsland() {
                   {trackKey.toUpperCase()} template
                 </p>
                 <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-                  {passed} of {results.length} stages rated Good or better. This
-                  is your confirmed self-rating, persisted through the
-                  practice-attempt API — Concord does not fabricate an AI score.
+                  {passed} of {results.length} stages at 70% or better.{" "}
+                  {allSelfRated
+                    ? "These are your confirmed self-ratings — Concord does not fabricate an AI score."
+                    : "Written answers were graded against the teaching answer for each stage; blank answers keep your self-rating."}
                 </p>
-                <ul className="space-y-1.5">
-                  {results.map((result) => (
-                    <li
-                      key={result.stage.id}
-                      className="flex flex-wrap items-center gap-2 text-sm"
-                    >
-                      <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                        {result.correct ? (
-                          <>
-                            {result.stage.label} · {result.stage.minutes}m
-                          </>
-                        ) : (
-                          <Annotate
-                            type="box"
-                            color="var(--error-foreground)"
-                            padding={2}
-                          >
-                            {result.stage.label} · {result.stage.minutes}m
-                          </Annotate>
-                        )}
-                      </span>
-                      <SemanticPill tone={result.correct ? "success" : "error"}>
-                        {result.correct ? "Solid" : "Needs work"}
-                      </SemanticPill>
-                    </li>
-                  ))}
+                <ul className="space-y-1.5" aria-label="Per-stage scores">
+                  {results.map((result) => {
+                    const score = stageScore(result)
+                    const reportStage = reportStageById.get(result.stage.id)
+                    return (
+                      <li
+                        key={result.stage.id}
+                        className="flex flex-wrap items-center gap-2 text-sm"
+                      >
+                        <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                          {score >= 0.7 ? (
+                            <>
+                              {result.stage.label} · {result.stage.minutes}m
+                            </>
+                          ) : (
+                            <Annotate
+                              type="box"
+                              color="var(--error-foreground)"
+                              padding={2}
+                            >
+                              {result.stage.label} · {result.stage.minutes}m
+                            </Annotate>
+                          )}
+                        </span>
+                        <SemanticPill tone={scoreTone(score)}>
+                          {Math.round(score * 100)}%
+                        </SemanticPill>
+                        <span className="text-xs text-muted-foreground">
+                          {result.grade
+                            ? gradeStatus(result.grade).replace(/ \d+%$/, "")
+                            : "self-rated"}
+                          {result.questionTopic
+                            ? ` · ${topicLabel(result.questionTopic)}`
+                            : ""}
+                          {result.followUpGrade
+                            ? ` · follow-up ${Math.round(result.followUpGrade.score * 100)}%`
+                            : ""}
+                        </span>
+                        {reportStage?.feedback || result.grade?.feedback ? (
+                          <span className="w-full pl-1 text-xs leading-relaxed text-muted-foreground">
+                            {reportStage?.feedback ?? result.grade?.feedback}
+                          </span>
+                        ) : null}
+                      </li>
+                    )
+                  })}
                 </ul>
+                {reportActivity ? (
+                  <ActivityPills
+                    activity={reportActivity}
+                    seedKey={`sim-activity-${session?.id ?? "done"}`}
+                  />
+                ) : null}
               </div>
               <Warren mood="celebrating" size={64} />
             </div>
           </div>
         </PaperSheet>
+
+        <section
+          className="space-y-3 border border-border bg-background/30 px-4 py-4"
+          aria-labelledby="sim-report-heading"
+          aria-busy={reportState === "loading"}
+        >
+          <h2
+            id="sim-report-heading"
+            className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase"
+          >
+            After-action report
+          </h2>
+          <div aria-live="polite" className="space-y-3">
+            {reportState === "loading" ? (
+              <p className="text-sm text-muted-foreground">
+                Your interviewer is writing up the debrief…
+              </p>
+            ) : null}
+            {reportState === "failed" ? (
+              <p className="text-sm text-muted-foreground">
+                The written debrief is unavailable right now — your per-stage
+                scores above are saved.
+              </p>
+            ) : null}
+            {report ? (
+              <>
+                <p className="max-w-2xl text-sm leading-relaxed">{report.summary}</p>
+                <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                  {report.summary_source === "llm"
+                    ? "AI coaching · every sentence cited"
+                    : "Deterministic summary"}
+                </p>
+                <div className="flex flex-wrap gap-4 text-sm">
+                  {report.strongest_topics.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">Strongest</span>
+                      {report.strongest_topics.map((topic) => (
+                        <SemanticPill key={topic.topic} tone="success">
+                          {topic.label} {Math.round(topic.score * 100)}%
+                        </SemanticPill>
+                      ))}
+                    </div>
+                  ) : null}
+                  {report.weakest_topics.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">Weakest</span>
+                      {report.weakest_topics.map((topic) => (
+                        <SemanticPill key={topic.topic} tone="weak">
+                          {topic.label} {Math.round(topic.score * 100)}%
+                        </SemanticPill>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                {report.citations.length > 0 ? (
+                  <ul
+                    className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"
+                    aria-label="Report citations"
+                  >
+                    {report.citations.map((citation) => (
+                      <li key={citation.id} className="font-mono">
+                        [{citation.id}]{" "}
+                        <span className="font-sans">
+                          {citation.kind === "heat_topic"
+                            ? `firm heat · ${citation.label ?? "topic"}`
+                            : "teaching answer"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        </section>
 
         <section className="border border-border bg-background/30 px-4 py-4">
           <section className="space-y-4">
@@ -496,14 +789,14 @@ export function SimulatorIsland() {
                 </span>
               ) : (
                 <span>
-                  Every stage cleared Good or better. Keep the same cadence with
-                  one fresh module checkpoint or a company prep pack.
+                  Every stage cleared 70%. Keep the same cadence with one fresh
+                  module checkpoint or a company prep pack.
                 </span>
               )}
             </WarrenCallout>
-            {weakStages.length > 0 ? (
+            {concepts.length > 0 ? (
               <ul className="space-y-1.5 text-sm">
-                {[...conceptLinks.values()].map((concept) => (
+                {concepts.map((concept) => (
                   <li key={concept.slug}>
                     <Link
                       href={`/concepts/${concept.slug}`}
@@ -511,18 +804,7 @@ export function SimulatorIsland() {
                     >
                       {concept.title} lab →
                     </Link>{" "}
-                    <span className="text-muted-foreground">
-                      for your weaker{" "}
-                      {weakStages
-                        .filter(
-                          (result) =>
-                            STAGE_CONCEPT[result.stage.id]?.slug ===
-                            concept.slug
-                        )
-                        .map((result) => result.stage.label.toLowerCase())
-                        .join(" & ")}{" "}
-                      stage
-                    </span>
+                    <span className="text-muted-foreground">{concept.reason}</span>
                   </li>
                 ))}
                 <li>
@@ -539,7 +821,7 @@ export function SimulatorIsland() {
               </ul>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Every stage landed Good or better — keep cadence with a{" "}
+                Every stage landed 70% or better — keep cadence with a{" "}
                 <Link
                   href="/learn"
                   className="text-foreground underline-offset-4 hover:underline"
@@ -767,14 +1049,47 @@ export function SimulatorIsland() {
                   {question.canonical_wording}
                 </p>
                 <textarea
-                  className="mt-4 min-h-40 w-full border border-border bg-transparent p-3 text-sm leading-relaxed outline-none focus:border-foreground"
+                  className="mt-4 min-h-40 w-full border border-border bg-transparent p-3 text-sm leading-relaxed outline-none focus:border-foreground read-only:opacity-70"
                   value={answer}
+                  readOnly={Boolean(stageGrade)}
                   onFocus={() => setTyping(true)}
                   onBlur={() => setTyping(false)}
                   onChange={(event) => setAnswer(event.target.value)}
-                  placeholder="Structure your spoken answer here — then rate yourself honestly. A blank that earned an 'Again' is fine too."
+                  placeholder="Structure your spoken answer here — then rate yourself honestly. A written answer is graded against the teaching answer; a blank that earned an 'Again' is fine too."
                   aria-label="Your answer"
                 />
+                {voiceEnabled && !stageGrade ? (
+                  <VoiceAnswer
+                    className="mt-2"
+                    disabled={submitting}
+                    onTranscript={(transcript, spoken) => {
+                      setAnswer((current) =>
+                        current.trim() ? `${current.trim()} ${transcript}` : transcript
+                      )
+                      setDelivery(spoken)
+                    }}
+                  />
+                ) : null}
+                <div aria-live="polite" className="mt-4">
+                  {stageGrade ? (
+                    <div className="space-y-3">
+                      <GradeFeedbackCard
+                        grade={stageGrade}
+                        activity={stageActivity}
+                        onSubmitFollowUp={submitFollowUp}
+                      />
+                      <RoughHover>
+                        <Button onClick={() => void advance()}>
+                          {stageIndex + 1 >= stages.length
+                            ? "Finish mock — see debrief"
+                            : "Next stage →"}
+                        </Button>
+                      </RoughHover>
+                    </div>
+                  ) : null}
+                  <span className="sr-only">{liveStatus}</span>
+                </div>
+                {stageGrade ? null : (
                 <InkHoverScope className="mt-4 flex flex-wrap items-center gap-2">
                   {RATINGS.map((rating) => (
                     <Button
@@ -795,10 +1110,11 @@ export function SimulatorIsland() {
                     aria-live="polite"
                   >
                     {submitting
-                      ? "Saving your rating…"
-                      : "Good or better counts as solid."}
+                      ? "Grading your answer…"
+                      : "Rate yourself, then see the grade."}
                   </span>
                 </InkHoverScope>
+                )}
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
