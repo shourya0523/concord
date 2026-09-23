@@ -1,17 +1,23 @@
 /**
- * Grader eval harness (plan P3.6 / P3.7).
+ * Grader eval harness (plan P3.6 / P3.7; decision log "Grader = Jev decisions
+ * + small-LLM escalation").
  *
- *   npm run eval:grader --workspace=@ibpe/web            # deterministic (+ LLM when configured)
- *   LLM_PRIMARY_MODEL=<jev-slug> OPENROUTER_API_KEY=… npm run eval:grader --workspace=@ibpe/web
- *   GRADER_MODEL=z-ai/glm-4.7-flash npm run eval:grader --workspace=@ibpe/web   # bake-off override
+ *   npm run eval:grader --workspace=@ibpe/web                       # deterministic + router (CI, no key)
+ *   OPENROUTER_API_KEY=… npm run eval:grader --workspace=@ibpe/web -- --jev
+ *   OPENROUTER_API_KEY=… npm run eval:grader --workspace=@ibpe/web -- --jev --no-escalation   # Jev alone
+ *   OPENROUTER_API_KEY=… npm run eval:grader --workspace=@ibpe/web -- --small                 # chat-only baseline
  *   npm run eval:grader --workspace=@ibpe/web -- --verbose --json out.json
- *   npm run eval:grader --workspace=@ibpe/web -- --no-router   # every case to the LLM
+ *   … --no-router      every non-numeric case goes to the models
+ *   … --floor 0.7      override JEV_CONFIDENCE_FLOOR for this run
+ *   … --strict-llm     make the C12 targets fatal for model runs
  *
  * Always runs the deterministic grader (no key needed), enforces the CI
- * thresholds and reports the grade router: LLM call rate and deterministic
- * accuracy on the cases it skips (target ≥ 0.95). With OPENROUTER_API_KEY it
- * also runs the production path (router + PRIMARY tier, SMALL fallback) and
- * reports it against the plan's C12 targets (MAE ≤ 0.12, correct accuracy ≥ 90%).
+ * thresholds and reports the grade router (model call rate, deterministic
+ * accuracy on skipped cases ≥ 0.95). `--jev` runs the production path — ONE
+ * Jev decision request per routed case, small-model escalation only below the
+ * confidence floor or on Jev error — and reports MAE / Spearman / correct
+ * accuracy / injection resistance, Jev call rate, escalation rate and total
+ * cost against the plan's C12 targets (MAE ≤ 0.12, correct accuracy ≥ 90%).
  */
 import { readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
@@ -24,11 +30,11 @@ import {
   parseDataset,
   ROUTER_SKIPPED_ACCURACY_MIN,
   runEval,
+  type EvalCase,
   type EvalMetrics,
   type EvalResult,
 } from "../../lib/grading/eval"
-import { createGradeCaller, type GradeUsage } from "../../lib/grading/llm"
-
+import { createGradeCaller, createGradeDecider, type GradeUsage } from "../../lib/grading/llm"
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -40,8 +46,13 @@ function printMetrics(label: string, metrics: EvalMetrics) {
   )
   console.log(`sources: ${JSON.stringify(metrics.sources)}`)
   console.log(
-    `router: LLM call rate=${metrics.router.llm_call_rate}  skipped=${metrics.router.skipped}  ` +
+    `router: model call rate=${metrics.router.llm_call_rate}  skipped=${metrics.router.skipped}  ` +
       `skipped correct-accuracy=${metrics.router.skipped_correct_accuracy}  reasons=${JSON.stringify(metrics.router.by_reason)}`,
+  )
+  console.log(
+    `models: paths=${JSON.stringify(metrics.models.paths)}  Jev call rate=${metrics.models.jev_call_rate}  ` +
+      `escalation rate=${metrics.models.escalation_rate}  small-LLM call rate=${metrics.models.small_call_rate}  ` +
+      `cost=$${metrics.models.cost_usd.toFixed(6)}`,
   )
   if (metrics.router.skipped_errors.length) {
     console.log(`  skipped cases graded wrong: ${metrics.router.skipped_errors.join(", ")}`)
@@ -58,8 +69,79 @@ function printResults(results: EvalResult[]) {
     const off = Math.abs(r.score - r.human_score) > 0.25 || r.correct !== r.expected_correct
     console.log(
       `${off ? "!!" : "  "} ${r.id.padEnd(34)} ${r.quality.padEnd(9)} human=${r.human_score.toFixed(2)} ` +
-        `grader=${r.score.toFixed(2)} correct=${r.correct}/${r.expected_correct} ${r.score_source} router=${r.router_reason}`,
+        `grader=${r.score.toFixed(2)} correct=${r.correct}/${r.expected_correct} ${r.score_source} ` +
+        `path=${r.route_path}${r.escalation ? `(${r.escalation})` : ""} router=${r.router_reason}`,
     )
+  }
+}
+
+function usageSummary(usages: GradeUsage[]) {
+  const served: Record<string, number> = {}
+  for (const u of usages) served[`${u.kind}:${u.model}`] = (served[`${u.kind}:${u.model}`] ?? 0) + 1
+  const total = (kind: GradeUsage["kind"]) => {
+    const rows = usages.filter((u) => u.kind === kind)
+    return {
+      calls: rows.length,
+      cost_usd: Number(rows.reduce((s, u) => s + (u.cost ?? 0), 0).toFixed(6)),
+      input_tokens: rows.reduce((s, u) => s + (u.input_tokens ?? 0), 0),
+      output_tokens: rows.reduce((s, u) => s + (u.output_tokens ?? 0), 0),
+    }
+  }
+  return { served_by: served, decision: total("decision"), chat: total("chat") }
+}
+
+type ModelRun = {
+  label: string
+  key: string
+  jev: boolean
+  small: boolean
+}
+
+async function runModels(
+  cases: EvalCase[],
+  run: ModelRun,
+  options: { useRouter: boolean; floor: number | undefined; verbose: boolean; strictLlm: boolean },
+  report: Record<string, unknown>,
+  failures: string[],
+) {
+  const config = gradeModelConfig()
+  const floor = options.floor ?? config.confidenceFloor
+  const usages: GradeUsage[] = []
+  const decider = run.jev ? createGradeDecider({ config, onUsage: (u) => usages.push(u) }) : null
+  const chat = run.small ? createGradeCaller({ config, onUsage: (u) => usages.push(u) }) : null
+  const result = await runEval(cases, {
+    decide: decider?.decide ?? null,
+    decisionModel: decider?.model ?? null,
+    confidenceFloor: floor,
+    decisionTimeoutMs: 20_000,
+    llm: chat?.caller ?? null,
+    model: chat?.model ?? null,
+    timeoutMs: 20_000,
+    router: options.useRouter,
+  })
+  const label =
+    `${run.label} (decision=${decider?.model ?? "-"}, chat=${chat?.model ?? "-"}, floor=${floor}` +
+    `${options.useRouter ? ", router on" : ", router off"})`
+  printMetrics(label, result.metrics)
+  if (options.verbose) printResults(result.results)
+  const usage = usageSummary(usages)
+  console.log(
+    `calls: Jev=${usage.decision.calls} ($${usage.decision.cost_usd}, ${usage.decision.input_tokens} input tokens)  ` +
+      `small=${usage.chat.calls} ($${usage.chat.cost_usd}, ${usage.chat.input_tokens}/${usage.chat.output_tokens} tokens)  ` +
+      `served-by=${JSON.stringify(usage.served_by)}`,
+  )
+  report[run.key] = {
+    decision_model: decider?.model ?? null,
+    chat_model: chat?.model ?? null,
+    confidence_floor: floor,
+    router_enabled: options.useRouter,
+    usage,
+    ...result.metrics,
+  }
+  const misses = checkThresholds(result.metrics, LLM_TARGETS)
+  if (misses.length) {
+    console.log(`${run.label} below C12 targets: ${misses.join("; ")}`)
+    if (options.strictLlm) failures.push(...misses.map((m) => `${run.key}: ${m}`))
   }
 }
 
@@ -68,15 +150,22 @@ async function main() {
   const verbose = args.includes("--verbose")
   const strictLlm = args.includes("--strict-llm")
   const useRouter = !args.includes("--no-router")
-  const jsonIdx = args.indexOf("--json")
-  const jsonOut = jsonIdx >= 0 ? args[jsonIdx + 1] : undefined
-  const datasetIdx = args.indexOf("--dataset")
-  const datasetPath = datasetIdx >= 0 ? args[datasetIdx + 1]! : join(here, "dataset.jsonl")
+  const wantJev = args.includes("--jev")
+  const wantSmall = args.includes("--small")
+  const noEscalation = args.includes("--no-escalation")
+  const arg = (flag: string) => {
+    const idx = args.indexOf(flag)
+    return idx >= 0 ? args[idx + 1] : undefined
+  }
+  const jsonOut = arg("--json")
+  const datasetPath = arg("--dataset") ?? join(here, "dataset.jsonl")
+  const floorArg = arg("--floor")
+  const floor = floorArg != null && Number.isFinite(Number(floorArg)) ? Number(floorArg) : undefined
 
   const cases = parseDataset(readFileSync(datasetPath, "utf8"))
   const report: Record<string, unknown> = { dataset: datasetPath, cases: cases.length }
 
-  const deterministic = await runEval(cases, { llm: null })
+  const deterministic = await runEval(cases, {})
   printMetrics("deterministic (heuristic rubric grader)", deterministic.metrics)
   if (verbose) printResults(deterministic.results)
   report.deterministic = deterministic.metrics
@@ -89,49 +178,30 @@ async function main() {
 
   const config = gradeModelConfig()
   console.log(
-    `\nmodels: primary=${config.model}  fallback(small)=${config.fallbackModel ?? "(none)"}  route=${config.route}`,
+    `\nmodels: decision=${config.decisionModel}  small chat=${config.chatModel}  ` +
+      `JEV_CONFIDENCE_FLOOR=${floor ?? config.confidenceFloor}  route=${config.route}`,
   )
-  const usages: GradeUsage[] = []
-  const model = createGradeCaller({ config, onUsage: (u) => usages.push(u) })
-  if (model) {
-    const llm = await runEval(cases, {
-      llm: model.caller,
-      model: model.model,
-      timeoutMs: 20_000,
-      router: useRouter,
-    })
-    printMetrics(`LLM rubric judge (${model.model}${useRouter ? ", router on" : ", router off"})`, llm.metrics)
-    if (verbose) printResults(llm.results)
-    const served: Record<string, number> = {}
-    for (const u of usages) served[u.model] = (served[u.model] ?? 0) + 1
-    const cost = usages.reduce((sum, u) => sum + (u.cost ?? 0), 0)
-    const calls = usages.length
-    console.log(
-      `LLM calls=${calls}/${cases.length} (rate ${(calls / cases.length).toFixed(3)})  served-by=${JSON.stringify(served)}  ` +
-        `cost=$${cost.toFixed(5)}  tokens in/out=${usages.reduce((s, u) => s + (u.input_tokens ?? 0), 0)}/${usages.reduce((s, u) => s + (u.output_tokens ?? 0), 0)}`,
-    )
-    report.llm = {
-      model: model.model,
-      fallback_model: config.fallbackModel ?? null,
-      router_enabled: useRouter,
-      llm_calls: calls,
-      served_by: served,
-      cost_usd: cost,
-      ...llm.metrics,
-    }
-    const routed = llm.results.filter((r) => r.router_llm).length
-    const llmFallbacks = routed - (llm.metrics.sources.llm ?? 0)
-    if (llmFallbacks > 0) console.log(`note: ${llmFallbacks} routed case(s) fell back to deterministic (timeout/error)`)
-    const llmMisses = checkThresholds(llm.metrics, LLM_TARGETS)
-    if (llmMisses.length) {
-      console.log(`LLM below C12 targets: ${llmMisses.join("; ")}`)
-      if (strictLlm) failures.push(...llmMisses.map((m) => `llm: ${m}`))
-    }
+  const runOptions = { useRouter, floor, verbose, strictLlm }
+  if ((wantJev || wantSmall) && !config.available) {
+    console.log("\nModel runs skipped: OPENROUTER_API_KEY is not set (--jev / --small need it).")
   } else {
-    console.log(
-      `\nLLM judge skipped: OPENROUTER_API_KEY is not set. ` +
-        "Set it (and LLM_PRIMARY_MODEL to Jev's slug; GRADER_MODEL overrides for bake-offs) to run the LLM path.",
-    )
+    if (wantJev) {
+      await runModels(
+        cases,
+        noEscalation
+          ? { label: "Jev only (no escalation)", key: "jev_only", jev: true, small: false }
+          : { label: "Jev + small-LLM escalation", key: "jev", jev: true, small: true },
+        runOptions,
+        report,
+        failures,
+      )
+    }
+    if (wantSmall) {
+      await runModels(cases, { label: "small chat model only", key: "small", jev: false, small: true }, runOptions, report, failures)
+    }
+    if (!wantJev && !wantSmall) {
+      console.log("Model runs not requested: pass --jev (production path) and/or --small (chat-only baseline); both need OPENROUTER_API_KEY.")
+    }
   }
 
   if (jsonOut) writeFileSync(jsonOut, `${JSON.stringify(report, null, 2)}\n`)

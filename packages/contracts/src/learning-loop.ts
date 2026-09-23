@@ -79,6 +79,8 @@ export const RubricItemResultSchema = z.object({
   verdict: RubricVerdictEnum,
   /** Verbatim quote from the candidate answer; code verifies it is a substring. */
   evidence: z.string().nullable().optional(),
+  /** Decision-model confidence (0–1) in `verdict` — set on Jev-graded items only. */
+  confidence: z.number().min(0).max(1).optional(),
 });
 export type RubricItemResult = z.infer<typeof RubricItemResultSchema>;
 

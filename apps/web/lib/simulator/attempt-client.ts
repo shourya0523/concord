@@ -90,6 +90,8 @@ export function gradeStatus(grade: AttemptGradeResponse): string {
   switch (grade.score_source) {
     case "llm":
       return `AI-graded ${percent}%`
+    case "jev":
+      return `Graded by Jev ${percent}%`
     case "numeric":
       return `Numeric check ${percent}%`
     case "deterministic":

@@ -21,6 +21,7 @@ import { cn } from "@ibpe/ui/lib/utils"
 
 const SOURCE_LABEL: Record<AttemptGradeResponse["score_source"], string> = {
   llm: "AI-graded against the teaching answer",
+  jev: "Graded by Jev against the teaching answer",
   numeric: "Checked numerically",
   deterministic: "Estimated (keyword coverage)",
   self: "Self-rated",

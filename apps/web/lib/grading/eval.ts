@@ -5,9 +5,10 @@
  */
 import { AnswerRubricSchema } from "@ibpe/contracts"
 import { z } from "zod"
+import type { GradeDecider } from "./jev"
 import type { StructuredCaller } from "./judge"
 import { runGradePipeline } from "./pipeline"
-import type { RouterReason } from "./router"
+import type { EscalationReason, GradeRoutePath, RouterReason } from "./router"
 
 export const EvalCaseSchema = z.object({
   id: z.string(),
@@ -52,8 +53,16 @@ export type EvalResult = {
   latency_ms: number
   /** Grade router reason (lib/grading/router.ts). */
   router_reason: RouterReason | null
-  /** True when the router sent (or, with no key, would send) this case to the LLM. */
+  /** True when the router sent (or, with no key, would send) this case to a model. */
   router_llm: boolean
+  /** GradeRoute path (skip | jev | jev+small | small | deterministic). */
+  route_path: GradeRoutePath | null
+  escalation: EscalationReason | null
+  /** Jev was called for this case. */
+  jev_called: boolean
+  /** The small chat model was called for this case. */
+  small_called: boolean
+  cost_usd: number | null
 }
 
 export type EvalMetrics = {
@@ -70,6 +79,20 @@ export type EvalMetrics = {
   by_quality: Record<string, { n: number; mean_human: number; mean_score: number; mae: number }>
   p95_latency_ms: number
   router: RouterMetrics
+  models: ModelMetrics
+}
+
+/** Model usage of a run (all zero for a deterministic run). */
+export type ModelMetrics = {
+  paths: Record<string, number>
+  /** Share of cases that made a Jev request. */
+  jev_call_rate: number
+  /** Share of cases escalated to the small chat model (low confidence or Jev error). */
+  escalation_rate: number
+  /** Share of cases that called the small chat model at all. */
+  small_call_rate: number
+  /** Sum of OpenRouter usage.cost across the run (USD). */
+  cost_usd: number
 }
 
 export type RouterMetrics = {
@@ -86,9 +109,6 @@ export type RouterMetrics = {
 
 /** Router target: decisions made without the LLM must be right ≥ 95% of the time. */
 export const ROUTER_SKIPPED_ACCURACY_MIN = 0.95
-
-/** Reasons that mean "an LLM call is (or would be, with a key) required". */
-const LLM_REASONS = new Set<RouterReason>(["ambiguous", "no_rubric", "llm_unavailable", "rate_limited"])
 
 export function routerMetrics(results: EvalResult[]): RouterMetrics {
   const byReason: Record<string, number> = {}
@@ -202,6 +222,23 @@ function round(value: number): number {
   return Number(value.toFixed(3))
 }
 
+export function modelMetrics(results: EvalResult[]): ModelMetrics {
+  const paths: Record<string, number> = {}
+  for (const r of results) {
+    const path = r.route_path ?? "none"
+    paths[path] = (paths[path] ?? 0) + 1
+  }
+  const share = (pred: (r: EvalResult) => boolean) =>
+    round(results.length ? results.filter(pred).length / results.length : 0)
+  return {
+    paths,
+    jev_call_rate: share((r) => r.jev_called),
+    escalation_rate: share((r) => r.escalation != null),
+    small_call_rate: share((r) => r.small_called),
+    cost_usd: Number(results.reduce((sum, r) => sum + (r.cost_usd ?? 0), 0).toFixed(6)),
+  }
+}
+
 export function computeMetrics(results: EvalResult[]): EvalMetrics {
   const human = results.map((r) => r.human_score)
   const scores = results.map((r) => r.score)
@@ -233,13 +270,20 @@ export function computeMetrics(results: EvalResult[]): EvalMetrics {
     by_quality: byQuality,
     p95_latency_ms: latencies.length ? latencies[Math.min(latencies.length - 1, Math.floor(latencies.length * 0.95))]! : 0,
     router: routerMetrics(results),
+    models: modelMetrics(results),
   }
 }
 
-/** Grade every case through the production pipeline (deterministic when `llm` is null). */
+/** Grade every case through the production pipeline (deterministic when no model is given). */
 export async function runEval(
   cases: EvalCase[],
   options: {
+    /** Jev decision caller (the --jev run). */
+    decide?: GradeDecider | null
+    decisionModel?: string | null
+    confidenceFloor?: number
+    decisionTimeoutMs?: number
+    /** Small chat model caller. */
     llm?: StructuredCaller | null
     model?: string | null
     graderV2?: boolean
@@ -263,13 +307,18 @@ export async function runEval(
       },
       {
         graderV2: options.graderV2 ?? true,
+        decide: options.decide ?? null,
+        decisionModel: options.decisionModel ?? null,
+        confidenceFloor: options.confidenceFloor,
+        decisionTimeoutMs: options.decisionTimeoutMs,
         llm: options.llm ?? null,
         model: options.model ?? null,
         timeoutMs: options.timeoutMs,
         router: options.router,
       },
     )
-    const reason = (grade.router?.reason ?? null) as RouterReason | null
+    const route = grade.router ?? null
+    const reason = (route?.reason ?? null) as RouterReason | null
     results.push({
       id: c.id,
       quality: c.quality,
@@ -281,7 +330,12 @@ export async function runEval(
       score_source: grade.score_source,
       latency_ms: grade.latency_ms ?? 0,
       router_reason: reason,
-      router_llm: reason != null && LLM_REASONS.has(reason),
+      router_llm: route != null && route.path !== "skip",
+      route_path: route?.path ?? null,
+      escalation: route?.escalation ?? null,
+      jev_called: route?.decision_model != null,
+      small_called: route?.chat_model != null,
+      cost_usd: route?.cost_usd ?? null,
     })
   }
   return { results, metrics: computeMetrics(results) }

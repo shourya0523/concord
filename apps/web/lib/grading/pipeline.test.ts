@@ -292,7 +292,7 @@ describe("grade router (LLM only when required)", () => {
     assert.equal(calls.length, 0)
     assert.equal(grade.score_source, "deterministic")
     assert.equal(grade.correct, true)
-    assert.deepEqual(grade.router, { llm: false, reason: "decisive_pass", model: null })
+    assert.deepEqual(grade.router, { path: "skip", reason: "decisive_pass", escalation: null, decision_model: null, chat_model: null, cost_usd: null })
   })
 
   it("skips the LLM for a flagged injection (score still capped)", async () => {
@@ -319,18 +319,25 @@ describe("grade router (LLM only when required)", () => {
     assert.equal(grade.correct, false)
   })
 
-  it("calls the primary model for an ambiguous answer", async () => {
+  it("calls the small chat model for an ambiguous answer when no decision model is wired", async () => {
     const { caller, calls } = mockLlm({
       items: [{ id: "k1", verdict: "hit", evidence: "net income is down $7.50" }],
       feedback: "Partial.",
     })
     const grade = await runGradePipeline(
       input({ responseText: "Net income is down $7.50 and PP&E falls $10." }),
-      { graderV2: true, llm: caller, model: "jev/jev-1" },
+      { graderV2: true, llm: caller, model: "deepseek/deepseek-v4-flash" },
     )
     assert.equal(calls.length, 1)
     assert.equal(grade.score_source, "llm")
-    assert.deepEqual(grade.router, { llm: true, reason: "ambiguous", model: "jev/jev-1" })
+    assert.deepEqual(grade.router, {
+      path: "small",
+      reason: "ambiguous",
+      escalation: null,
+      decision_model: null,
+      chat_model: "deepseek/deepseek-v4-flash",
+      cost_usd: null,
+    })
   })
 
   it("reserves rate-limit budget only when an LLM call is needed", async () => {
@@ -350,7 +357,8 @@ describe("grade router (LLM only when required)", () => {
     assert.equal(reservations, 1)
     assert.equal(calls.length, 0)
     assert.equal(limited.score_source, "deterministic")
-    assert.deepEqual(limited.router, { llm: false, reason: "rate_limited", model: null })
+    assert.equal(limited.router?.path, "deterministic")
+    assert.equal(limited.router?.reason, "rate_limited")
   })
 
   it("records numeric-only and unavailable decisions", async () => {
@@ -363,6 +371,13 @@ describe("grade router (LLM only when required)", () => {
       input({ responseText: "Net income is down $7.50 and PP&E falls $10." }),
       { graderV2: true, llm: null },
     )
-    assert.deepEqual(none.router, { llm: false, reason: "llm_unavailable", model: null })
+    assert.deepEqual(none.router, {
+      path: "deterministic",
+      reason: "llm_unavailable",
+      escalation: null,
+      decision_model: null,
+      chat_model: null,
+      cost_usd: null,
+    })
   })
 })

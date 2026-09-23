@@ -110,3 +110,7 @@ Generated — edit the source in `apps/web/lib/data/curriculum/` and run `npx ts
 | `061_interactive_diagrams.sql` | 4 `interactive-json` diagram versions (`InteractiveDiagramSchema`, `packages/contracts/src/diagram.ts`) and the matching diagram quiz checkpoints |
 
 Question links join `canonical.canonical_questions`, so a database without the export questions just gets fewer rows. Diagram versions are text (`'1'`, `'v1'`, `'2'`); readers order by the numeric part. Verified locally: 059–061 apply with psql and statement-by-statement through the migrate runner's splitter, re-apply idempotently, and 042's guard still passes.
+
+## 062 (grader — Jev decisions)
+
+`062_score_source_jev.sql` — adds `jev` to the `app.question_attempts.score_source` CHECK (grades produced by the Jev decision model; `llm` now means the small chat model on escalation). The unnamed 043 CHECK is found by definition and dropped, then recreated as `question_attempts_score_source_check`, so re-applying is a no-op. No new tables, so the 042 guard is unaffected. Verified locally on a clone of a 010–061 database with data: applies with psql and statement-by-statement through the runner splitter, re-applies idempotently, accepts `jev`, still rejects unknown sources, and 042 re-runs clean.

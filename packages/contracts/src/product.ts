@@ -414,6 +414,8 @@ export type StudyPlanItem = z.infer<typeof StudyPlanItemSchema>;
 export const AttemptScoreSourceEnum = z.enum([
   "self",
   "llm",
+  /** Typed rubric decisions from Jev (decision model) — no generated text. */
+  "jev",
   "deterministic",
   /** Exact numeric check (drills / calc questions) — no LLM. */
   "numeric",

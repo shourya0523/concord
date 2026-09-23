@@ -13,7 +13,9 @@
  *             score ≥ DECISIVE_PASS_SCORE
  *       fail  zero cue hits on every key point, no numeric check passed and
  *             the answer is short or off-topic vs the teaching answer
- * Otherwise the PRIMARY tier is called (small tier = OpenRouter fallback).
+ * Otherwise a model grades it: ONE Jev decision request (typed verdict per key
+ * point), escalating to the SMALL chat model only on low confidence / error
+ * (lib/grading/pipeline.ts). The outcome is recorded as a GradeRoute.
  *
  * Thresholds were tuned on evals/grader/dataset.jsonl (2026-09-23): LLM call
  * rate 0.48, 52 skipped cases with deterministic correct-accuracy 1.00
@@ -46,10 +48,50 @@ export type RouterReason =
   | "no_rubric"
 
 export type RouterDecision = {
+  /** True when a model (Jev, then maybe the small chat model) should grade. */
   llm: boolean
   reason: RouterReason
-  /** Model the LLM call goes to (primary tier); null when no call is made. */
+  /** Decision model the call goes to; null when no call is made. */
   model: string | null
+}
+
+/**
+ * How a grade was produced — persisted as `grade_json.router`.
+ *
+ *   skip           no model needed (router skip reason in `reason`)
+ *   jev            Jev decisions only
+ *   jev+small      Jev, then the small chat model (see `escalation`)
+ *   small          small chat model only (no decision model configured)
+ *   deterministic  a model was needed but unavailable / rate-limited / failed
+ */
+export type GradeRoutePath = "skip" | "jev" | "jev+small" | "small" | "deterministic"
+
+/** Why the small chat model was called (or attempted) after Jev. */
+export type EscalationReason = "low_confidence" | "jev_error"
+
+export type GradeRoute = {
+  path: GradeRoutePath
+  reason: RouterReason
+  escalation: EscalationReason | null
+  /** Jev model that answered (null when Jev was not called). */
+  decision_model: string | null
+  /** Small chat model that graded (null when not called). */
+  chat_model: string | null
+  /** OpenRouter usage cost (USD) across every call for this grade; null when none reported. */
+  cost_usd: number | null
+}
+
+/** GradeRoute for a router decision that made no model call. */
+export function routeWithoutModel(decision: Pick<RouterDecision, "reason">): GradeRoute {
+  const needed = decision.reason === "llm_unavailable" || decision.reason === "rate_limited"
+  return {
+    path: needed ? "deterministic" : "skip",
+    reason: decision.reason,
+    escalation: null,
+    decision_model: null,
+    chat_model: null,
+    cost_usd: null,
+  }
 }
 
 export type RouterInput = {

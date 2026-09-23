@@ -17,6 +17,7 @@ import {
   detectInjection,
   INJECTION_RED_FLAG,
 } from "./grading/guards"
+import type { GradeRoute } from "./grading/router"
 import { PASS_THRESHOLD, RED_FLAG_PENALTY } from "./grading/rubric"
 import { contentTokens, stem, tokenSet, wordTokens } from "./grading/text"
 
@@ -48,8 +49,8 @@ export type PracticeGradeResult = {
   model?: string | null
   cached?: boolean
   latency_ms?: number
-  /** Grade router decision (lib/grading/router.ts) — persisted as grade_json.router. */
-  router?: { llm: boolean; reason: string; model: string | null }
+  /** How the grade was produced (lib/grading/router.ts) — persisted as grade_json.router. */
+  router?: GradeRoute
 }
 
 /** Topic is weak (for weak_topics) below proficient mastery. */
