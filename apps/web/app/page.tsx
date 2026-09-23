@@ -3,6 +3,7 @@ import Link from "next/link"
 import { Button } from "@ibpe/ui/components/button"
 
 import { ConcordLogo } from "@/components/concord-logo"
+import { isFlagOn } from "@/lib/flags"
 import { MockupSvgFilters } from "@/components/mockups/svg-filters"
 import {
   HandwritingHeadline,
@@ -200,6 +201,15 @@ export default function HomePage() {
                 </Button>
               </Link>
             </RoughHover>
+            {isFlagOn("daily_set") ? (
+              <Link
+                href="/today"
+                data-ink-hover
+                className="px-1 text-sm text-graphite underline-offset-4 transition-colors hover:text-ink hover:underline"
+              >
+                Today&apos;s set →
+              </Link>
+            ) : null}
             <Link
               href="/companies"
               data-ink-hover

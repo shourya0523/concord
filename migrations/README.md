@@ -91,6 +91,10 @@ The migrate runner splits statements on `;` even inside `--` comments, so keep s
 
 Every new `app.*` table ships with RLS + FORCE + a self policy and a conditional `GRANT … TO concord_app`, so the 042 guard keeps passing. Verified on a local Postgres 16 + pgvector: 043–046 apply cleanly, re-apply idempotently, and a re-run of 042's guard passes.
 
+## 054 (retention track, plan 2026-09-23-001 P5.2/P5.5/P5.6)
+
+`054_activity_events.sql` — `app.activity_events`, the learning-activity ledger written by `apps/web/lib/data/activity.ts` (`recordLearningActivity`). One row per graded action (attempt, drill, mock, placement) plus the daily-goal bonus; it backs the "same subject within 24 h earns half XP" rule, the graded-card / first-drill / first-mock achievement counters and an auditable XP history. The 045 aggregates (`daily_activity`, `user_streaks`) keep their semantics and remain what other tracks read. RLS + FORCE + self policy + conditional `GRANT … TO concord_app`, so 042's guard still passes.
+
 ## 057 (notify track — leagues)
 
 `057_league_sizes.sql` — `app.league_sizes(week_start, prefix)`: a `SECURITY DEFINER` function that returns member **counts** per league id for one week and one league-id prefix, so a joining member can be placed in a league with room (≤ 30) without the 046 read policy exposing other leagues. `EXECUTE` is revoked from `PUBLIC` and granted to `concord_app`. Adds `ix_league_memberships_week_league`. No new tables, so the 042 guard is unaffected (verified locally: 057 applies, re-applies, and 042 re-runs clean).

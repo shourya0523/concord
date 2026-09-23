@@ -21,12 +21,40 @@ import {
   TargetSelectIsland,
   readStoredTargets,
 } from "@/components/target-select-island"
-import { sortTopicSlugs } from "@/lib/topics"
+import { AnswerCard, startPracticeSession } from "@/components/daily-set-player"
+import { GradeFeedbackCard } from "@/components/grade-feedback-card"
+import type { AttemptResponse } from "@/lib/api/schemas"
+import type { PlacementQuestion, PlacementResponse } from "@/lib/api/retention-schemas"
+import { homePathFor } from "@/lib/auth/post-auth"
+import { detectTimeZone } from "@/lib/local-day"
+import { sortTopicSlugs, topicLabel } from "@/lib/topics"
 
 type LearningMode = "company_prep" | "concept_learn"
 type Track = "IB" | "PE" | "Both"
 
-const STEPS = ["Welcome", "Path", "Track", "Firms", "Date", "Focus"] as const
+const STEPS = [
+  "Welcome",
+  "Path",
+  "Track",
+  "Firms",
+  "Date",
+  "Reminder",
+  "Focus",
+  "Placement",
+] as const
+const REMINDER_STEP = 5
+const FOCUS_STEP = 6
+const PLACEMENT_STEP = 7
+
+const REMINDER_HOURS = [7, 8, 9, 12, 17, 18, 19, 20, 21]
+
+function hourLabel(hour: number): string {
+  const suffix = hour < 12 ? "am" : "pm"
+  const display = hour % 12 === 0 ? 12 : hour % 12
+  return `${display}${suffix}`
+}
+
+type PlacementPhase = "intro" | "loading" | "running" | "done" | "empty"
 
 type HeatPayload = {
   topics: Array<{
@@ -37,9 +65,18 @@ type HeatPayload = {
   }>
 }
 
-export function OnboardingForm() {
+export function OnboardingForm({
+  dailySet = true,
+  initialStep,
+}: {
+  /** `daily_set` flag — where "Enter Concord" lands. */
+  dailySet?: boolean
+  /** Deep link (e.g. `placement` from Today). */
+  initialStep?: string
+} = {}) {
   const router = useRouter()
-  const [step, setStep] = React.useState(0)
+  const home = homePathFor(dailySet)
+  const [step, setStep] = React.useState(initialStep === "placement" ? PLACEMENT_STEP : 0)
   const [modes, setModes] = React.useState<LearningMode[]>([
     "company_prep",
     "concept_learn",
@@ -55,9 +92,20 @@ export function OnboardingForm() {
   const [focusPrompt, setFocusPrompt] = React.useState("")
   const [saving, setSaving] = React.useState(false)
   const [typing, setTyping] = React.useState(false)
+  const [timezone, setTimezone] = React.useState("UTC")
+  const [reminderHour, setReminderHour] = React.useState<number | null>(19)
+  const [placementPhase, setPlacementPhase] = React.useState<PlacementPhase>("intro")
+  const [placement, setPlacement] = React.useState<PlacementQuestion[]>([])
+  const [placementIndex, setPlacementIndex] = React.useState(0)
+  const [placementSession, setPlacementSession] = React.useState<string | null>(null)
+  const [placementGrade, setPlacementGrade] = React.useState<AttemptResponse["grade"] | null>(null)
+  const [placementScores, setPlacementScores] = React.useState<Array<{ topic: string | null; score: number }>>([])
+  const [placementError, setPlacementError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     setTargets(readStoredTargets())
+    // P5.1: streaks, the daily set and reminders run on the learner's local day.
+    setTimezone(detectTimeZone())
   }, [])
 
   // Selected-firm preview heat strip — aggregate intensity across selection.
@@ -122,7 +170,7 @@ export function OnboardingForm() {
     return true
   }
 
-  async function finish() {
+  async function saveProfile() {
     setSaving(true)
     try {
       if (targets.length > 0) {
@@ -145,12 +193,61 @@ export function OnboardingForm() {
           interview_date: interviewDate || null,
           availability_minutes: Number.parseInt(availability, 10) || null,
           focus_prompt: focusPrompt.trim() || null,
+          timezone,
+          reminder_hour: reminderHour,
         }),
       })
-      router.push("/dashboard")
+      setStep(PLACEMENT_STEP)
     } finally {
       setSaving(false)
     }
+  }
+
+  async function finishPlacement(action: "complete" | "skip") {
+    setSaving(true)
+    try {
+      await fetch("/api/placement", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action, answered: placementScores.length }),
+      }).catch(() => undefined)
+      router.push(home)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function startPlacement() {
+    setPlacementPhase("loading")
+    setPlacementError(null)
+    try {
+      const response = await fetch("/api/placement", { cache: "no-store" })
+      const payload = response.ok ? ((await response.json()) as PlacementResponse) : null
+      const questions = payload?.questions ?? []
+      if (questions.length === 0) {
+        setPlacementPhase("empty")
+        return
+      }
+      const sessionId = await startPracticeSession(
+        questions.map((question) => question.question_id),
+        targets.slice(0, 1),
+      )
+      setPlacement(questions)
+      setPlacementSession(sessionId)
+      setPlacementIndex(0)
+      setPlacementScores([])
+      setPlacementGrade(null)
+      setPlacementPhase("running")
+    } catch (err) {
+      setPlacementError(err instanceof Error ? err.message : "Placement check unavailable")
+      setPlacementPhase("empty")
+    }
+  }
+
+  function nextPlacement() {
+    setPlacementGrade(null)
+    if (placementIndex + 1 >= placement.length) setPlacementPhase("done")
+    else setPlacementIndex((value) => value + 1)
   }
 
   return (
@@ -182,8 +279,8 @@ export function OnboardingForm() {
             <strong className="text-foreground">company rooms</strong> — what
             your target firms actually ask, from occurrence signals — with{" "}
             <strong className="text-foreground">concept labs</strong> that teach
-            the underlying finance. Six quick answers tune your dashboard, study
-            plan, and session packs.
+            the underlying finance. A few quick answers tune your daily set,
+            study plan, and session packs.
           </p>
         </div>
       ) : null}
@@ -390,7 +487,39 @@ export function OnboardingForm() {
         </div>
       ) : null}
 
-      {step === 5 ? (
+      {step === REMINDER_STEP ? (
+        <div className="space-y-5">
+          <h1 className="font-display text-3xl tracking-tight">
+            When should we nudge you?
+          </h1>
+          <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
+            Your streak and daily set follow your local day. Pick a time for a
+            gentle reminder when today&apos;s set is still open — or none at all.
+          </p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Reminder time">
+            {[null, ...REMINDER_HOURS].map((hour) => (
+              <button
+                key={hour ?? "none"}
+                type="button"
+                aria-pressed={reminderHour === hour}
+                onClick={() => setReminderHour(hour)}
+                className={
+                  reminderHour === hour
+                    ? "rounded-full bg-ink px-3 py-1.5 text-sm text-paper"
+                    : "rounded-full border border-border px-3 py-1.5 text-sm text-muted-foreground"
+                }
+              >
+                {hour === null ? "No reminder" : hourLabel(hour)}
+              </button>
+            ))}
+          </div>
+          <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+            Time zone · {timezone} (from this device)
+          </p>
+        </div>
+      ) : null}
+
+      {step === FOCUS_STEP ? (
         <div className="space-y-5">
           <h1 className="font-display text-3xl tracking-tight">
             Anything specific coming up?
@@ -414,8 +543,94 @@ export function OnboardingForm() {
         </div>
       ) : null}
 
+      {step === PLACEMENT_STEP ? (
+        <div className="space-y-5">
+          {placementPhase === "intro" || placementPhase === "loading" ? (
+            <>
+              <h1 className="font-display text-3xl tracking-tight">
+                Quick placement check
+              </h1>
+              <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
+                Ten questions across accounting, EV, valuation, LBOs and M&amp;A,
+                from easier to harder. Each answer is graded, seeds your review
+                cards and concept mastery — so readiness is honest from day one.
+                About ten minutes; skip it if you&apos;d rather start straight away.
+              </p>
+              <WarrenCallout mood="encouraging" bracket>
+                No pressure — a wrong answer here just tells me where to start.
+              </WarrenCallout>
+            </>
+          ) : null}
+          {placementPhase === "running" && placement[placementIndex] ? (
+            placementGrade ? (
+              <div className="space-y-4">
+                <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+                  Question {placementIndex + 1} of {placement.length}
+                </p>
+                <p className="font-display text-xl leading-snug tracking-tight">
+                  {placement[placementIndex].prompt}
+                </p>
+                <GradeFeedbackCard grade={placementGrade} />
+                <Button type="button" onClick={nextPlacement}>
+                  {placementIndex + 1 >= placement.length ? "See results" : "Next question"}
+                </Button>
+              </div>
+            ) : (
+              <AnswerCard
+                key={placement[placementIndex].question_id}
+                sessionId={placementSession}
+                questionId={placement[placementIndex].question_id}
+                prompt={placement[placementIndex].prompt}
+                header={
+                  <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+                    Question {placementIndex + 1} of {placement.length}
+                    {placement[placementIndex].topic
+                      ? ` · ${topicLabel(placement[placementIndex].topic as string)}`
+                      : ""}
+                  </p>
+                }
+                onGraded={(result) => {
+                  setPlacementGrade(result.grade ?? null)
+                  setPlacementScores((prev) => [
+                    ...prev,
+                    { topic: placement[placementIndex]?.topic ?? null, score: result.grade?.score ?? 0 },
+                  ])
+                  if (!result.grade) nextPlacement()
+                }}
+                onSkip={nextPlacement}
+              />
+            )
+          ) : null}
+          {placementPhase === "done" ? (
+            <div className="space-y-4">
+              <h1 className="font-display text-3xl tracking-tight">Placement done</h1>
+              <p className="text-sm text-muted-foreground">
+                {placementScores.length} answer{placementScores.length === 1 ? "" : "s"} graded
+                {placementScores.length > 0
+                  ? ` · average ${Math.round(
+                      (placementScores.reduce((sum, row) => sum + row.score, 0) /
+                        placementScores.length) *
+                        100,
+                    )}%`
+                  : ""}
+                . Your first daily set starts from what you missed.
+              </p>
+              <WarrenCallout mood="celebrating" bracket>
+                That&apos;s your baseline. Readiness will move with every graded card.
+              </WarrenCallout>
+            </div>
+          ) : null}
+          {placementPhase === "empty" ? (
+            <p role="status" className="border border-dashed border-border px-3 py-2 text-sm">
+              {placementError ??
+                "No placement questions are available yet — you can start with today's set."}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
-        {step > 0 ? (
+        {step > 0 && step < PLACEMENT_STEP ? (
           <Button
             type="button"
             variant="ghost"
@@ -424,7 +639,7 @@ export function OnboardingForm() {
             Back
           </Button>
         ) : null}
-        {step < STEPS.length - 1 ? (
+        {step < FOCUS_STEP ? (
           <Button
             type="button"
             disabled={!canAdvance()}
@@ -432,20 +647,57 @@ export function OnboardingForm() {
           >
             Continue
           </Button>
-        ) : (
+        ) : step === FOCUS_STEP ? (
           <Button
             type="button"
             disabled={saving || (needsFirms && targets.length === 0)}
-            onClick={() => void finish()}
+            onClick={() => void saveProfile()}
           >
-            {saving ? "Saving…" : "Enter Concord"}
+            {saving ? "Saving…" : "Save and continue"}
           </Button>
-        )}
-        {step > 0 && step < STEPS.length - 1 ? (
+        ) : placementPhase === "intro" || placementPhase === "loading" ? (
+          <>
+            <Button
+              type="button"
+              disabled={placementPhase === "loading" || saving}
+              onClick={() => void startPlacement()}
+            >
+              {placementPhase === "loading" ? "Preparing…" : "Start placement check"}
+            </Button>
+            <button
+              type="button"
+              className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+              disabled={saving}
+              onClick={() => void finishPlacement("skip")}
+            >
+              Skip — take me to {dailySet ? "Today" : "my dashboard"}
+            </button>
+          </>
+        ) : placementPhase === "running" ? (
           <button
             type="button"
             className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-            onClick={() => setStep(STEPS.length - 1)}
+            disabled={saving}
+            onClick={() => void finishPlacement(placementScores.length > 0 ? "complete" : "skip")}
+          >
+            Finish early
+          </button>
+        ) : (
+          <Button
+            type="button"
+            disabled={saving}
+            onClick={() =>
+              void finishPlacement(placementPhase === "done" && placementScores.length > 0 ? "complete" : "skip")
+            }
+          >
+            {saving ? "Saving…" : dailySet ? "Go to Today" : "Enter Concord"}
+          </Button>
+        )}
+        {step > 0 && step < FOCUS_STEP ? (
+          <button
+            type="button"
+            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+            onClick={() => setStep(FOCUS_STEP)}
           >
             Skip to finish
           </button>
