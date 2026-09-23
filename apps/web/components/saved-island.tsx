@@ -70,6 +70,9 @@ export function SavedIsland() {
   const [collectionTitle, setCollectionTitle] = React.useState("")
   const [collectionStatus, setCollectionStatus] = React.useState<string | null>(null)
   const [creatingCollection, setCreatingCollection] = React.useState(false)
+  const [editingNoteId, setEditingNoteId] = React.useState<string | null>(null)
+  const [editingBody, setEditingBody] = React.useState("")
+  const [actionStatus, setActionStatus] = React.useState<string | null>(null)
 
   const load = React.useCallback((signal: AbortSignal) => {
     setPhase("loading")
@@ -122,16 +125,21 @@ export function SavedIsland() {
         }
         // Question titles resolved per id (few bookmarks; cached by the browser).
         const questionIds = [
-          ...new Set(
-            nextBookmarks
+          ...new Set([
+            ...nextBookmarks
               .filter(
                 (bookmark) =>
                   bookmark.entity_kind === "question" ||
                   bookmark.entity_kind === "canonical_question",
               )
               .map((bookmark) => bookmark.entity_id),
-          ),
-        ].slice(0, 12)
+            ...(collectionPayload.items ?? []).flatMap((collection) =>
+              collection.items
+                .filter((item) => item.entity_kind === "question")
+                .map((item) => item.entity_id),
+            ),
+          ]),
+        ].slice(0, 24)
         await Promise.all(
           questionIds.map(async (id) => {
             try {
@@ -220,6 +228,83 @@ export function SavedIsland() {
     filteredBookmarks.length === 0 &&
     filteredNotes.length === 0 &&
     filteredCollections.length === 0
+
+  /** Run a write and replace local state from the list the API returns. */
+  async function mutate<T>(
+    url: string,
+    init: RequestInit,
+    apply: (items: T[]) => void,
+    success: string,
+  ) {
+    setActionStatus(null)
+    try {
+      const response = await fetch(url, {
+        ...init,
+        headers: init.body ? { "content-type": "application/json" } : undefined,
+      })
+      if (!response.ok) {
+        setActionStatus(`That change could not be saved (${response.status}).`)
+        return false
+      }
+      const payload = (await response.json()) as { items?: T[] }
+      apply(payload.items ?? [])
+      setActionStatus(success)
+      return true
+    } catch {
+      setActionStatus("That change could not be saved. Try again in a moment.")
+      return false
+    }
+  }
+
+  function removeBookmark(bookmark: Bookmark) {
+    void mutate<Bookmark>(
+      `/api/bookmarks/${encodeURIComponent(bookmark.id)}`,
+      { method: "DELETE" },
+      setBookmarks,
+      "Bookmark removed.",
+    )
+  }
+
+  async function saveNoteEdit(note: Note) {
+    const body = editingBody.trim()
+    if (!body) return
+    const ok = await mutate<Note>(
+      `/api/notes/${encodeURIComponent(note.id)}`,
+      { method: "PATCH", body: JSON.stringify({ body }) },
+      setNotes,
+      "Note updated.",
+    )
+    if (ok) setEditingNoteId(null)
+  }
+
+  function removeNote(note: Note) {
+    if (!window.confirm("Delete this note?")) return
+    void mutate<Note>(
+      `/api/notes/${encodeURIComponent(note.id)}`,
+      { method: "DELETE" },
+      setNotes,
+      "Note deleted.",
+    )
+  }
+
+  function removeCollection(collection: Collection) {
+    if (!window.confirm(`Delete the collection "${collection.title}"?`)) return
+    void mutate<Collection>(
+      `/api/collections/${encodeURIComponent(collection.id)}`,
+      { method: "DELETE" },
+      setCollections,
+      "Collection deleted.",
+    )
+  }
+
+  function removeCollectionItem(collection: Collection, itemId: string) {
+    void mutate<Collection>(
+      `/api/collections/${encodeURIComponent(collection.id)}/items/${encodeURIComponent(itemId)}`,
+      { method: "DELETE" },
+      setCollections,
+      "Removed from collection.",
+    )
+  }
 
   async function createCollection(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -346,6 +431,12 @@ export function SavedIsland() {
         </form>
       </section>
 
+      {actionStatus ? (
+        <p className="text-xs text-muted-foreground" aria-live="polite">
+          {actionStatus}
+        </p>
+      ) : null}
+
       {filteredEmpty ? (
         <p className="border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
           No saved items match "{query.trim()}". Clear the filter to see everything.
@@ -380,6 +471,13 @@ export function SavedIsland() {
                     <span className="shrink-0 font-mono text-xs text-muted-foreground">
                       {bookmark.created_at.slice(0, 10)}
                     </span>
+                    <button
+                      type="button"
+                      className="shrink-0 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                      onClick={() => removeBookmark(bookmark)}
+                    >
+                      Remove
+                    </button>
                   </div>
                   {bookmark.provenance || firmIds.length > 0 || tags.length > 0 ? (
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -428,7 +526,31 @@ export function SavedIsland() {
             {filteredNotes.map((note) => (
               <li key={note.id}>
                 <PaperSheet seedKey={`note-${note.id}`}>
-                  <p className="whitespace-pre-line text-sm leading-relaxed">{note.body}</p>
+                  {editingNoteId === note.id ? (
+                    <div className="space-y-2">
+                      <textarea
+                        aria-label="Edit note"
+                        value={editingBody}
+                        onChange={(event) => setEditingBody(event.target.value)}
+                        className="min-h-20 w-full border border-border bg-transparent p-2.5 text-sm leading-relaxed outline-none focus:border-foreground"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!editingBody.trim()}
+                          onClick={() => void saveNoteEdit(note)}
+                        >
+                          Save
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingNoteId(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-line text-sm leading-relaxed">{note.body}</p>
+                  )}
                   <p className="mt-2 font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
                     {note.updated_at.slice(0, 10)}
                     {note.question_id ? (
@@ -440,6 +562,29 @@ export function SavedIsland() {
                         >
                           open question
                         </Link>
+                      </>
+                    ) : null}
+                    {editingNoteId !== note.id ? (
+                      <>
+                        {" · "}
+                        <button
+                          type="button"
+                          className="uppercase underline-offset-4 hover:underline"
+                          onClick={() => {
+                            setEditingNoteId(note.id)
+                            setEditingBody(note.body)
+                          }}
+                        >
+                          edit
+                        </button>
+                        {" · "}
+                        <button
+                          type="button"
+                          className="uppercase underline-offset-4 hover:underline"
+                          onClick={() => removeNote(note)}
+                        >
+                          delete
+                        </button>
                       </>
                     ) : null}
                   </p>
@@ -457,8 +602,7 @@ export function SavedIsland() {
         </h2>
         {filteredCollections.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No collections yet. Create one above; the real collections API requires an authenticated
-            session before it can persist to your account.
+            No collections yet. Create one above, then add questions to it from the study page.
           </p>
         ) : (
           <ul className="grid gap-3 md:grid-cols-2">
@@ -472,6 +616,56 @@ export function SavedIsland() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     {collection.items.length} item{collection.items.length === 1 ? "" : "s"}
                   </p>
+                  {collection.items.length > 0 ? (
+                    <ul className="mt-2 space-y-1 text-sm">
+                      {collection.items.map((item) => {
+                        const resolved = titles.get(`${item.entity_kind}:${item.entity_id}`)
+                        return (
+                          <li key={item.id} className="flex items-baseline gap-2">
+                            <span className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
+                              {formatEntityKind(item.entity_kind)}
+                            </span>
+                            <Link
+                              className="min-w-0 flex-1 truncate underline-offset-4 hover:underline"
+                              href={
+                                resolved?.href ??
+                                (item.entity_kind === "question"
+                                  ? `/study?question=${encodeURIComponent(item.entity_id)}`
+                                  : "/saved")
+                              }
+                            >
+                              {resolved?.title ?? item.entity_id}
+                            </Link>
+                            <button
+                              type="button"
+                              aria-label="Remove from collection"
+                              className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                              onClick={() => removeCollectionItem(collection, item.id)}
+                            >
+                              ×
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : null}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {collection.items.some((item) => item.entity_kind === "question") ? (
+                      <Link
+                        href={`/study?questions=${collection.items
+                          .filter((item) => item.entity_kind === "question")
+                          .map((item) => encodeURIComponent(item.entity_id))
+                          .join(",")}`}
+                      >
+                        <Button size="sm" variant="outline">
+                          Study this collection
+                        </Button>
+                      </Link>
+                    ) : null}
+                    <Button size="sm" variant="ghost" onClick={() => removeCollection(collection)}>
+                      Delete
+                    </Button>
+                  </div>
                 </PaperSheet>
               </li>
             ))}

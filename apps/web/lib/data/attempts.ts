@@ -10,11 +10,14 @@ import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
 import { gradePracticeAttempt } from "@/lib/data/practice-grade";
 import type { FirmContextSnapshot } from "@/lib/data/practice-packs";
+import { ratingFromScore } from "@/lib/review-schedule";
 import { getPracticeSession } from "./practice";
+import { recordReview } from "./review";
 import { ensureAppUserQuery } from "./users";
+import { memoryStore } from "./memory-store";
 
-const stubAttempts = new Map<string, Attempt[]>();
-const stubMastery = new Map<string, Mastery>();
+const stubAttempts = memoryStore<string, Attempt[]>("attempts");
+const stubMastery = memoryStore<string, Mastery>("mastery");
 
 function masteryKey(userId: string, subjectType: string, subjectId: string): string {
   return `${userId}:${subjectType}:${subjectId}`;
@@ -58,6 +61,11 @@ function upsertStubMastery(options: {
   return mastery;
 }
 
+/** In-memory attempts for one user (no-DB progress aggregates). */
+export function listStubAttempts(userId: string): Attempt[] {
+  return [...stubAttempts.values()].flat().filter((item) => item.user_id === userId);
+}
+
 export function getStubMastery(userId: string): Mastery[] {
   return [...stubMastery.values()].filter((item) => item.user_id === userId);
 }
@@ -72,7 +80,40 @@ function firmContextFromSession(
   return snap;
 }
 
+/**
+ * Record an attempt, then schedule the question's next spaced review from the
+ * learner's rating (or confidence / grade when no explicit rating was sent).
+ */
 export async function recordPracticeAttempt(options: {
+  userId: string;
+  email?: string | null;
+  sessionId: string;
+  input: CreateAttemptRequest;
+}): Promise<AttemptResponse> {
+  const result = await recordAttemptAndMastery(options);
+  const rating =
+    options.input.rating ??
+    ratingFromScore(options.input.confidence ?? result.grade?.score ?? null);
+  const { item } = await recordReview({
+    userId: options.userId,
+    email: options.email,
+    questionId: result.attempt.canonical_question_id,
+    rating,
+  });
+  if (result.mastery) {
+    result.mastery = { ...result.mastery, next_review_at: item.due_at };
+    stubMastery.set(
+      masteryKey(options.userId, "canonical_question", result.attempt.canonical_question_id),
+      result.mastery,
+    );
+  }
+  return {
+    ...result,
+    review: { rating, due_at: item.due_at, interval_days: item.interval_days },
+  };
+}
+
+async function recordAttemptAndMastery(options: {
   userId: string;
   email?: string | null;
   sessionId: string;

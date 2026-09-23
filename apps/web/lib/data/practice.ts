@@ -16,11 +16,23 @@ import type {
 } from "@/lib/api/schemas";
 import { buildPracticePack } from "@/lib/data/practice-packs";
 import { ensureAppUserQuery } from "./users";
+import { memoryStore } from "./memory-store";
 
-const stubSessions = new Map<string, PracticeSession>();
+const stubSessions = memoryStore<string, PracticeSession>("practice_sessions");
 
-function practiceModeToDb(mode: PracticeSessionMode): string {
-  return mode;
+/** In-memory sessions for one user, newest first (no-DB progress history). */
+export function listStubSessions(userId: string): PracticeSession[] {
+  return [...stubSessions.values()]
+    .filter((session) => session.user_id === userId)
+    .sort((a, b) => b.started_at.localeCompare(a.started_at));
+}
+
+/**
+ * `app.study_sessions.mode` CHECK constraint predates the `rag` rename and only
+ * allows the legacy `pseudo_rag`. Reads map it back via `normalizePracticeMode`.
+ */
+export function practiceModeToDb(mode: PracticeSessionMode): string {
+  return mode === "rag" ? "pseudo_rag" : mode;
 }
 
 function simulatorStageTemplate() {
