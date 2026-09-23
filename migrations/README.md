@@ -98,3 +98,15 @@ Every new `app.*` table ships with RLS + FORCE + a self policy and a conditional
 ## 057 (notify track — leagues)
 
 `057_league_sizes.sql` — `app.league_sizes(week_start, prefix)`: a `SECURITY DEFINER` function that returns member **counts** per league id for one week and one league-id prefix, so a joining member can be placed in a league with room (≤ 30) without the 046 read policy exposing other leagues. `EXECUTE` is revoked from `PUBLIC` and granted to `concord_app`. Adds `ix_league_memberships_week_league`. No new tables, so the 042 guard is unaffected (verified locally: 057 applies, re-applies, and 042 re-runs clean).
+
+## 059–061 (curriculum, diagrams, interactive quizzes — plan P2.9 / P2.10 / P7.2)
+
+Generated — edit the source in `apps/web/lib/data/curriculum/` and run `npx tsx scripts/curriculum/build-migrations.ts` (`--check` fails when a file is stale). The same source is the web app's no-DB fallback, so stub mode and the database show the same curriculum.
+
+| File | Adds |
+|------|------|
+| `059_diagrams_core.sql` | Version `2` bodies for the 8 existing mermaid diagrams, 10 new diagrams (comps/precedents, full 3-statement linkages, debt schedule + revolver, working capital cycle, merger model, returns attribution, DDM, football field, restructuring and PE distribution waterfalls), and `canonical.question_diagrams` rows from keyword rules over `exports/questions.jsonl` wording |
+| `060_curriculum_lessons.sql` | 8 modules (3 new: comps, merger model, PE fund mechanics), 3 new concepts, 300–700-word `body_markdown` for every lesson / concept lab, ≥3 export question ids per checkpoint (replaces the 039 seeds and its duplicated LBO id), diagram checkpoints pointed at 059 diagrams |
+| `061_interactive_diagrams.sql` | 4 `interactive-json` diagram versions (`InteractiveDiagramSchema`, `packages/contracts/src/diagram.ts`) and the matching diagram quiz checkpoints |
+
+Question links join `canonical.canonical_questions`, so a database without the export questions just gets fewer rows. Diagram versions are text (`'1'`, `'v1'`, `'2'`); readers order by the numeric part. Verified locally: 059–061 apply with psql and statement-by-statement through the migrate runner's splitter, re-apply idempotently, and 042's guard still passes.
