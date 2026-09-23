@@ -26,6 +26,8 @@ db.py METADATA.create_all            020_neon_published.sql
                                      035_diagram_resources_seed.sql
                                      036_keyword_rules_v2_backfill.sql
                                      037_heat_view_occurrence_topic.sql
+                                     …
+                                     042_app_rls_role.sql
 ```
 
 Corpus table names stay stable for Python (`interview_occurrences`, `source_artefacts`, …). Neon uses the §17 product names (`question_occurrences`, `source_artifacts`, …) with a documented mapping in `packages/database/README.md`.
@@ -71,3 +73,9 @@ Uses legacy bank `id` (SHA1 of `company|position|question`) as the primary idemp
 ## 032
 
 `032_learning_flows.sql` — adds canonical learning modules/checkpoints/prerequisites/module-concept links, app target company sets, module progress, and collection items; widens `app.study_sessions.mode` to include `simulator`; adds RLS and published module views; seeds five illustrative modules.
+
+## 042
+
+`042_app_rls_role.sql` — creates `concord_app`, the non-owner `NOBYPASSRLS` login role the web app should connect as (`neondb_owner` bypasses RLS on Neon), grants it only `app` DML plus `published`/`canonical` reads, adds the missing `app.*` policies, and forces RLS on every `app.*` table. It sets no password. See `docs/deployment/app-db-role.md` for the password step, the Vercel `DATABASE_URL` switch, and the rules for new tables (they need an explicit `GRANT ... TO concord_app`).
+
+The migrate runner splits statements on `;` even inside `--` comments, so keep semicolons out of comments.

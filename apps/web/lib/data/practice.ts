@@ -152,10 +152,10 @@ export async function createPracticeSession(options: {
 
 export async function getPracticeSession(
   sessionId: string,
-  userId?: string,
+  userId: string,
 ): Promise<PracticeSession | null> {
   const mem = stubSessions.get(sessionId);
-  if (mem) return mem;
+  if (mem) return mem.user_id === userId ? mem : null;
   if (!isDatabaseConfigured()) return null;
 
   const sql = requireSql();
@@ -168,25 +168,18 @@ export async function getPracticeSession(
     completed_at: string | null;
     metadata_json: Record<string, unknown>;
   };
-  let rows: SessionRow[];
-  if (userId) {
-    const results = await withRlsUserId(sql, userId, (s) => [
-      s`
-        SELECT id, user_id, mode, firm_id, started_at, completed_at, metadata_json
-        FROM app.study_sessions
-        WHERE id = ${sessionId}
-        LIMIT 1
-      `,
-    ]);
-    rows = (results[0] ?? []) as SessionRow[];
-  } else {
-    rows = (await sql`
-      SELECT id, user_id, mode, firm_id, started_at, completed_at, metadata_json
-      FROM app.study_sessions
-      WHERE id = ${sessionId}
+  const results = await withRlsUserId(sql, userId, (s) => [
+    s`
+      SELECT sess.id, sess.user_id, sess.mode, sess.firm_id, sess.started_at,
+        sess.completed_at, sess.metadata_json
+      FROM app.study_sessions sess
+      JOIN app.users u ON u.id = sess.user_id
+      WHERE sess.id = ${sessionId}
+        AND u.neon_auth_user_id = ${userId}
       LIMIT 1
-    `) as SessionRow[];
-  }
+    `,
+  ]);
+  const rows = (results[0] ?? []) as SessionRow[];
 
   const row = rows[0];
   if (!row) return null;

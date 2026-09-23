@@ -8,6 +8,7 @@ Wave 3 promote docs for Concord / GlassCleaner2 product deploy topology.
 | [workers.md](./workers.md) | Scrape / transform / enrich workers + health checks |
 | [object-storage.md](./object-storage.md) | Raw HTML/JSON/PDF artefact storage |
 | [monitoring.md](./monitoring.md) | Logs, error tracking, Wave 3 status |
+| [app-db-role.md](./app-db-role.md) | Non-owner `concord_app` DB role so RLS applies; switching Vercel `DATABASE_URL` |
 | [../agent-run/env-inventory.md](../agent-run/env-inventory.md) | Secret vs public env inventory |
 
 **Hard rule:** Next.js on Vercel; long Glassdoor crawls and batch enrich on workers / durable workflows — never inside ordinary serverless request timeouts.

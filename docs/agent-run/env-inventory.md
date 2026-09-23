@@ -24,7 +24,7 @@ Session artefacts (never env-public): `data/glassdoor_state.json`, `data/glassdo
 
 | Var | Scope | Notes |
 |-----|-------|-------|
-| `DATABASE_URL` | secret | Neon Postgres — **unset on prod as of Wave 3 smoke** (`database: unavailable`) |
+| `DATABASE_URL` | secret | Neon Postgres. Should connect as `concord_app` (RLS enforced), not `neondb_owner`: see `docs/deployment/app-db-role.md` |
 | `NEON_AUTH_BASE_URL` | secret/server | Neon Console → Auth → Configuration |
 | `NEON_AUTH_COOKIE_SECRET` | secret | `openssl rand -base64 32` (≥32 chars) — **unset → auth stub** |
 | `NEXT_PUBLIC_APP_URL` | public | App origin (e.g. `https://concord-umber.vercel.app`) |
