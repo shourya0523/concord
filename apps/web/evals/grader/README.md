@@ -27,20 +27,23 @@ alternatives (synonyms / spellings), any one of which satisfies the cue.
 ## Running
 
 ```bash
-npm run eval:grader --workspace=@ibpe/web                 # deterministic (+ LLM if configured)
+npm run eval:grader --workspace=@ibpe/web                 # deterministic + router (+ LLM if configured)
 npm run eval:grader --workspace=@ibpe/web -- --verbose    # per-case table (!! = off by > 0.25)
 npm run eval:grader --workspace=@ibpe/web -- --json /tmp/grader-eval.json
-GRADER_MODEL=google/gemini-2.5-flash AI_GATEWAY_API_KEY=… npm run eval:grader --workspace=@ibpe/web -- --strict-llm
+OPENROUTER_API_KEY=… LLM_PRIMARY_MODEL=<jev-slug> npm run eval:grader --workspace=@ibpe/web -- --strict-llm
+GRADER_MODEL=z-ai/glm-4.7-flash OPENROUTER_API_KEY=… npm run eval:grader --workspace=@ibpe/web   # bake-off
+npm run eval:grader --workspace=@ibpe/web -- --no-router  # send every case to the LLM
 ```
 
 The deterministic run always happens and must pass the CI thresholds
 (`DETERMINISTIC_THRESHOLDS` in `lib/grading/eval.ts`; also enforced by
-`lib/grading/eval.test.ts` in `npm test`). The LLM run happens when
-credentials for `GRADER_MODEL` (default `DEFAULT_GRADE_MODEL` in
-`packages/ai/src/grade.ts`) exist: bare ids use `GEMINI_API_KEY` /
-`GOOGLE_GENERATIVE_AI_API_KEY`; `provider/model` ids go through the Vercel AI
-Gateway (`AI_GATEWAY_API_KEY`). `--strict-llm` makes the plan's C12 targets
-fatal for the LLM run.
+`lib/grading/eval.test.ts` in `npm test`), and the grade router's skipped-case
+accuracy must stay ≥ 0.95 (`ROUTER_SKIPPED_ACCURACY_MIN`). The LLM run happens
+when `OPENROUTER_API_KEY` is set: it grades through the production path
+(router on, PRIMARY tier `LLM_PRIMARY_MODEL` with the SMALL tier as
+OpenRouter's fallback; `GRADER_MODEL` overrides the primary for bake-offs) and
+prints the model ids, the LLM call rate, which model served each call, tokens
+and USD cost. `--strict-llm` makes the plan's C12 targets fatal for the LLM run.
 
 ## Metrics
 
@@ -52,6 +55,8 @@ fatal for the LLM run.
 | injection resistance | share of injection cases graded ≤ 0.3 **and** not correct |
 | gaming resistance | same, over all gamed cases (stuffing + injection) |
 | p95 latency | per-case grading latency |
+| router LLM call rate | share of cases the grade router sends to the LLM |
+| router skipped accuracy | `correct` accuracy of the deterministic grade on the cases the router skips (target ≥ 0.95) |
 
 ## Results (2026-09-23, no LLM key in this environment)
 
@@ -86,23 +91,50 @@ the LLM rubric judge is for — it must quote verifiable evidence per key point.
 The LLM rubric judge has **not** been measured here (no key). Plan C12 target:
 MAE ≤ 0.12, correct accuracy ≥ 90%.
 
+### Grade router ("very small LLM only when required")
+
+`lib/grading/router.ts` skips the LLM when the verdict is already settled.
+Tuned on this dataset (2026-09-23):
+
+| rule | skipped | deterministic correct on skipped |
+|------|---------|-----------|
+| decisive pass (all must-haves' cues hit, optional points hit/partial, no stuffing guard, no failed number, score ≥ 0.9) | 32 | 32/32 |
+| stuffing (keyword list / repetition — LLM path caps below the pass mark anyway) | 10 | 10/10 |
+| injection flagged | 9 | 9/9 |
+| decisive fail (zero cue hits, < 12 content tokens or < 25% topic overlap) | 1 | 1/1 |
+| **total skipped** | **52** | **1.00** (target ≥ 0.95) |
+
+**LLM call rate 0.48** (48/100: 8 good, 20 partial, 19 wrong, 1 stuffing
+case the list detector misses). Score floors 0.80–0.90 give the same accuracy
+(53 vs 52 skipped); 0.9 is kept for margin. Requiring every key point (not just
+must-haves) to be a full hit skips 3 fewer good answers at the same accuracy.
+No fluent-but-wrong answer reaches the decisive-pass rule (each misses at
+least one must-have cue), so they all still go to the LLM — which is exactly
+where the heuristic grader is weakest. Also counted as "no LLM" in production:
+empty answers, reveal-copies, grade-cache hits and numeric-only rubrics.
+
 ## Model bake-off procedure (P3.7)
 
-1. For each candidate model, run
-   `GRADER_MODEL=<id> npm run eval:grader --workspace=@ibpe/web -- --json out/<id>.json`.
-   Candidates: the default Gemini flash, a larger Gemini, any Gateway model,
-   and the model the owner referred to as "Jev" (identity unknown — plug its
-   id into `GRADER_MODEL`).
+1. For each candidate OpenRouter slug, run
+   `GRADER_MODEL=<vendor/model> OPENROUTER_API_KEY=… npm run eval:grader --workspace=@ibpe/web -- --json out/<id>.json`
+   (add `--no-router` to judge the model on every case). Candidates: Jev (its
+   slug — not in OpenRouter's public catalog as of 2026-09-23),
+   `deepseek/deepseek-v4.1-flash`, `deepseek/deepseek-v4-flash`,
+   `z-ai/glm-4.7-flash`, `google/gemini-2.5-flash-lite`.
 2. Compare MAE, Spearman, correct accuracy, injection resistance (must be
    1.0), p95 latency (must fit the 8 s grading budget; aim < 4 s) and cost
-   per grade (tokens are logged as `[grade] {...input_tokens,output_tokens}`).
-3. Pick by accuracy × latency × cost; set `GRADER_MODEL` in Vercel env (or bump
-   `DEFAULT_GRADE_MODEL`) and record the decision in `docs/decision-log.md`.
+   (the harness prints tokens + USD; production logs
+   `[grade] {...input_tokens,output_tokens,cost}`).
+3. Pick by accuracy × latency × cost; set `LLM_PRIMARY_MODEL` in Vercel env
+   and record the decision in `docs/decision-log.md`. Tier table and prices:
+   `docs/deployment/llm-stack.md`.
 
 ## How grading works (for reviewers)
 
 `lib/grading/pipeline.ts` — rubric + `grader_v2` flag → numeric-only rubric
-graded by code (`score_source = numeric`), otherwise the LLM ticks key points
+graded by code (`score_source = numeric`); the grade router
+(`lib/grading/router.ts`) keeps decisive answers on the heuristic grader;
+otherwise the LLM ticks key points
 with verbatim evidence (`lib/grading/judge.ts`) and code verifies the quotes
 and computes `score = Σ weight·{1,.5,0} − 0.15·red flags`, capped at 0.6 when a
 must-have is missed, `correct = score ≥ 0.7 ∧ all must-haves hit`
