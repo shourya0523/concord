@@ -284,6 +284,8 @@ export const CreateAttemptRequestSchema = z.object({
   confidence: z.number().min(0).max(1).nullable().optional(),
   correct: z.boolean().nullable().optional(),
   time_spent_ms: z.number().int().nonnegative().nullable().optional(),
+  /** Spaced-review button; derived from confidence / grade when omitted. */
+  rating: z.enum(["again", "hard", "good", "easy"]).optional(),
 })
 export type CreateAttemptRequest = z.infer<typeof CreateAttemptRequestSchema>
 
@@ -309,6 +311,13 @@ export const AttemptResponseSchema = z.object({
   attempt: AttemptSchema,
   mastery: MasterySchema.optional(),
   grade: AttemptGradeResponseSchema.optional(),
+  review: z
+    .object({
+      rating: z.enum(["again", "hard", "good", "easy"]),
+      due_at: z.string(),
+      interval_days: z.number().nonnegative(),
+    })
+    .optional(),
   source: DataSourceSchema,
   note: z.string().optional(),
 })

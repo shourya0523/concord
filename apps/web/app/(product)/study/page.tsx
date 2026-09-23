@@ -25,6 +25,7 @@ import {
 import { conceptIdForTopic, topicLabel } from "@/lib/topics"
 import { pitfallForTopic } from "@/lib/pitfalls"
 import { weakTopicsFromMastery } from "@/lib/weak-topics"
+import { describeDue } from "@/lib/review-schedule"
 
 type StudyDetail = {
   question: {
@@ -65,10 +66,10 @@ type Layer =
 
 const RATING_GUIDE = "Rate honestly — Again/Hard keeps this in your weak set."
 const RATINGS = [
-  { label: "Again", confidence: 0.25, tone: "error" },
-  { label: "Hard", confidence: 0.5, tone: "weak" },
-  { label: "Good", confidence: 0.75, tone: "success" },
-  { label: "Easy", confidence: 1, tone: "streak" },
+  { label: "Again", rating: "again", confidence: 0.25, tone: "error" },
+  { label: "Hard", rating: "hard", confidence: 0.5, tone: "weak" },
+  { label: "Good", rating: "good", confidence: 0.75, tone: "success" },
+  { label: "Easy", rating: "easy", confidence: 1, tone: "streak" },
 ] as const
 
 export default function StudyPage() {
@@ -81,7 +82,8 @@ export default function StudyPage() {
   const [sessionId, setSessionId] = React.useState<string | null>(null)
   const [status, setStatus] = React.useState("Loading published teaching answer…")
   const [submitted, setSubmitted] = React.useState(false)
-  const [bookmarked, setBookmarked] = React.useState(false)
+  const [bookmarkId, setBookmarkId] = React.useState<string | null>(null)
+  const bookmarked = bookmarkId !== null
   const [conceptSlug, setConceptSlug] = React.useState<string | null>(null)
   const [firstTarget, setFirstTarget] = React.useState<string | null>(null)
   const [firstTargetName, setFirstTargetName] = React.useState<string | null>(null)
@@ -95,6 +97,11 @@ export default function StudyPage() {
   >([])
   const [attemptCount, setAttemptCount] = React.useState(0)
   const [hintOpen, setHintOpen] = React.useState(false)
+  const [reviewMode, setReviewMode] = React.useState(false)
+  const [collections, setCollections] = React.useState<
+    Array<{ id: string; title: string; items: Array<{ entity_kind: string; entity_id: string }> }>
+  >([])
+  const [collectionId, setCollectionId] = React.useState("")
   const startedAt = React.useRef(0)
   const typing = answer.trim().length > 0
 
@@ -115,6 +122,15 @@ export default function StudyPage() {
         setFirstTargetName(options.find((firm) => firm.id === target)?.name ?? target)
       })
     }
+    fetch("/api/collections")
+      .then(async (response) =>
+        response.ok ? ((await response.json()) as { items?: typeof collections }) : { items: [] },
+      )
+      .then((payload) => {
+        setCollections(payload.items ?? [])
+        setCollectionId(payload.items?.[0]?.id ?? "")
+      })
+      .catch(() => undefined)
     fetch("/api/mastery")
       .then(async (response) =>
         response.ok
@@ -225,13 +241,28 @@ export default function StudyPage() {
     setRevealed(0)
     setAnswer("")
     setSubmitted(false)
-    setBookmarked(false)
+    setBookmarkId(null)
     setHintOpen(false)
     startedAt.current = Date.now()
     const response = await fetch(`/api/questions/${encodeURIComponent(questionId)}?view=study`)
     if (!response.ok) throw new Error(`Question request failed (${response.status})`)
     const payload = (await response.json()) as StudyDetail
     setDetail(payload)
+    fetch("/api/bookmarks")
+      .then(async (bookmarkResponse) =>
+        bookmarkResponse.ok
+          ? ((await bookmarkResponse.json()) as {
+              items?: Array<{ id: string; entity_kind: string; entity_id: string }>
+            })
+          : { items: [] },
+      )
+      .then((bookmarks) => {
+        const existing = bookmarks.items?.find(
+          (item) => item.entity_kind === "question" && item.entity_id === questionId,
+        )
+        setBookmarkId(existing?.id ?? null)
+      })
+      .catch(() => undefined)
     setStatus(
       payload.study?.direct_answer
         ? "Teaching answer loaded — reveal layers as you master them"
@@ -280,6 +311,7 @@ export default function StudyPage() {
         ? "rag"
         : "adaptive_weak"
     const requestedTopic = params.get("topic")?.trim() || null
+    const requestedReview = params.get("review") === "due"
     const requestedLearningMode =
       params.get("learning_mode") === "company_prep"
         ? "company_prep"
@@ -291,6 +323,28 @@ export default function StudyPage() {
           : requested
             ? [requested]
             : []
+        let reviewNotice: string | null = null
+        if (ids.length === 0 && requestedReview) {
+          const dueResponse = await fetch("/api/review/due?limit=20", {
+            signal: controller.signal,
+          })
+          if (dueResponse.ok) {
+            const due = (await dueResponse.json()) as {
+              items: Array<{ question_id: string }>
+              next_due_at: string | null
+            }
+            ids = due.items.map((item) => item.question_id)
+            if (ids.length > 0) {
+              setReviewMode(true)
+            } else {
+              reviewNotice = (
+                due.next_due_at
+                  ? `Nothing due for review — next card ${describeDue(due.next_due_at)}. Practising fresh questions instead.`
+                  : "Nothing scheduled for review yet — rate a few answers first."
+              )
+            }
+          }
+        }
         if (ids.length === 0 && requestedTopic) {
           const topicResponse = await fetch(
             `/api/questions?topic=${encodeURIComponent(requestedTopic)}&limit=8`,
@@ -312,6 +366,7 @@ export default function StudyPage() {
         if (ids.length === 0) throw new Error("No questions are published yet.")
         setQueue(ids)
         await loadQuestion(ids[0]!)
+        if (reviewNotice) setStatus(reviewNotice)
         const sessionResponse = await fetch("/api/practice/sessions", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -353,6 +408,7 @@ export default function StudyPage() {
         canonical_question_id: detail.question.id,
         response_text: answer,
         confidence,
+        rating: RATINGS.find((item) => item.confidence === confidence)?.rating,
         correct: null,
         time_spent_ms: Date.now() - startedAt.current,
       }),
@@ -363,10 +419,17 @@ export default function StudyPage() {
       setStatus(`Attempt could not be saved (${response.status}); answer layers unlocked anonymously.`)
       return
     }
+    const saved = (await response.json().catch(() => ({}))) as {
+      review?: { due_at: string }
+    }
     setSubmitted(true)
     setAttemptCount((count) => count + 1)
     setRevealed(Math.min(1, layers.length))
-    setStatus("Attempt saved. Answer layers unlocked.")
+    setStatus(
+      saved.review
+        ? `Attempt saved — back for review ${describeDue(saved.review.due_at)}. Answer layers unlocked.`
+        : "Attempt saved. Answer layers unlocked.",
+    )
   }
 
   async function saveNote() {
@@ -393,18 +456,69 @@ export default function StudyPage() {
 
   async function toggleBookmark() {
     if (!detail) return
+    if (bookmarkId) {
+      const response = await fetch(`/api/bookmarks/${encodeURIComponent(bookmarkId)}`, {
+        method: "DELETE",
+      })
+      if (response.ok) {
+        setBookmarkId(null)
+        setStatus("Bookmark removed.")
+      }
+      return
+    }
     const response = await fetch("/api/bookmarks", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        entity_kind: "canonical_question",
+        entity_kind: "question",
         entity_id: detail.question.id,
         firm_ids: [],
         tags: [],
       }),
     })
-    if (response.ok) setBookmarked(true)
+    if (response.status === 401) {
+      setStatus("Sign in to bookmark questions.")
+      return
+    }
+    if (!response.ok) {
+      setStatus(`Bookmark could not be saved (${response.status}).`)
+      return
+    }
+    const payload = (await response.json()) as {
+      items?: Array<{ id: string; entity_kind: string; entity_id: string }>
+    }
+    const saved = payload.items?.find(
+      (item) => item.entity_kind === "question" && item.entity_id === detail.question.id,
+    )
+    setBookmarkId(saved?.id ?? null)
+    setStatus("Bookmarked — find it under Saved.")
   }
+
+  async function addToCollection() {
+    if (!detail || !collectionId) return
+    const response = await fetch(`/api/collections/${encodeURIComponent(collectionId)}/items`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ entity_kind: "question", entity_id: detail.question.id }),
+    })
+    if (!response.ok) {
+      setStatus(`Could not add to collection (${response.status}).`)
+      return
+    }
+    const payload = (await response.json()) as { items?: typeof collections }
+    setCollections(payload.items ?? [])
+    const title = payload.items?.find((item) => item.id === collectionId)?.title
+    setStatus(`Added to ${title ?? "collection"}.`)
+  }
+
+  const inSelectedCollection = Boolean(
+    detail &&
+      collections
+        .find((collection) => collection.id === collectionId)
+        ?.items.some(
+          (item) => item.entity_kind === "question" && item.entity_id === detail.question.id,
+        ),
+  )
 
   function nextQuestion(delta: 1 | -1) {
     if (queue.length === 0) return
@@ -415,9 +529,15 @@ export default function StudyPage() {
 
   React.useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement
+      ) {
         return
       }
+      // Leave browser shortcuts (⌘R, ⌘1, Ctrl+B …) alone.
+      if (event.metaKey || event.ctrlKey || event.altKey) return
       if (event.key === "r" || event.key === "ArrowRight") {
         event.preventDefault()
         setRevealed((value) => Math.min(layers.length, value + 1))
@@ -437,6 +557,15 @@ export default function StudyPage() {
       if (event.key === "b") {
         event.preventDefault()
         void toggleBookmark()
+      }
+      if (event.key === "e") {
+        event.preventDefault()
+        setNoteOpen(true)
+      }
+      const ratingKey = Number(event.key)
+      if (!submitted && ratingKey >= 1 && ratingKey <= RATINGS.length) {
+        event.preventDefault()
+        setConfidence(RATINGS[ratingKey - 1]!.confidence)
       }
     }
     window.addEventListener("keydown", onKey)
@@ -498,6 +627,8 @@ export default function StudyPage() {
           <MetadataPill>p layer back</MetadataPill>
           <MetadataPill>Shift+p prev q</MetadataPill>
           <MetadataPill>b bookmark</MetadataPill>
+          <MetadataPill>e note</MetadataPill>
+          <MetadataPill>1–4 rate</MetadataPill>
         </div>
       </div>
 
@@ -517,6 +648,11 @@ export default function StudyPage() {
           <MetadataPill>{detail?.source ?? "loading"}</MetadataPill>
           {detail?.study?.validation?.provenance_type ? (
             <ProvenanceChip provenance={detail.study.validation.provenance_type} />
+          ) : null}
+          {reviewMode ? (
+            <SemanticPill tone="milestone">
+              Review {index + 1}/{queue.length}
+            </SemanticPill>
           ) : null}
           {bookmarked ? <SemanticPill tone="milestone">Bookmarked</SemanticPill> : null}
           {noteSaved ? <SemanticPill tone="success">Note saved</SemanticPill> : null}
@@ -739,10 +875,38 @@ export default function StudyPage() {
           <Button type="button" variant="outline" onClick={() => nextQuestion(1)}>
             Next question
           </Button>
-          {!bookmarked ? (
-            <Button type="button" variant="ghost" onClick={() => void toggleBookmark()}>
-              Bookmark
-            </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            aria-pressed={bookmarked}
+            disabled={!detail}
+            onClick={() => void toggleBookmark()}
+          >
+            {bookmarked ? "Remove bookmark" : "Bookmark"}
+          </Button>
+          {collections.length > 0 ? (
+            <span className="inline-flex items-center gap-1">
+              <select
+                aria-label="Collection"
+                value={collectionId}
+                onChange={(event) => setCollectionId(event.target.value)}
+                className="h-9 max-w-44 border border-border bg-transparent px-2 text-sm"
+              >
+                {collections.map((collection) => (
+                  <option key={collection.id} value={collection.id}>
+                    {collection.title}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!detail || inSelectedCollection}
+                onClick={() => void addToCollection()}
+              >
+                {inSelectedCollection ? "In collection" : "Add to collection"}
+              </Button>
+            </span>
           ) : null}
           {topic && firstTarget ? (
             <Link href={`/companies/${firstTarget.replace(/^firm_/, "")}?focus=${topic}`}>

@@ -71,6 +71,9 @@ export function handleRouteError(err: unknown): NextResponse {
   if (err instanceof DatabaseUnavailableError) {
     return jsonError(503, "database_unavailable", err.message);
   }
+  if (err instanceof Error && (err as Error & { status?: number }).status === 404) {
+    return jsonError(404, "not_found", err.message);
+  }
   console.error("[api]", err);
   return jsonError(
     500,

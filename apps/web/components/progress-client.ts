@@ -31,6 +31,26 @@ export function fetchModuleProgress(): Promise<ModuleProgressEntry[]> {
   return progressPromise
 }
 
+const PROGRESS_EVENT = "concord:module-progress"
+
+/**
+ * After a checkpoint write: swap the updated entry into the cache and tell
+ * other mounted islands (e.g. the hero mastery chip) to re-read it.
+ */
+export async function publishModuleProgress(entry: ModuleProgressEntry): Promise<void> {
+  const current = await fetchModuleProgress()
+  progressPromise = Promise.resolve([
+    ...current.filter((item) => item.module_id !== entry.module_id),
+    entry,
+  ])
+  window.dispatchEvent(new Event(PROGRESS_EVENT))
+}
+
+export function onModuleProgressChange(listener: () => void): () => void {
+  window.addEventListener(PROGRESS_EVENT, listener)
+  return () => window.removeEventListener(PROGRESS_EVENT, listener)
+}
+
 /** Calm integer percent (0–100) for one module; 0 when untracked. */
 export function moduleProgressPercent(
   entries: ModuleProgressEntry[],

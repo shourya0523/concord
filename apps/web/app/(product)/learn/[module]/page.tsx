@@ -180,6 +180,7 @@ export default async function LearningModulePage({ params }: Props) {
 
       <ModuleRoadmapIsland
         moduleId={result.module.id}
+        moduleSlug={slug}
         checkpoints={roadmap}
         sessionHref={sessionHref}
       />

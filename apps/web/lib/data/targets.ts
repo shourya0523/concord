@@ -6,8 +6,9 @@ import type {
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
 import { ensureAppUserQuery } from "./users";
+import { memoryStore } from "./memory-store";
 
-const stubTargets = new Map<string, TargetCompanySet>();
+const stubTargets = memoryStore<string, TargetCompanySet>("targets");
 
 /** Empty until the user picks firms — never fabricate a firm set (guardrail 15). */
 function defaultTargetSet(userId: string): TargetCompanySet {
