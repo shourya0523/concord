@@ -1,12 +1,17 @@
 /**
- * Server-side transcription for voice answers (plan 2026-09-23-001 P7.1,
- * OQ-7: Gemini audio input). The model call is injectable so tests never hit
- * the network; without an API key callers get `{ ok: false, reason: "unconfigured" }`
- * and the route answers 501.
+ * Server-side transcription for voice answers (plan 2026-09-23-001 P7.1):
+ * OpenRouter `/audio/transcriptions` with `LLM_STT_MODEL` (default
+ * openai/whisper-large-v3-turbo). The model call is injectable so tests never
+ * hit the network; without OPENROUTER_API_KEY callers get
+ * `{ ok: false, reason: "unconfigured" }` and the route answers 501.
+ *
+ * The recorder sends webm/opus and we pass format "webm" as-is. Whether the
+ * routed STT provider accepts webm is the provider's concern: a rejection
+ * surfaces as `reason: "failed"` (route → 502) and the learner types instead.
+ * Whisper-class models tend to drop filler words, so delivery filler counts
+ * (lib/voice/delivery.ts) can read lower than with the old Gemini prompt.
  */
-import { createGoogleGenerativeAI } from "@ai-sdk/google"
-import { DEFAULT_RAG_GENERATE_MODEL, googleApiKey } from "@ibpe/ai"
-import { generateText } from "ai"
+import { isLlmConfigured, sttModel, transcribe } from "@ibpe/ai"
 
 /** 5 MB — ~3 minutes of webm/opus at typical MediaRecorder bitrates is < 2 MB. */
 export const MAX_AUDIO_BYTES = 5 * 1024 * 1024
@@ -29,44 +34,45 @@ export function normaliseAudioType(type: string | null | undefined): string | nu
   return (ALLOWED_AUDIO_TYPES as readonly string[]).includes(base) ? base : null
 }
 
+/** Container format name OpenRouter expects in `input_audio.format`. */
+export function audioFormat(mediaType: string): string {
+  switch (mediaType) {
+    case "audio/mpeg":
+      return "mp3"
+    case "audio/x-wav":
+      return "wav"
+    case "audio/mp4":
+      return "m4a"
+    default:
+      return mediaType.replace(/^audio\//, "")
+  }
+}
+
 export function transcriptionModelId(env: NodeJS.ProcessEnv = process.env): string {
-  return env.GRADER_MODEL?.trim() || DEFAULT_RAG_GENERATE_MODEL
+  return sttModel(env)
 }
 
 export type TranscribeGenerate = (input: {
-  apiKey: string
+  env: NodeJS.ProcessEnv
   modelId: string
   audio: Uint8Array
   mediaType: string
   abortSignal: AbortSignal
+  /** Test seam for the default OpenRouter call. */
+  fetch?: typeof fetch
 }) => Promise<string>
 
-export const TRANSCRIBE_INSTRUCTIONS =
-  "Transcribe this spoken interview answer verbatim in English. Keep filler words (um, uh, like, you know) exactly as spoken. Output only the transcript text with no commentary, labels or timestamps. If there is no intelligible speech, output an empty string."
-
-const defaultGenerate: TranscribeGenerate = async ({
-  apiKey,
-  modelId,
-  audio,
-  mediaType,
-  abortSignal,
-}) => {
-  const google = createGoogleGenerativeAI({ apiKey })
-  const { text } = await generateText({
-    model: google(modelId),
-    temperature: 0,
-    maxOutputTokens: 1200,
-    abortSignal,
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: TRANSCRIBE_INSTRUCTIONS },
-          { type: "file", data: audio, mediaType },
-        ],
-      },
-    ],
-  })
+const defaultGenerate: TranscribeGenerate = async ({ env, modelId, audio, mediaType, abortSignal, fetch }) => {
+  const { text } = await transcribe(
+    {
+      base64: Buffer.from(audio).toString("base64"),
+      format: audioFormat(mediaType),
+      model: modelId,
+      language: "en",
+      signal: abortSignal,
+    },
+    { env, fetch },
+  )
   return text
 }
 
@@ -86,15 +92,19 @@ export function cleanTranscript(raw: string): string {
 
 export async function transcribeAudio(
   input: { audio: Uint8Array; mediaType: string },
-  deps: { env?: NodeJS.ProcessEnv; generate?: TranscribeGenerate; timeoutMs?: number } = {},
+  deps: {
+    env?: NodeJS.ProcessEnv
+    generate?: TranscribeGenerate
+    timeoutMs?: number
+    fetch?: typeof fetch
+  } = {},
 ): Promise<TranscribeResult> {
   const env = deps.env ?? process.env
-  const apiKey = googleApiKey(env)
-  if (!apiKey) {
+  if (!isLlmConfigured(env)) {
     return {
       ok: false,
       reason: "unconfigured",
-      message: "Voice transcription needs GEMINI_API_KEY — type your answer instead.",
+      message: "Voice transcription isn't configured — type your answer instead.",
     }
   }
   const modelId = transcriptionModelId(env)
@@ -102,15 +112,16 @@ export async function transcribeAudio(
   const timer = setTimeout(() => controller.abort(), deps.timeoutMs ?? TRANSCRIBE_TIMEOUT_MS)
   try {
     const text = await (deps.generate ?? defaultGenerate)({
-      apiKey,
+      env,
       modelId,
       audio: input.audio,
       mediaType: input.mediaType,
       abortSignal: controller.signal,
+      fetch: deps.fetch,
     })
     return { ok: true, transcript: cleanTranscript(text), model: modelId }
   } catch (err) {
-    console.warn("[transcribe] Gemini transcription failed", err)
+    console.warn("[transcribe] transcription failed", err)
     return {
       ok: false,
       reason: "failed",

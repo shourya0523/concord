@@ -3,10 +3,15 @@
  * injected model caller, shared by the attempt API and the eval harness.
  *
  *   rubric + grader_v2 ─┬─ numeric-only rubric  → numeric (no LLM)
+ *                       ├─ router: decisive / injection → heuristic rubric (no LLM)
  *                       ├─ LLM available        → rubric judge → code score
  *                       └─ LLM missing / fails  → heuristic rubric (cues)
- *   no rubric / v2 off ─┬─ LLM available        → v1 holistic (correct = score ≥ 0.7)
+ *   no rubric / v2 off ─┬─ injection            → heuristic overlap (no LLM)
+ *                       ├─ LLM available        → v1 holistic (correct = score ≥ 0.7)
  *                       └─ LLM missing / fails  → heuristic overlap
+ *
+ * Every result carries `router` (lib/grading/router.ts): whether an LLM call
+ * was needed, why, and the model it went to.
  */
 import {
   GRADER_VERSION,
@@ -45,6 +50,7 @@ import {
   type StructuredCaller,
 } from "./judge"
 import { runNumericChecks } from "./numbers"
+import { routeGrade, type RouterDecision } from "./router"
 import {
   applyVerdicts,
   chooseFollowUp,
@@ -81,6 +87,17 @@ export type GradeOptions = {
   timeoutMs?: number
   /** Called when an LLM call fails or times out (logging hook). */
   onLlmError?: (err: unknown) => void
+  /**
+   * Grade router (default on): skip the LLM when the deterministic pre-grade
+   * is decisive. `false` sends every non-numeric grade to the LLM (tests,
+   * full-LLM eval runs).
+   */
+  router?: boolean
+  /**
+   * Called only when the router decides an LLM call is needed (e.g. per-user
+   * rate-limit reservation). Resolving false → deterministic, reason "rate_limited".
+   */
+  allowLlm?: () => Promise<boolean>
 }
 
 function weakTopicsFor(score: number, topic: string | null | undefined, extra: string[] = []): string[] {
@@ -365,29 +382,46 @@ export async function runGradePipeline(
 ): Promise<PracticeGradeResult> {
   const rubric = options.graderV2 ? (input.rubric ?? null) : null
   const started = Date.now()
-  const finish = (result: PracticeGradeResult): PracticeGradeResult => ({
+  const finish = (result: PracticeGradeResult, router: RouterDecision): PracticeGradeResult => ({
     ...result,
+    router,
     latency_ms: Date.now() - started,
   })
 
-  if (rubric) {
-    if (isNumericOnlyRubric(rubric)) return finish(gradeNumericRubric(input, rubric))
-    if (options.llm) {
-      try {
-        return finish(await gradeRubricWithLlm(input, rubric, options.llm, options))
-      } catch (err) {
-        options.onLlmError?.(err)
-      }
-    }
-    return finish(gradeRubricDeterministic(input, rubric))
+  if (rubric && isNumericOnlyRubric(rubric)) {
+    return finish(gradeNumericRubric(input, rubric), { llm: false, reason: "numeric_only", model: null })
   }
 
-  if (options.llm) {
+  const deterministic = rubric ? gradeRubricDeterministic(input, rubric) : deterministicNoRubric(input)
+  const llmAvailable = Boolean(options.llm)
+  let decision: RouterDecision =
+    options.router === false && llmAvailable
+      ? { llm: true, reason: rubric ? "ambiguous" : "no_rubric", model: options.model ?? null }
+      : routeGrade({
+          responseText: input.responseText,
+          rubric,
+          goldConcise: input.goldConcise,
+          goldExpanded: input.goldExpanded,
+          questionWording: input.questionWording,
+          deterministic,
+          injection: detectInjection(input.responseText),
+          llmAvailable,
+          model: options.model ?? null,
+        })
+
+  if (decision.llm && options.llm && options.allowLlm && !(await options.allowLlm())) {
+    decision = { llm: false, reason: "rate_limited", model: null }
+  }
+
+  if (decision.llm && options.llm) {
     try {
-      return finish(await gradeHolisticWithLlm(input, options.llm, options))
+      const graded = rubric
+        ? await gradeRubricWithLlm(input, rubric, options.llm, options)
+        : await gradeHolisticWithLlm(input, options.llm, options)
+      return finish(graded, decision)
     } catch (err) {
       options.onLlmError?.(err)
     }
   }
-  return finish(deterministicNoRubric(input))
+  return finish(deterministic, decision)
 }

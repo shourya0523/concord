@@ -1,36 +1,38 @@
 /**
- * Cited Gemini coaching paragraph for the simulator after-action report
- * (plan 2026-09-23-001 P5.8). Cite-only: the model sees stage scores, topic
+ * Cited AI coaching paragraph (SMALL tier, LLM_SMALL_MODEL via OpenRouter) for
+ * the simulator after-action report (plan 2026-09-23-001 P5.8). Cite-only: the model sees stage scores, topic
  * labels, teaching answer ids and heat topic ids + intensities — never any
  * Glassdoor text — and every sentence must carry a bracket citation from the
  * allowed list. Anything else is rejected and the deterministic summary stays.
  */
-import { createGoogleGenerativeAI } from "@ai-sdk/google"
-import { DEFAULT_RAG_GENERATE_MODEL, googleApiKey } from "@ibpe/ai"
-import { generateText } from "ai"
+import { chat, isLlmConfigured, smallModel } from "@ibpe/ai"
 
 import type { MockReport, ReportCitation } from "./report"
 
 export const COACH_TIMEOUT_MS = 8_000
 
 export type CoachGenerate = (input: {
-  apiKey: string
+  env: NodeJS.ProcessEnv
   modelId: string
   system: string
   prompt: string
   abortSignal: AbortSignal
 }) => Promise<string>
 
-const defaultGenerate: CoachGenerate = async ({ apiKey, modelId, system, prompt, abortSignal }) => {
-  const google = createGoogleGenerativeAI({ apiKey })
-  const { text } = await generateText({
-    model: google(modelId),
-    temperature: 0.2,
-    maxOutputTokens: 260,
-    abortSignal,
-    system,
-    prompt,
-  })
+const defaultGenerate: CoachGenerate = async ({ env, modelId, system, prompt, abortSignal }) => {
+  const { text } = await chat(
+    {
+      model: modelId,
+      temperature: 0.2,
+      maxTokens: 260,
+      signal: abortSignal,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: prompt },
+      ],
+    },
+    { env },
+  )
   return text
 }
 
@@ -95,14 +97,13 @@ export async function generateCoaching(
   deps: { env?: NodeJS.ProcessEnv; generate?: CoachGenerate; timeoutMs?: number } = {},
 ): Promise<{ text: string; citation_ids: string[]; model: string } | null> {
   const env = deps.env ?? process.env
-  const apiKey = googleApiKey(env)
-  if (!apiKey || input.allowed.length === 0 || input.report.graded_stages === 0) return null
-  const modelId = env.GRADER_MODEL?.trim() || DEFAULT_RAG_GENERATE_MODEL
+  if (!isLlmConfigured(env) || input.allowed.length === 0 || input.report.graded_stages === 0) return null
+  const modelId = smallModel(env)
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), deps.timeoutMs ?? COACH_TIMEOUT_MS)
   try {
     const text = await (deps.generate ?? defaultGenerate)({
-      apiKey,
+      env,
       modelId,
       system: COACH_SYSTEM,
       prompt: buildCoachPrompt(input.report, input.allowed, input.firmName),
@@ -111,7 +112,7 @@ export async function generateCoaching(
     const validated = validateCoaching(text, new Set(input.allowed.map((c) => c.id)))
     return validated ? { ...validated, model: modelId } : null
   } catch (err) {
-    console.warn("[simulator-coach] Gemini coaching failed; keeping deterministic summary", err)
+    console.warn("[simulator-coach] AI coaching failed; keeping deterministic summary", err)
     return null
   } finally {
     clearTimeout(timer)

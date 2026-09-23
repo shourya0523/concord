@@ -1,8 +1,12 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google"
-import { DEFAULT_RAG_GENERATE_MODEL, googleApiKey } from "@ibpe/ai"
-import { generateText } from "ai"
+/**
+ * Cited session brief for RAG prep packs: a SMALL-tier OpenRouter rewrite
+ * (LLM_SMALL_MODEL) guarded by `validateCitedBrief`, else a template.
+ */
+import { chat, isLlmConfigured, type ClientOptions } from "@ibpe/ai"
 
-type BriefSource = "gemini" | "template"
+type BriefSource = "llm" | "template"
+
+export const RAG_BRIEF_TIMEOUT_MS = 8_000
 
 export type RagBriefCitation = {
   item_id: string
@@ -30,7 +34,7 @@ export type RagBriefResult = {
 }
 
 type RewriteResult = Omit<RagBriefResult, "brief_source"> & {
-  brief_source: "gemini"
+  brief_source: "llm"
 }
 
 const MAX_ITEMS_FOR_PROMPT = 8
@@ -117,19 +121,20 @@ export function buildTemplateRagBrief(input: RagBriefInput): RagBriefResult {
       `${itemText} Use the cited teaching corpus as the answer source${firmText}; Glassdoor-derived signals only affect retrieval ranking ${citationLabel(items[0]!)}.${weakText}`.trim(),
     brief_source: "template",
     brief_citations: items.map(citationFor),
-    note: "Template brief used; Gemini rewrite unavailable or rejected by citation guard.",
+    note: "Template brief used; AI rewrite unavailable or rejected by citation guard.",
   }
 }
 
+export const RAG_BRIEF_SYSTEM =
+  "Rewrite an IB/PE interview-prep session brief using only the provided pack items. Every sentence must include at least one exact bracket citation like [item_id]. Do not make uncited firm-specific, market, Glassdoor, or web claims. Glassdoor signals are retrieval signals only, never answer evidence."
+
 export async function tryGenerateGroundedRagBrief(
   input: RagBriefInput,
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  client: Omit<ClientOptions, "env"> = {}
 ): Promise<RewriteResult | null> {
-  const apiKey = googleApiKey(env)
   const items = input.items.slice(0, MAX_ITEMS_FOR_PROMPT)
-  if (!apiKey || items.length === 0) return null
-
-  const google = createGoogleGenerativeAI({ apiKey })
+  if (!isLlmConfigured(env) || items.length === 0) return null
   const firmText =
     input.firm_names && input.firm_names.length > 0
       ? input.firm_names.join(", ")
@@ -145,14 +150,20 @@ export async function tryGenerateGroundedRagBrief(
     )
     .join("\n\n")
 
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), RAG_BRIEF_TIMEOUT_MS)
   try {
-    const { text } = await generateText({
-      model: google(DEFAULT_RAG_GENERATE_MODEL),
-      temperature: 0.2,
-      maxOutputTokens: 220,
-      instructions:
-        "Rewrite an IB/PE interview-prep session brief using only the provided pack items. Every sentence must include at least one exact bracket citation like [item_id]. Do not make uncited firm-specific, market, Glassdoor, or web claims. Glassdoor signals are retrieval signals only, never answer evidence.",
-      prompt: `User focus prompt: ${input.query}
+    const { text, model } = await chat(
+      {
+        tier: "small",
+        temperature: 0.2,
+        maxTokens: 220,
+        signal: controller.signal,
+        messages: [
+          { role: "system", content: RAG_BRIEF_SYSTEM },
+          {
+            role: "user",
+            content: `User focus prompt: ${input.query}
 Target firms used for retrieval context only: ${firmText}
 Weak topics: ${weakText}
 
@@ -160,7 +171,11 @@ PACK_ITEMS:
 ${packItems}
 
 Return 2-4 concise sentences. Use exact bracket citations from PACK_ITEMS in every sentence.`,
-    })
+          },
+        ],
+      },
+      { ...client, env }
+    )
 
     const validated = validateCitedBrief(text, items)
     if (!validated) return null
@@ -169,15 +184,17 @@ Return 2-4 concise sentences. Use exact bracket citations from PACK_ITEMS in eve
     )
     return {
       brief: validated.brief,
-      brief_source: "gemini",
+      brief_source: "llm",
       brief_citations: validated.citation_ids
         .map((id) => citationMap.get(id))
         .filter((citation): citation is RagBriefCitation => Boolean(citation)),
-      note: `Gemini brief rewrite accepted with ${validated.citation_ids.length} cited pack item(s).`,
+      note: `AI brief rewrite (${model}) accepted with ${validated.citation_ids.length} cited pack item(s).`,
     }
   } catch (err) {
-    console.warn("[rag-brief] Gemini rewrite failed; using template", err)
+    console.warn("[rag-brief] AI rewrite failed; using template", err)
     return null
+  } finally {
+    clearTimeout(timer)
   }
 }
 

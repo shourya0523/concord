@@ -189,7 +189,7 @@ export async function buildSessionReport(options: {
     session_id: sessionId,
     ...report,
     summary: coaching?.text ?? report.summary,
-    summary_source: coaching ? "gemini" : "deterministic",
+    summary_source: coaching ? "llm" : "deterministic",
     deterministic_summary: report.summary,
     citations,
     attempts_source: attemptsSource,

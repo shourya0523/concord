@@ -21,9 +21,7 @@
     "demo": "tsx scripts/demo.ts"
   },
   "dependencies": {
-    "@ai-sdk/google": "^4.0.29",
-    "@ibpe/contracts": "*",
-    "ai": "^7.0.44"
+    "@ibpe/contracts": "*"
   },
   "peerDependencies": {
     "zod": "^3.23.0"

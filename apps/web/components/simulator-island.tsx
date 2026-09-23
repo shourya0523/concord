@@ -721,8 +721,8 @@ export function SimulatorIsland({ voiceEnabled = false }: { voiceEnabled?: boole
               <>
                 <p className="max-w-2xl text-sm leading-relaxed">{report.summary}</p>
                 <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                  {report.summary_source === "gemini"
-                    ? "Gemini coaching · every sentence cited"
+                  {report.summary_source === "llm"
+                    ? "AI coaching · every sentence cited"
                     : "Deterministic summary"}
                 </p>
                 <div className="flex flex-wrap gap-4 text-sm">

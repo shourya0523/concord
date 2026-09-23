@@ -106,14 +106,14 @@ describe("report-data", () => {
     assert.match(report.summary, /\[heat:firm_gs:valuation\]/)
   })
 
-  it("prefers database attempts and swaps in a validated Gemini paragraph", async () => {
+  it("prefers database attempts and swaps in a validated AI coaching paragraph", async () => {
     const report = await buildSessionReport({
       sessionId: "sess_1",
       userId: "u1",
       session,
       body: MockReportRequestSchema.parse({}),
       deps: {
-        env: { GEMINI_API_KEY: "k" } as unknown as NodeJS.ProcessEnv,
+        env: { OPENROUTER_API_KEY: "k" } as unknown as NodeJS.ProcessEnv,
         generate: async () => "Valuation is your priority fix [heat:firm_gs:valuation] [ans_dcf].",
         dbAttempts: [
           {
@@ -127,7 +127,7 @@ describe("report-data", () => {
       },
     })
     assert.equal(report.attempts_source, "database")
-    assert.equal(report.summary_source, "gemini")
+    assert.equal(report.summary_source, "llm")
     assert.match(report.deterministic_summary, /Overall 40%/)
     assert.ok(report.citations.some((c) => c.id === "ans_dcf"))
   })

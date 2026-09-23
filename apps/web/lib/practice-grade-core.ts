@@ -48,6 +48,8 @@ export type PracticeGradeResult = {
   model?: string | null
   cached?: boolean
   latency_ms?: number
+  /** Grade router decision (lib/grading/router.ts) — persisted as grade_json.router. */
+  router?: { llm: boolean; reason: string; model: string | null }
 }
 
 /** Topic is weak (for weak_topics) below proficient mastery. */

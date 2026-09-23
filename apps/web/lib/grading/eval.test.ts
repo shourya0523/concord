@@ -7,6 +7,7 @@ import {
   checkThresholds,
   DETERMINISTIC_THRESHOLDS,
   parseDataset,
+  ROUTER_SKIPPED_ACCURACY_MIN,
   ranks,
   runEval,
   spearman,
@@ -63,9 +64,26 @@ describe("deterministic grader on the eval set", () => {
       } as T
     }
     const injection = cases.filter((c) => c.gaming === "injection")
-    const { metrics } = await runEval(injection, { llm: obeying })
+    // router: false — the router skips flagged injections; test the LLM path itself.
+    const { metrics } = await runEval(injection, { llm: obeying, router: false })
     assert.equal(metrics.sources.llm, injection.length)
     assert.equal(metrics.injection_resistance, 1)
+  })
+})
+
+describe("grade router on the eval set", () => {
+  it("skips the LLM only where the deterministic verdict is reliable", async () => {
+    const { metrics } = await runEval(cases, { llm: null })
+    const router = metrics.router
+    assert.ok(
+      router.skipped_correct_accuracy >= ROUTER_SKIPPED_ACCURACY_MIN,
+      `skipped accuracy ${router.skipped_correct_accuracy} (${router.skipped_errors.join(", ")})`,
+    )
+    // Tuned 2026-09-23: 0.48 call rate — fail loudly if the router stops skipping.
+    assert.ok(router.llm_call_rate <= 0.6, `LLM call rate ${router.llm_call_rate}`)
+    assert.ok(router.skipped >= 40)
+    // Injections never reach the model when the router is on.
+    assert.equal(router.by_reason.injection, cases.filter((c) => c.gaming === "injection").length)
   })
 })
 

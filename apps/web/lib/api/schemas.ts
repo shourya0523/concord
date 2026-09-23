@@ -252,7 +252,7 @@ export const PrepRagResponseSchema = z.object({
   ),
   source: DataSourceSchema,
   brief: z.string(),
-  brief_source: z.enum(["gemini", "template"]),
+  brief_source: z.enum(["llm", "template"]),
   brief_citations: z
     .array(
       z.object({

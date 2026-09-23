@@ -131,6 +131,10 @@ export function logGradeEvent(event: {
   output_tokens?: number | null;
   rate_limited?: boolean;
   llm_error?: string | null;
+  /** Grade router reason (lib/grading/router.ts). */
+  router?: string | null;
+  /** USD from OpenRouter usage accounting. */
+  cost?: number | null;
 }): void {
   console.info(`[grade] ${JSON.stringify(event)}`);
 }

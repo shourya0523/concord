@@ -36,6 +36,8 @@ jobs:
         run: npm test --workspace=@ibpe/web
       - name: Search unit tests
         run: npm test --workspace=@ibpe/search
+      - name: AI client unit tests (mocked OpenRouter)
+        run: npm test --workspace=@ibpe/ai
       - name: Domain finance calculator + drill tests
         run: npm test --workspace=@ibpe/domain
 

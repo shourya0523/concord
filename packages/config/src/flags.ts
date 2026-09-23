@@ -34,7 +34,7 @@ export const FeatureFlagsSchema = z.object({
   gamification: z.boolean().default(true),
   /** Email / web-push reminders (Phase 6). */
   notifications: z.boolean().default(true),
-  /** Spoken answers + transcription (Phase 7). Needs mic + Gemini key. */
+  /** Spoken answers + transcription (Phase 7). Needs mic + OPENROUTER_API_KEY. */
   voice_answers: z.boolean().default(false),
   /** Opt-in weekly XP leagues (Phase 7). */
   leagues: z.boolean().default(true),

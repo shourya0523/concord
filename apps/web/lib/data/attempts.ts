@@ -138,6 +138,7 @@ export function buildGradeJson(
     model: grade.model ?? null,
     cached: grade.cached ?? false,
     latency_ms: grade.latency_ms ?? null,
+    router: grade.router ?? null,
     diagnostics: grade.rubric_json,
   };
 }

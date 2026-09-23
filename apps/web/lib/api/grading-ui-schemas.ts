@@ -76,8 +76,8 @@ export const MockReportSchema = z.object({
     }),
   ),
   summary: z.string(),
-  summary_source: z.enum(["deterministic", "gemini"]),
-  /** Deterministic summary, kept when a Gemini paragraph replaces `summary`. */
+  summary_source: z.enum(["deterministic", "llm"]),
+  /** Deterministic summary, kept when an AI coaching paragraph replaces `summary`. */
   deterministic_summary: z.string(),
   citations: z.array(
     z.object({

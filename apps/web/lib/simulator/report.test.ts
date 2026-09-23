@@ -124,7 +124,7 @@ describe("coaching", () => {
     const good = await generateCoaching(
       { report, allowed, firmName: "Goldman" },
       {
-        env: { GEMINI_API_KEY: "k" } as unknown as NodeJS.ProcessEnv,
+        env: { OPENROUTER_API_KEY: "k" } as unknown as NodeJS.ProcessEnv,
         generate: async (input) => {
           prompt = input.prompt
           return "Strong accounting [ans_q_acc]. Valuation is the priority fix [ans_q_dcf] [heat:firm_gs:valuation]."
@@ -137,7 +137,7 @@ describe("coaching", () => {
 
     const bad = await generateCoaching(
       { report, allowed },
-      { env: { GEMINI_API_KEY: "k" } as unknown as NodeJS.ProcessEnv, generate: async () => "Uncited advice." },
+      { env: { OPENROUTER_API_KEY: "k" } as unknown as NodeJS.ProcessEnv, generate: async () => "Uncited advice." },
     )
     assert.equal(bad, null)
   })
