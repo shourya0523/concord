@@ -17,7 +17,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             <ConcordLogo size="md" priority />
           </Link>
           <Link
-            href="/dashboard"
+            href="/today"
             className="text-xs text-chrome-muted underline-offset-4 hover:text-chrome-text hover:underline"
           >
             Continue without account
