@@ -16,3 +16,4 @@ export * from "./product.js";
 export * from "./jobs.js";
 export * from "./taxonomy.js";
 export * from "./learning-loop.js";
+export * from "./diagram.js";
