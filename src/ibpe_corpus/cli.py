@@ -203,20 +203,21 @@ def run_pipeline(
         None,
         "--llm/--no-llm",
         help=(
-            "OpenRouter LLM enrichment (enrich-v1 / rubric-v1 / expand-v1); default: on only when "
-            "OPENROUTER_API_KEY is set. Even when on, the model is called only for items the "
-            "heuristics cannot auto-approve."
+            "OpenRouter enrichment; default: on only when OPENROUTER_API_KEY is set. Jev "
+            "(LLM_DECISION_MODEL, typesafe/jev-1.13) classifies taxonomy + signal topics; the "
+            "small chat model (LLM_SMALL_MODEL) drafts rubrics / expansions only when the "
+            "heuristic fails validation, and every draft is Jev-verified. Items the heuristics "
+            "can auto-approve never reach a model."
         ),
-    ),
-    tier: str = typer.Option(
-        "small",
-        "--tier",
-        help="First LLM tier: small (LLM_SMALL_MODEL, default, cheapest) | primary (LLM_PRIMARY_MODEL / Jev)",
     ),
     escalate: bool = typer.Option(
         True,
         "--escalate/--no-escalate",
-        help="Retry small-model drafts that fail validation once on the primary tier",
+        help=(
+            "Jev-verify + retry once with the small model: a draft that fails validation or "
+            "that Jev does not rate 'supported' (>= JEV_ACCEPT_CONFIDENCE) gets one more "
+            "small-model attempt"
+        ),
     ),
 ) -> None:
     """Run the controlled collection pipeline (includes question_bank import).
@@ -226,15 +227,13 @@ def run_pipeline(
     """
     if mode not in {"fixtures", "live"}:
         raise typer.BadParameter("mode must be fixtures or live")
-    if tier not in {"small", "primary"}:
-        raise typer.BadParameter("tier must be small or primary")
     if mode == "live":
         rprint(
             "[cyan]Live mode still runs the offline corpus assembly; "
             "use `ibpe fetch-glassdoor --mode auto` for authenticated/browser fetches.[/cyan]"
         )
     summary = run_fixture_pipeline(
-        db_path=db, force=force, llm=llm, llm_tier=tier, llm_escalate=escalate
+        db_path=db, force=force, llm=llm, llm_escalate=escalate
     )
     rprint(
         json.dumps(

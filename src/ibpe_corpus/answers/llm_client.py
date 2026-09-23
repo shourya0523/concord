@@ -1,31 +1,28 @@
-"""OpenRouter LLM client for offline enrichment (never on the browse path).
+"""OpenRouter chat client — the *small* LLM tier, used only when text is required.
 
-One gateway, two tiers (ADR 0007):
+Cost-optimised stack (ADR 0007):
 
-* ``small`` — ``LLM_SMALL_MODEL`` (default ``deepseek/deepseek-v4-flash``). The
-  default for every enrichment job (taxonomy, rubric drafts, answer-expansion
-  proposals, signal topic tags). Cost-optimised.
-* ``primary`` — ``LLM_PRIMARY_MODEL`` ("Jev"; default placeholder
-  ``deepseek/deepseek-v4.1-flash``). Used only when a caller asks for it
-  (``--tier primary``) or to escalate a draft that failed validation once
-  with the small model.
+* **Jev** (``typesafe/jev-1.13`` via the Decisions API,
+  :mod:`ibpe_corpus.answers.decisions_client`) makes every classification /
+  routing / verification decision — taxonomy, concept and mode routing, signal
+  topic tags, and the accept/reject gate on model drafts.
+* **small** — ``LLM_SMALL_MODEL`` (default ``deepseek/deepseek-v4-flash``) —
+  only for outputs that need *text* (rubric drafts, answer-expansion appendices,
+  optional diagram drafts), only when the deterministic heuristic fails
+  validation, and **always Jev-verified** against the source teaching answer
+  (:func:`run_verified`). There is no larger chat tier.
 
 Every request goes to ``{OPENROUTER_BASE_URL}/chat/completions`` with a strict
 ``json_schema`` response format generated from a Pydantic model, a
-``models`` fallback list (tier model, then ``LLM_FALLBACK_MODEL``) and
+``models`` fallback list (small model, then ``LLM_FALLBACK_MODEL``) and
 ``usage.include`` so cost is reported. Replies are validated with Pydantic;
 429 / 5xx / transport errors are retried with exponential backoff. The API key
 is only ever placed in the ``Authorization`` header — never logged, never in
 ``repr`` or exception messages.
-
-"Only when required": callers run their heuristic first and call the model
-only when the heuristic result fails validation or is below the auto-approve
-bar (:func:`run_tiered` + :class:`LlmRouteCounts` record which path won).
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
@@ -42,10 +39,8 @@ from ibpe_corpus.answers.enrich_models import (
     DiagramDraft,
     EnrichDraft,
     EnrichmentProposal,
-    FirmSoftTag,
     LearningMode,
     ModeRouting,
-    ResourceDraft,
 )
 from ibpe_corpus.answers.provenance import label_enrichment_record
 from ibpe_corpus.schemas.models import CanonicalQuestion
@@ -54,8 +49,6 @@ log = logging.getLogger(__name__)
 
 OPENROUTER_BASE_URL_DEFAULT = "https://openrouter.ai/api/v1"
 SMALL_MODEL_DEFAULT = "deepseek/deepseek-v4-flash"
-# "Jev" is not in the OpenRouter catalogue yet — the id is an env setting.
-PRIMARY_MODEL_DEFAULT = "deepseek/deepseek-v4.1-flash"
 FALLBACK_MODEL_DEFAULT = "google/gemini-2.5-flash-lite"
 APP_TITLE = "Concord"
 
@@ -65,7 +58,6 @@ LLM_ENRICH_SOURCE_ID = "openrouter_enrichment_v1"
 __all__ = [
     "APP_TITLE",
     "ENRICH_PROMPT_VERSION",
-    "EnrichClient",
     "FALLBACK_MODEL_DEFAULT",
     "JsonCaller",
     "LLM_ENRICH_SOURCE_ID",
@@ -81,13 +73,13 @@ __all__ = [
     "LlmValidationError",
     "OPENROUTER_BASE_URL_DEFAULT",
     "OpenRouterClient",
-    "PRIMARY_MODEL_DEFAULT",
+    "ROUTES",
     "SMALL_MODEL_DEFAULT",
     "Tier",
     "credentials_configured",
     "heuristic_proposal",
     "resolve_model_id",
-    "run_tiered",
+    "run_verified",
     "strict_json_schema",
     "validate_enrich_draft",
 ]
@@ -96,8 +88,9 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class Tier(str, Enum):
+    """Chat tiers. Only ``small`` remains: decisions go to Jev, not a bigger LLM."""
+
     SMALL = "small"
-    PRIMARY = "primary"
 
 
 # --------------------------------------------------------------------------- #
@@ -138,7 +131,7 @@ class LlmResponseError(LlmError):
 class LlmValidationError(LlmError):
     """Model reply was not valid JSON or failed schema / domain validation.
 
-    The only error that triggers small → primary escalation.
+    The only error that lets :func:`run_verified` retry the small model.
     """
 
     def __init__(self, message: str, *, errors: Sequence[str] = (), model: str | None = None) -> None:
@@ -157,17 +150,10 @@ def credentials_configured() -> bool:
     return bool((os.environ.get("OPENROUTER_API_KEY") or "").strip())
 
 
-def _coerce_tier(tier: Tier | str | None, default: Tier = Tier.SMALL) -> Tier:
-    if tier is None or tier == "":
-        return default
-    return tier if isinstance(tier, Tier) else Tier(str(tier).strip().lower())
-
-
 def resolve_model_id(tier: Tier | str | None = None) -> str:
-    """Model id for ``tier`` from env (``LLM_SMALL_MODEL`` / ``LLM_PRIMARY_MODEL``)."""
-    t = _coerce_tier(tier)
-    if t is Tier.PRIMARY:
-        return (os.environ.get("LLM_PRIMARY_MODEL") or "").strip() or PRIMARY_MODEL_DEFAULT
+    """Small chat model id from ``LLM_SMALL_MODEL`` (the only chat tier)."""
+    if tier not in (None, "", Tier.SMALL, "small"):
+        raise ValueError(f"unknown LLM tier {tier!r} (only 'small'; decisions use Jev)")
     return (os.environ.get("LLM_SMALL_MODEL") or "").strip() or SMALL_MODEL_DEFAULT
 
 
@@ -271,66 +257,94 @@ class LlmResult(Generic[T]):
     response_id: str | None = None
 
 
+ROUTES = ("heuristic", "jev", "small", "failed")
+
+
 @dataclass
 class LlmRouteCounts:
-    """Which path produced each enrichment item (reported per job)."""
+    """Which path settled each enrichment item (reported per job / stage).
+
+    ``heuristic`` — deterministic rules, no network; ``jev`` — a Jev decision
+    (taxonomy / routing); ``small`` — a small-model draft that Jev verified as
+    supported; ``failed`` — a model path was tried and the heuristic was kept
+    (network error, validation failure, or Jev rejected every draft).
+    ``jev_rejected`` counts individual drafts Jev refused (not a route).
+    """
 
     heuristic: int = 0
+    jev: int = 0
     small: int = 0
-    primary: int = 0
     failed: int = 0
+    jev_rejected: int = 0
 
     def record(self, route: str | Tier) -> None:
         key = route.value if isinstance(route, Tier) else str(route)
-        if key not in {"heuristic", "small", "primary", "failed"}:
+        if key not in ROUTES:
             raise ValueError(f"unknown LLM route {route!r}")
         setattr(self, key, getattr(self, key) + 1)
 
     def merge(self, other: "LlmRouteCounts") -> "LlmRouteCounts":
         return LlmRouteCounts(
             heuristic=self.heuristic + other.heuristic,
+            jev=self.jev + other.jev,
             small=self.small + other.small,
-            primary=self.primary + other.primary,
             failed=self.failed + other.failed,
+            jev_rejected=self.jev_rejected + other.jev_rejected,
         )
 
     @property
     def llm_calls_attempted(self) -> int:
-        return self.small + self.primary + self.failed
+        return self.jev + self.small + self.failed
 
     def as_dict(self) -> dict[str, int]:
-        return {
-            "heuristic": self.heuristic,
-            "small": self.small,
-            "primary": self.primary,
-            "failed": self.failed,
-        }
+        return {k: getattr(self, k) for k in ROUTES}
 
 
-Step = tuple[Any, Callable[[], Any]]
+def run_verified(
+    draft: Callable[[], Any],
+    verify: Callable[[Any], Any] | None,
+    *,
+    attempts: int = 1,
+    threshold: float | None = None,
+    counts: LlmRouteCounts | None = None,
+) -> tuple[Any, str, list[Any]]:
+    """Small-model draft → Jev verification (cookbook "verified cascade").
 
+    ``draft()`` returns a validated value, ``None`` (unusable) or raises
+    :class:`LlmValidationError` (same); any other exception is a hard failure
+    (network, auth, rate limit after retries) and stops. ``verify(value)``
+    returns a :class:`~ibpe_corpus.answers.decisions_client.Verdict`; only
+    ``supported`` at or above ``threshold`` (``JEV_ACCEPT_CONFIDENCE``) is
+    accepted. A ``declined`` verdict (or a failed verification call) stops;
+    anything else is retried with the small model while ``attempts`` remain
+    (``--escalate`` → 2 attempts). Without a verifier nothing is accepted.
 
-def run_tiered(steps: Sequence[Step]) -> tuple[Any, str]:
-    """Run model steps in order; escalate only on validation failure.
-
-    Each step is ``(tier, fn)``. ``fn`` returns the validated value, ``None``
-    (output unusable → validation failure) or raises
-    :class:`LlmValidationError` (same). Any other exception is a hard failure
-    (network, auth, rate limit after retries) and stops escalation. Returns
-    ``(value, route)`` with route ``small`` / ``primary`` / ``failed``.
+    Returns ``(value | None, route, verdicts)`` with route ``small`` / ``failed``.
     """
-    for tier, fn in steps:
+    verdicts: list[Any] = []
+    if verify is None:
+        return None, "failed", verdicts
+    for n in range(max(1, attempts)):
         try:
-            value = fn()
+            value = draft()
         except LlmValidationError as exc:
-            log.info("llm %s draft failed validation: %s", _coerce_tier(tier).value, exc.errors[:3])
+            log.info("small draft %d failed validation: %s", n + 1, exc.errors[:3])
             continue
         except Exception as exc:  # noqa: BLE001 — hard failure → heuristic
-            log.warning("llm %s call failed: %s", _coerce_tier(tier).value, type(exc).__name__)
-            return None, "failed"
-        if value is not None:
-            return value, _coerce_tier(tier).value
-    return None, "failed"
+            log.warning("small model call failed: %s", type(exc).__name__)
+            return None, "failed", verdicts
+        if value is None:
+            continue
+        verdict = verify(value)
+        verdicts.append(verdict)
+        if verdict.accepted(threshold):
+            return value, "small", verdicts
+        if counts is not None:
+            counts.jev_rejected += 1
+        log.info("jev rejected small draft %d: %s @ %.2f", n + 1, verdict.choice, verdict.confidence)
+        if verdict.choice == "declined" or verdict.error:
+            break
+    return None, "failed", verdicts
 
 
 # --------------------------------------------------------------------------- #
@@ -342,9 +356,7 @@ _RETRY_STATUSES = {408, 409, 425, 429, 500, 502, 503, 504, 520, 522, 524, 529}
 
 
 class OpenRouterClient:
-    """OpenRouter chat-completions client with tiers, fallback and retries."""
-
-    supports_tiers = True
+    """OpenRouter chat-completions client (small tier) with fallback and retries."""
 
     def __init__(
         self,
@@ -352,9 +364,7 @@ class OpenRouterClient:
         api_key: str | None = None,
         base_url: str | None = None,
         small_model: str | None = None,
-        primary_model: str | None = None,
         fallback_model: str | None = _UNSET,
-        default_tier: Tier | str | None = None,
         escalate: bool = True,
         timeout: float = 60.0,
         max_retries: int = 3,
@@ -371,9 +381,9 @@ class OpenRouterClient:
             base_url or os.environ.get("OPENROUTER_BASE_URL") or OPENROUTER_BASE_URL_DEFAULT
         ).rstrip("/")
         self.small_model = small_model or resolve_model_id(Tier.SMALL)
-        self.primary_model = primary_model or resolve_model_id(Tier.PRIMARY)
         self.fallback_model = _fallback_from_env() if fallback_model is _UNSET else fallback_model
-        self.default_tier = _coerce_tier(default_tier or os.environ.get("LLM_DEFAULT_TIER"))
+        # ``--escalate``: a draft Jev rejects (or that fails validation) is
+        # retried once with the small model — there is no bigger chat tier.
         self.escalate = escalate
         self.timeout = timeout
         self.max_retries = max(0, int(max_retries))
@@ -398,37 +408,24 @@ class OpenRouterClient:
     def __repr__(self) -> str:  # never include the key
         return (
             f"{type(self).__name__}(base_url={self.base_url!r}, small={self.small_model!r}, "
-            f"primary={self.primary_model!r}, tier={self.default_tier.value!r}, dry_run={self.dry_run})"
+            f"escalate={self.escalate}, dry_run={self.dry_run})"
         )
 
     @property
     def model(self) -> str:
-        """Configured model for the default tier (reports / legacy callers)."""
-        return self.model_for(self.default_tier)
+        """Configured small model (reports / legacy callers)."""
+        return self.small_model
 
-    def model_for(self, tier: Tier | str | None = None) -> str:
-        t = _coerce_tier(tier, self.default_tier)
-        return self.primary_model if t is Tier.PRIMARY else self.small_model
+    @property
+    def draft_attempts(self) -> int:
+        """Small-model attempts per item: 2 with ``--escalate`` (retry once), else 1."""
+        return 2 if self.escalate else 1
 
-    def models_for(self, tier: Tier | str | None = None) -> list[str]:
-        primary = self.model_for(tier)
-        out = [primary]
-        if self.fallback_model and self.fallback_model != primary:
+    def models_for(self) -> list[str]:
+        out = [self.small_model]
+        if self.fallback_model and self.fallback_model != self.small_model:
             out.append(self.fallback_model)
         return out
-
-    def tier_plan(self, tier: Tier | str | None = None) -> list[Tier]:
-        """Tiers to try in order: the requested tier, then primary on escalation."""
-        t = _coerce_tier(tier, self.default_tier)
-        plan = [t]
-        if (
-            t is Tier.SMALL
-            and self.escalate
-            and self.primary_model
-            and self.primary_model != self.small_model
-        ):
-            plan.append(Tier.PRIMARY)
-        return plan
 
     # -- request ----------------------------------------------------------- #
 
@@ -452,11 +449,10 @@ class OpenRouterClient:
         prompt: str,
         schema: type[BaseModel],
         *,
-        tier: Tier | str | None = None,
         system: str | None = None,
         temperature: float | None = None,
     ) -> dict[str, Any]:
-        models = self.models_for(tier)
+        models = self.models_for()
         messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
@@ -576,13 +572,12 @@ class OpenRouterClient:
         prompt: str,
         schema: type[T],
         *,
-        tier: Tier | str | None = None,
         system: str | None = None,
         temperature: float | None = None,
     ) -> LlmResult[T]:
-        """One structured completion, validated against ``schema``."""
-        t = _coerce_tier(tier, self.default_tier)
-        body = self.build_body(prompt, schema, tier=t, system=system, temperature=temperature)
+        """One structured completion from the small model, validated against ``schema``."""
+        t = Tier.SMALL
+        body = self.build_body(prompt, schema, system=system, temperature=temperature)
         requested = body["model"]
         data = self._post(body)
         served = str(data.get("model") or requested)
@@ -601,7 +596,7 @@ class OpenRouterClient:
             raise LlmValidationError(
                 f"{schema.__name__} validation failed", errors=errs, model=served
             ) from None
-        log.debug("openrouter ok tier=%s model=%s", t.value, served)
+        log.debug("openrouter ok model=%s", served)
         return LlmResult(
             value=value,
             model=served,
@@ -611,46 +606,42 @@ class OpenRouterClient:
             response_id=data.get("id"),
         )
 
-    def json_caller(self, schema: type[BaseModel], *, tier: Tier | str | None = None) -> "JsonCaller":
-        return JsonCaller(self, schema, _coerce_tier(tier, self.default_tier))
+    def json_caller(self, schema: type[BaseModel]) -> "JsonCaller":
+        return JsonCaller(self, schema)
 
 
 class JsonCaller:
     """``prompt -> dict`` adapter for prompt modules (rubric-v1, signal-topic-v1).
 
     Keeps the plain-callable interface those modules accept while exposing
-    ``tier`` and the model OpenRouter actually served (``last_model``).
+    the model OpenRouter actually served (``last_model``) and the number of
+    small-model attempts the client allows (``attempts``: 2 with ``--escalate``).
     """
 
-    def __init__(self, client: OpenRouterClient, schema: type[BaseModel], tier: Tier) -> None:
+    tier = Tier.SMALL
+
+    def __init__(self, client: OpenRouterClient, schema: type[BaseModel]) -> None:
         self.client = client
         self.schema = schema
-        self.tier = tier
         self.last_model: str | None = None
 
     @property
     def model(self) -> str:
-        return self.client.model_for(self.tier)
+        return self.client.small_model
+
+    @property
+    def attempts(self) -> int:
+        return self.client.draft_attempts
 
     def __call__(self, prompt: str) -> dict[str, Any]:
-        result = self.client.complete(prompt, self.schema, tier=self.tier)
+        result = self.client.complete(prompt, self.schema)
         self.last_model = result.model
         return result.value.model_dump(mode="json")
 
 
 # --------------------------------------------------------------------------- #
-# enrich-v1                                                                   #
+# enrich-v1 (heuristic skeleton + validators)                                 #
 # --------------------------------------------------------------------------- #
-
-_SYSTEM = """You enrich IB/PE interview Q/A for a learning product.
-Return ONLY JSON matching the supplied schema. Rules:
-- Never claim the content came from Glassdoor.
-- Never claim the content came from a GitHub file unless that file literally contained it.
-- Your output is stored as model-synthesised enrichment, never as a source answer.
-- topic MUST be one of the allowed topic slugs; track is IB, PE or Both.
-- Prefer concise taxonomy: track, topic, subtopic, concepts, firm soft-tags, mode routing.
-- confidence is your calibrated probability (0-1) that topic and track are correct.
-"""
 
 _MERMAID_RE = re.compile(
     r"^\s*(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|erDiagram|pie|mindmap|timeline)\b"
@@ -674,68 +665,6 @@ def validate_enrich_draft(draft: EnrichDraft) -> list[str]:
     if "glassdoor" in rewrite:
         errors.append("glassdoor_attribution")
     return errors
-
-
-def _enrich_prompt(question: CanonicalQuestion) -> str:
-    from ibpe_corpus.canonical.taxonomy_rules import TOPIC_SLUGS
-
-    payload = {
-        "canonical_question_id": question.id,
-        "wording": question.canonical_wording,
-        "topic": question.topic,
-        "subtopic": question.subtopic,
-        "domain": question.domain.value if question.domain else None,
-        "allowed_topics": list(TOPIC_SLUGS),
-    }
-    return "INPUT:\n" + json.dumps(payload)
-
-
-def _proposal_from_draft(
-    question: CanonicalQuestion,
-    draft: EnrichDraft,
-    *,
-    model: str,
-    tier: Tier,
-) -> EnrichmentProposal:
-    stamped = label_enrichment_record(
-        draft.model_dump(mode="json"),
-        model_version=model,
-        prompt_version=ENRICH_PROMPT_VERSION,
-    )
-    return EnrichmentProposal(
-        canonical_question_id=question.id,
-        track=draft.track,
-        topic=draft.topic or question.topic,
-        subtopic=draft.subtopic or question.subtopic,
-        concepts=[ConceptHint.model_validate(c.model_dump()) for c in draft.concepts],
-        difficulty=draft.difficulty,
-        interview_stage_hints=list(draft.interview_stage_hints),
-        firm_soft_tags=[FirmSoftTag.model_validate(f.model_dump()) for f in draft.firm_soft_tags],
-        mode_routing=ModeRouting.model_validate(draft.mode_routing.model_dump()),
-        pe_relevance=draft.pe_relevance,
-        ib_relevance=draft.ib_relevance,
-        interview_ready_rewrite=draft.interview_ready_rewrite,
-        diagram_drafts=[
-            DiagramDraft(type=d.type or "generic", format="mermaid", spec=d.spec,
-                         a11y_fallback=d.a11y_fallback)
-            for d in draft.diagram_drafts
-            if d.spec
-        ],
-        resource_drafts=[
-            ResourceDraft(label=r.label, url=r.url, kind=r.kind, concept_ids=list(r.concept_ids))
-            for r in draft.resource_drafts
-        ],
-        confidence=draft.confidence,
-        model_version=model,
-        prompt_version=ENRICH_PROMPT_VERSION,
-        metadata={
-            "source_id": LLM_ENRICH_SOURCE_ID,
-            "dry_run": False,
-            "tier": tier.value,
-            "gateway": "openrouter",
-            "provenance_label": stamped["provenance"],
-        },
-    )
 
 
 def heuristic_proposal(question: CanonicalQuestion, *, model: str | None = None) -> EnrichmentProposal:
@@ -782,7 +711,7 @@ def heuristic_proposal(question: CanonicalQuestion, *, model: str | None = None)
         metadata={
             "source_id": LLM_ENRICH_SOURCE_ID,
             "dry_run": True,
-            "note": "Heuristic enrich; set OPENROUTER_API_KEY for live model calls",
+            "note": "Heuristic enrich; set OPENROUTER_API_KEY for Jev classification",
         },
     )
     label_enrichment_record(
@@ -791,32 +720,3 @@ def heuristic_proposal(question: CanonicalQuestion, *, model: str | None = None)
         prompt_version=ENRICH_PROMPT_VERSION,
     )
     return proposal
-
-
-class EnrichClient(OpenRouterClient):
-    """enrich-v1 proposals over OpenRouter (heuristic skeleton in dry-run)."""
-
-    def propose(
-        self, question: CanonicalQuestion, *, tier: Tier | str | None = None
-    ) -> EnrichmentProposal:
-        """One enrich-v1 proposal at ``tier``.
-
-        Raises :class:`LlmValidationError` when the reply fails the schema or
-        :func:`validate_enrich_draft` — callers escalate via :func:`run_tiered`.
-        """
-        if self.dry_run:
-            return heuristic_proposal(question, model=self.model)
-        t = _coerce_tier(tier, self.default_tier)
-        result = self.complete(_enrich_prompt(question), EnrichDraft, tier=t, system=_SYSTEM)
-        errors = validate_enrich_draft(result.value)
-        if errors:
-            raise LlmValidationError("enrich-v1 draft failed validation", errors=errors,
-                                     model=result.model)
-        return _proposal_from_draft(question, result.value, model=result.model, tier=t)
-
-    def propose_routed(
-        self, question: CanonicalQuestion, *, tier: Tier | str | None = None
-    ) -> tuple[EnrichmentProposal | None, str]:
-        """Proposal via the tier plan (small → primary on validation failure)."""
-        steps = [(t, (lambda t=t: self.propose(question, tier=t))) for t in self.tier_plan(tier)]
-        return run_tiered(steps)

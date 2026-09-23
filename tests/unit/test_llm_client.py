@@ -1,4 +1,7 @@
-"""OpenRouter client (ADR 0007): request shape, validation, retries, tiers, routing."""
+"""OpenRouter small-model chat client (ADR 0007): request shape, validation, retries.
+
+Jev (Decisions API) behaviour lives in ``test_decisions_client.py``.
+"""
 
 from __future__ import annotations
 
@@ -10,10 +13,9 @@ import httpx
 import pytest
 
 from ibpe_corpus.answers.depth import ExpansionDraft, propose_expansions
-from ibpe_corpus.answers.enrich_job import run_enrich_batch, write_enrichment_report
 from ibpe_corpus.answers.enrich_models import EnrichDraft
+from ibpe_corpus.answers.decisions_client import DecisionConfigError, DecisionsClient
 from ibpe_corpus.answers.llm_client import (
-    EnrichClient,
     LlmAuthError,
     LlmConfigError,
     LlmHTTPError,
@@ -23,11 +25,11 @@ from ibpe_corpus.answers.llm_client import (
     OpenRouterClient,
     Tier,
     credentials_configured,
+    heuristic_proposal,
     resolve_model_id,
     strict_json_schema,
 )
 from ibpe_corpus.answers.provenance import EnrichmentProvenance
-from ibpe_corpus.answers.taxonomy_enrich import SourceHints, propose_taxonomy
 from ibpe_corpus.answers.validate import validate_answer
 from ibpe_corpus.canonical.firm_signals import SignalTopicBatch, llm_topic_tagger
 from ibpe_corpus.schemas.models import (
@@ -35,13 +37,12 @@ from ibpe_corpus.schemas.models import (
     AnswerProvenance,
     CanonicalQuestion,
     CorpusProvenance,
-    Domain,
 )
 
 KEY = "sk-or-v1-test-secret-key"
 SMALL = "deepseek/deepseek-v4-flash"
-PRIMARY = "jev/jev-test"
 FALLBACK = "z-ai/glm-4.5-air"
+JEV = "typesafe/jev-1.13"
 
 
 @pytest.fixture(autouse=True)
@@ -50,10 +51,12 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "OPENROUTER_API_KEY",
         "OPENROUTER_BASE_URL",
         "OPENROUTER_REFERER",
+        "OPENROUTER_DECISIONS_URL",
         "LLM_SMALL_MODEL",
-        "LLM_PRIMARY_MODEL",
+        "LLM_DECISION_MODEL",
         "LLM_FALLBACK_MODEL",
-        "LLM_DEFAULT_TIER",
+        "JEV_AUTO_APPROVE",
+        "JEV_ACCEPT_CONFIDENCE",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -109,12 +112,11 @@ class Recorder:
         return [json.loads(r.content) for r in self.requests]
 
 
-def _client(rec: Recorder, cls: type = EnrichClient, **kw: Any) -> Any:
+def _client(rec: Recorder, cls: type = OpenRouterClient, **kw: Any) -> Any:
     sleeps: list[float] = []
     client = cls(
         api_key=KEY,
         small_model=SMALL,
-        primary_model=PRIMARY,
         fallback_model=FALLBACK,
         transport=httpx.MockTransport(rec),
         sleep=sleeps.append,
@@ -138,34 +140,39 @@ def test_credentials_key_off_openrouter(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setenv("GEMINI_API_KEY", "legacy")
     monkeypatch.setenv("AI_GATEWAY_API_KEY", "legacy")
     assert credentials_configured() is False
-    assert EnrichClient().dry_run is True
+    assert OpenRouterClient().dry_run is True and DecisionsClient().dry_run is True
     monkeypatch.setenv("OPENROUTER_API_KEY", KEY)
     assert credentials_configured() is True
-    assert EnrichClient().dry_run is False
+    assert OpenRouterClient().dry_run is False and DecisionsClient().dry_run is False
 
 
-def test_tier_models_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_small_model_is_the_only_chat_tier(monkeypatch: pytest.MonkeyPatch) -> None:
     assert resolve_model_id() == SMALL  # default small = deepseek-v4-flash
-    assert resolve_model_id(Tier.PRIMARY) == "deepseek/deepseek-v4.1-flash"
+    assert [t.value for t in Tier] == ["small"]
+    with pytest.raises(ValueError):
+        resolve_model_id("primary")  # placeholder primary chat tier is gone
     monkeypatch.setenv("LLM_SMALL_MODEL", "z-ai/glm-4.5-air")
-    monkeypatch.setenv("LLM_PRIMARY_MODEL", "jev/jev-1")
+    monkeypatch.setenv("LLM_PRIMARY_MODEL", "jev/jev-1")  # ignored now
     monkeypatch.setenv("LLM_FALLBACK_MODEL", "")
     c = OpenRouterClient(api_key=KEY)
-    assert c.model == "z-ai/glm-4.5-air" and c.model_for("primary") == "jev/jev-1"
-    assert c.models_for(Tier.SMALL) == ["z-ai/glm-4.5-air"]  # empty fallback disables it
-    assert c.tier_plan() == [Tier.SMALL, Tier.PRIMARY]
-    assert OpenRouterClient(api_key=KEY, default_tier="primary").tier_plan() == [Tier.PRIMARY]
-    assert OpenRouterClient(api_key=KEY, escalate=False).tier_plan() == [Tier.SMALL]
+    assert c.model == "z-ai/glm-4.5-air"
+    assert c.models_for() == ["z-ai/glm-4.5-air"]  # empty fallback disables it
+    assert c.draft_attempts == 2  # --escalate: retry once with the small model
+    assert OpenRouterClient(api_key=KEY, escalate=False).draft_attempts == 1
+    assert c.json_caller(SignalTopicBatch).attempts == 2
 
 
 def test_dry_run_never_calls_network() -> None:
     rec = Recorder([])
-    client = EnrichClient(api_key="", transport=httpx.MockTransport(rec))
-    assert client.dry_run
-    prop = client.propose(_q())
+    client = OpenRouterClient(api_key="", transport=httpx.MockTransport(rec))
+    decider = DecisionsClient(api_key="", transport=httpx.MockTransport(rec))
+    assert client.dry_run and decider.dry_run
+    prop = heuristic_proposal(_q())
     assert prop.metadata["dry_run"] is True and prop.confidence == 0.35
     with pytest.raises(LlmConfigError):
         client.complete("hi", SignalTopicBatch)
+    with pytest.raises(DecisionConfigError):
+        decider.decide({"x": 1}, {"q": {"type": "noul", "instructions": "?"}})
     assert rec.requests == []
 
 
@@ -174,10 +181,10 @@ def test_dry_run_never_calls_network() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_request_shape_and_validated_proposal() -> None:
+def test_request_shape_and_validated_reply() -> None:
     rec = Recorder([httpx.Response(200, json=_completion(_draft(), model=FALLBACK))])
     client = _client(rec)
-    prop = client.propose(_q(domain=Domain.IB))
+    result = client.complete("INPUT: {}", EnrichDraft, system="sys")
 
     (req,) = rec.requests
     assert str(req.url) == "https://openrouter.ai/api/v1/chat/completions"
@@ -194,15 +201,14 @@ def test_request_shape_and_validated_proposal() -> None:
     assert rf["json_schema"]["strict"] is True
     assert rf["json_schema"]["schema"] == strict_json_schema(EnrichDraft)
     assert [m["role"] for m in body["messages"]] == ["system", "user"]
-    assert "allowed_topics" in body["messages"][1]["content"]
 
     # The served model (fallback here) is what gets recorded.
-    assert prop.model_version == FALLBACK
-    assert prop.topic == "valuation" and prop.confidence == pytest.approx(0.92)
-    assert prop.provenance is EnrichmentProvenance.LLM_SYNTHESISED
-    assert prop.metadata["tier"] == "small" and prop.metadata["dry_run"] is False
+    assert result.model == FALLBACK and result.requested_model == SMALL
+    assert result.tier is Tier.SMALL
+    assert result.value.topic == "valuation" and result.value.confidence == pytest.approx(0.92)
     assert client.usage["cost"] == pytest.approx(0.00004)
     assert client.usage["by_model"] == {FALLBACK: 1}
+    assert heuristic_proposal(_q()).provenance is EnrichmentProvenance.LLM_SYNTHESISED
 
 
 def test_base_url_and_referer_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -329,118 +335,25 @@ def test_transport_error_retries_then_raises() -> None:
     assert type(exc.value).__name__ == "LlmTransportError" and len(rec.requests) == 2
 
 
-# --------------------------------------------------------------------------- #
-# Tiers: small → primary escalation                                            #
-# --------------------------------------------------------------------------- #
-
-
-def test_escalates_to_primary_only_on_validation_failure() -> None:
-    rec = Recorder(
-        [
-            httpx.Response(200, json=_completion(_draft(topic="not-a-topic"), model=SMALL)),
-            httpx.Response(200, json=_completion(_draft(), model=PRIMARY)),
-        ]
-    )
-    client = _client(rec)
-    prop, route = client.propose_routed(_q())
-    assert route == "primary" and prop is not None and prop.model_version == PRIMARY
-    bodies = rec.bodies()
-    assert [b["models"] for b in bodies] == [[SMALL, FALLBACK], [PRIMARY, FALLBACK]]
-    assert prop.metadata["tier"] == "primary"
-
-
-def test_small_success_never_touches_primary() -> None:
-    rec = Recorder([httpx.Response(200, json=_completion(_draft()))])
-    prop, route = _client(rec).propose_routed(_q())
-    assert route == "small" and prop is not None and len(rec.requests) == 1
-
-
-def test_http_failure_does_not_escalate() -> None:
-    rec = Recorder([httpx.Response(500, json={})] * 2)
-    client = _client(rec, max_retries=1)
-    prop, route = client.propose_routed(_q())
-    assert prop is None and route == "failed"
-    assert all(b["model"] == SMALL for b in rec.bodies())
-
-
-def test_primary_tier_flag_uses_jev_directly() -> None:
-    rec = Recorder([httpx.Response(200, json=_completion(_draft(), model=PRIMARY))])
-    client = _client(rec, default_tier="primary")
-    prop, route = client.propose_routed(_q())
-    assert route == "primary" and rec.bodies()[0]["models"][0] == PRIMARY
-
-
-# --------------------------------------------------------------------------- #
-# "Only when required"                                                         #
-# --------------------------------------------------------------------------- #
-
-
-def test_taxonomy_skips_llm_when_heuristic_auto_approves() -> None:
-    rec = Recorder([])  # any request fails the test
-    client = _client(rec)
-    q = _q(qid="cq_a")
-    hints = {"cq_a": SourceHints(category="dcf", track="M&A / Coverage", difficulty="Core",
-                                 answer_text="Project FCF, discount at WACC, add terminal value")}
-    routes = LlmRouteCounts()
-    props = propose_taxonomy([q], hints, client=client, routes=routes)
-    assert rec.requests == []
-    assert routes.as_dict() == {"heuristic": 1, "small": 0, "primary": 0, "failed": 0}
-    assert {p.field: p.status for p in props}["topic"] == "approved"
-
-
-def test_taxonomy_calls_small_model_for_the_remainder() -> None:
-    rec = Recorder([httpx.Response(200, json=_completion(_draft()))])
-    client = _client(rec)
-    routes = LlmRouteCounts()
-    props = propose_taxonomy([_q(qid="cq_b")], {}, client=client, routes=routes)
-    assert len(rec.requests) == 1 and routes.small == 1
-    topic = next(p for p in props if p.field == "topic")
-    assert topic.model == SMALL and topic.prompt_version == "enrich-v1"
-    assert topic.status == "approved"  # agrees with keyword rules at ≥ 0.8
-
-
-def test_enrich_batch_reports_route_counts(tmp_path: Path) -> None:
-    rec = Recorder(
-        [
-            httpx.Response(200, json=_completion(_draft())),  # q1 small ok
-            httpx.Response(200, json=_completion(_draft(topic="??"))),  # q2 small invalid
-            httpx.Response(200, json=_completion(_draft(), model=PRIMARY)),  # q2 primary ok
-            # q3: topic missing fails validation on both tiers → heuristic fallback
-            httpx.Response(200, json=_completion(_draft(topic=None))),
-            httpx.Response(200, json=_completion(_draft(topic=None), model=PRIMARY)),
-        ]
-    )
-    client = _client(rec)
-    qs = [_q(qid="q1"), _q("What is WACC?", qid="q2"), _q("Paper LBO?", qid="q3")]
-    graph, _queue, metrics = run_enrich_batch(qs, client=client)
-    assert (metrics["llm_heuristic"], metrics["llm_small"], metrics["llm_primary"],
-            metrics["llm_failed"]) == (0, 1, 1, 1)
-    assert metrics["llm_routes"] == {"heuristic": 0, "small": 1, "primary": 1, "failed": 1}
-    assert metrics["models_used"] == sorted({SMALL, PRIMARY})
-    failed = next(p for p in graph.proposals if p.canonical_question_id == "q3")
-    assert failed.metadata.get("llm_failed") is True and failed.metadata["dry_run"] is True
-    out = write_enrichment_report(graph, metrics, path=tmp_path / "r.json")
-    report = json.loads(out.read_text())
-    assert report["job"] == "llm_enrich"
-    assert report["metrics"]["llm_routes"]["primary"] == 1
-
-
-def test_enrich_batch_dry_run_is_all_heuristic() -> None:
-    rec = Recorder([])
-    client = EnrichClient(api_key="", transport=httpx.MockTransport(rec))
-    _graph, _queue, metrics = run_enrich_batch([_q()], client=client)
-    assert metrics["llm_routes"] == {"heuristic": 1, "small": 0, "primary": 0, "failed": 0}
-    assert rec.requests == []
-
-
 def test_json_caller_feeds_signal_tagger_with_served_model() -> None:
     rec = Recorder([httpx.Response(200, json=_completion({"topics": ["lbo", "nope"]}, model=FALLBACK))])
-    client = _client(rec, cls=OpenRouterClient)
+    client = _client(rec)
     caller = client.json_caller(SignalTopicBatch)
     tags = llm_topic_tagger(caller)(["paper lbo", "weather"])
     assert tags == ["lbo", None]
     assert caller.last_model == FALLBACK and caller.model == SMALL and caller.tier is Tier.SMALL
     assert rec.bodies()[0]["response_format"]["json_schema"]["name"] == "SignalTopicBatch"
+
+
+def test_route_counts_shape() -> None:
+    routes = LlmRouteCounts()
+    for r in ("heuristic", "jev", "jev", "small", "failed"):
+        routes.record(r)
+    assert routes.as_dict() == {"heuristic": 1, "jev": 2, "small": 1, "failed": 1}
+    with pytest.raises(ValueError):
+        routes.record("primary")
+    merged = routes.merge(LlmRouteCounts(jev=1, jev_rejected=3))
+    assert merged.jev == 3 and merged.jev_rejected == 3 and merged.llm_calls_attempted == 5
 
 
 def _shallow(qid: str, text: str) -> Answer:
@@ -455,7 +368,17 @@ def _shallow(qid: str, text: str) -> Answer:
     )
 
 
-def test_expansions_use_llm_only_without_a_topic_handler() -> None:
+def _decisions(answers: dict[str, Any], *, model: str = JEV + "-20260917") -> dict[str, Any]:
+    return {
+        "id": "gen-dec-1",
+        "model": model,
+        "provider": "TypeSafe",
+        "answers": answers,
+        "usage": {"input_tokens": 400, "output_tokens": 60, "cost": 0.0000168},
+    }
+
+
+def test_expansions_use_small_model_only_without_a_topic_handler_and_jev_verify() -> None:
     known = _q("What is WACC?", qid="cq_w")
     generic = _q("What is a SPAC?", qid="cq_g")
     a_known = _shallow(known.id, "WACC is the blended cost of capital for the firm.")
@@ -466,13 +389,20 @@ def test_expansions_use_llm_only_without_a_topic_handler() -> None:
         "with a private target, which becomes public without a traditional IPO process."
     )
     rec = Recorder([httpx.Response(200, json=_completion({"appendix": appendix, "confidence": 0.7}))])
-    client = _client(rec, cls=OpenRouterClient)
+    client = _client(rec)
+    jev_rec = Recorder([
+        httpx.Response(200, json=_decisions({
+            "support": {"type": "choice", "choice": "supported", "confidence": 0.93,
+                        "probabilities": {"supported": 0.95, "unsupported": 0.05, "declined": 0}},
+        })),
+    ])
+    decider = DecisionsClient(api_key=KEY, transport=httpx.MockTransport(jev_rec), sleep=lambda s: None)
     routes = LlmRouteCounts()
     props = propose_expansions(
         [a_known, a_generic],
         [known, generic],
         llm_call=client.json_caller(ExpansionDraft),
-        escalate_call=client.json_caller(ExpansionDraft, tier="primary"),
+        verifier=decider,
         routes=routes,
     )
     by_target = {p.target_id: p for p in props}
@@ -480,8 +410,34 @@ def test_expansions_use_llm_only_without_a_topic_handler() -> None:
     llm = by_target[a_generic.id]
     assert llm.prompt_version == "expand-v1" and llm.model == SMALL and llm.status == "pending"
     assert llm.proposal_json["appendix"] == appendix
-    assert routes.as_dict() == {"heuristic": 1, "small": 1, "primary": 0, "failed": 0}
-    assert len(rec.requests) == 1
+    assert llm.proposal_json["jev_verdict"]["choice"] == "supported"
+    assert routes.as_dict() == {"heuristic": 1, "jev": 0, "small": 1, "failed": 0}
+    assert len(rec.requests) == 1 and len(jev_rec.requests) == 1
+    body = jev_rec.bodies()[0]
+    assert body["state"]["draft"] == appendix
+    assert body["state"]["source_teaching_answer"] == a_generic.expanded_explanation
+    assert set(body["questions"]["support"]["criteria"]) == {"supported", "unsupported", "declined"}
+
+
+def test_expansion_rejected_by_jev_leaves_no_proposal() -> None:
+    generic = _q("What is a SPAC?", qid="cq_g")
+    a_generic = _shallow(generic.id, "A listed shell company that raises cash to buy a private firm.")
+    appendix = "SPACs always return 25% to investors within two years and are regulated by Glass-Steagall."
+    rec = Recorder([httpx.Response(200, json=_completion({"appendix": appendix, "confidence": 0.9}))])
+    jev_rec = Recorder([
+        httpx.Response(200, json=_decisions({
+            "support": {"type": "choice", "choice": "unsupported", "confidence": 0.99},
+        })),
+    ])
+    decider = DecisionsClient(api_key=KEY, transport=httpx.MockTransport(jev_rec), sleep=lambda s: None)
+    routes = LlmRouteCounts()
+    props = propose_expansions(
+        [a_generic], [generic],
+        llm_call=_client(rec, escalate=False).json_caller(ExpansionDraft),
+        verifier=decider, routes=routes,
+    )
+    assert props == [] and routes.failed == 1 and routes.jev_rejected == 1
+    assert len(rec.requests) == 1  # --no-escalate: no second small-model attempt
 
 
 # --------------------------------------------------------------------------- #

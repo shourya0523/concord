@@ -16,7 +16,7 @@ from ibpe_corpus.answers.calculators import (
 )
 from ibpe_corpus.answers.editorial import EditorialReviewQueue, ReviewQueueStatus
 from ibpe_corpus.answers.enrich_job import build_graph_slice, run_enrich_batch
-from ibpe_corpus.answers.llm_client import EnrichClient
+from ibpe_corpus.answers.decisions_client import DecisionsClient
 from ibpe_corpus.answers.provenance import (
     EnrichmentProvenance,
     ProvenanceError,
@@ -156,8 +156,8 @@ def test_enrich_job_dry_run_builds_mode_graphs():
             domain=Domain.PE,
         ),
     ]
-    client = EnrichClient(dry_run=True)
-    graph, queue, metrics = run_enrich_batch(qs, client=client, limit=2)
+    decider = DecisionsClient(dry_run=True)
+    graph, queue, metrics = run_enrich_batch(qs, decider=decider, limit=2)
     assert metrics["proposals"] == 2
     assert metrics["company_prep_nodes"] >= 2
     assert metrics["concept_lab_nodes"] >= 2

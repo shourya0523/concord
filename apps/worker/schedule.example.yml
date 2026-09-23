@@ -16,8 +16,8 @@ schedules:
     env_from: worker-secrets
 
   # Taxonomy + rubric enrichment runs inside run-pipeline (heuristic without a key;
-  # with OPENROUTER_API_KEY the small model handles only what heuristics cannot
-  # auto-approve, escalating to LLM_PRIMARY_MODEL on validation failure — ADR 0007).
+  # with OPENROUTER_API_KEY, Jev classifies what heuristics cannot auto-approve and
+  # the small model drafts thin rubrics / expansions, each Jev-verified — ADR 0007).
   # Proposals persist in the corpus DB and exports/enrichment_proposals.jsonl;
   # publish applies approved ones.
   - name: llm-enrich-nightly

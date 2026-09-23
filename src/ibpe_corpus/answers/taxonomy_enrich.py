@@ -2,35 +2,56 @@
 
 Two proposers, one policy:
 
-* **Heuristic** (no key): :func:`classify_taxonomy` combines the source's own
-  category / track / difficulty labels, keyword rules (migration 038 + v4) on
-  the wording, and rules on the *source-provided* answer.
-* **LLM** (``enrich-v1`` via :class:`~ibpe_corpus.answers.llm_client.EnrichClient`
-  on OpenRouter) when ``OPENROUTER_API_KEY`` is set and the client is not in
-  dry-run mode — **only when required**: the heuristic runs first and the model
-  is called only for questions whose topic / domain proposals the heuristic
-  could not auto-approve (difficulty-only gaps are skipped: an LLM difficulty
-  guess is never auto-approvable). Small tier first; primary only when the
-  small model's proposal fails validation (unknown topic slug / bad schema).
+* **Heuristic** (no key, no network): :func:`classify_taxonomy` combines the
+  source's own category / track / difficulty labels, keyword rules (migration
+  038 + v4) on the wording, and rules on the *source-provided* answer.
+* **Jev** (``typesafe/jev-1.13`` decision model via
+  :class:`~ibpe_corpus.answers.decisions_client.DecisionsClient`) when
+  ``OPENROUTER_API_KEY`` is set — **only when required**: the heuristic runs
+  first and Jev is asked only about the missing fields the heuristic could not
+  auto-approve, in ONE request per question (``choice`` topic over the 038
+  slugs, ``choice`` domain ``ib|pe|both|other``, ``score`` difficulty
+  ``easy<medium<hard``, and ``choice`` PE strategy when the question is PE).
+  No chat model is used for taxonomy.
 
-Auto-approval: a topic proposal is approved only when the proposer's topic
-equals the keyword-rule topic **and** confidence ≥ 0.8. Domain is approved when
-it is source-declared, or derived from an approved topic; ib-vs-pe conflicts
-between a source track and a topic resolve to ``both``. Difficulty is approved
-only when it comes from the source's own label (or ``adv-*`` category names);
-wording-cue guesses stay pending. A deterministic ~10% of auto-approvals is
-flagged ``review_sample`` and queued for human spot-checks. Everything else is
-a ``pending`` proposal in the editorial queue — never applied.
+Heuristic auto-approval: a topic proposal is approved only when the heuristic
+topic equals the keyword-rule topic **and** confidence ≥ 0.8. Domain is
+approved when it is source-declared, or derived from an approved topic; ib-vs-pe
+conflicts between a source track and a topic resolve to ``both``. Difficulty is
+approved only when it comes from the source's own label (or ``adv-*`` category
+names); wording-cue guesses stay pending.
+
+Jev auto-approval (per field): confidence ≥ ``JEV_AUTO_APPROVE`` (default 0.8)
+**and** agreement with the keyword rules (rule topic / declared-or-mapped domain
+/ heuristic difficulty / alias-matched PE strategy), or confidence ≥ 0.9 alone.
+A domain of ``other`` never auto-approves (it does not fill the gap).
+
+A deterministic ~10% of auto-approvals is flagged ``review_sample`` and queued
+for human spot-checks. Everything else is a ``pending`` proposal in the
+editorial queue — never applied.
 """
 
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from dataclasses import dataclass
 from typing import Any, Iterable, Sequence
 
+from ibpe_corpus.answers.decisions_client import (
+    JEV_SOLO_APPROVE,
+    DecisionResponse,
+    jev_auto_approve,
+)
 from ibpe_corpus.answers.editorial import EditorialReviewQueue
+from ibpe_corpus.answers.jev_questions import (
+    DIFFICULTY_LEVELS,
+    TAXONOMY_JEV_PROMPT_VERSION,
+    question_state,
+    rule_pe_strategy,
+    taxonomy_questions,
+)
 from ibpe_corpus.answers.proposals import AUTO_REVIEWER_PREFIX, ProposalStore, proposal_id
 from ibpe_corpus.canonical.taxonomy_rules import (
     AUTO_APPROVE_CONFIDENCE,
@@ -50,6 +71,8 @@ from ibpe_corpus.schemas.models import (
     EnrichmentProposalRecord,
     utcnow,
 )
+
+log = logging.getLogger(__name__)
 
 HEURISTIC_PROMPT_VERSION = f"taxonomy-{RULES_VERSION}"
 HEURISTIC_MODEL = "heuristic-taxonomy-v2"
@@ -136,8 +159,10 @@ def _record(
     prompt_version: str,
     signals: dict[str, Any],
     note: str,
+    reviewer: str | None = None,
 ) -> EnrichmentProposalRecord:
     pid = proposal_id("question", q.id, field, prompt_version)
+    who = reviewer or ("rules+heuristic" if model == HEURISTIC_MODEL else "rules+llm")
     sampled = approve and _is_sampled(pid)
     return EnrichmentProposalRecord(
         id=pid,
@@ -156,9 +181,7 @@ def _record(
         confidence=round(max(0.0, min(1.0, confidence)), 4),
         status="approved" if approve else "pending",
         auto_approved=approve,
-        reviewer=f"{AUTO_REVIEWER_PREFIX}{'rules+heuristic' if model == HEURISTIC_MODEL else 'rules+llm'}"
-        if approve
-        else None,
+        reviewer=f"{AUTO_REVIEWER_PREFIX}{who}" if approve else None,
         review_note=note,
         decided_at=utcnow().isoformat() if approve else None,
     )
@@ -214,83 +237,136 @@ def _proposals_for_guess(
     return out
 
 
-def _llm_proposal(q: CanonicalQuestion, client: Any) -> tuple[Any | None, str]:
-    """enrich-v1 proposal via the client's tier plan; ``(proposal, route)``.
+def _missing_fields(q: CanonicalQuestion) -> set[str]:
+    out: set[str] = set()
+    if _missing_topic(q):
+        out.add("topic")
+    if _missing_domain(q):
+        out.add("domain")
+    if not q.difficulty:
+        out.add("difficulty")
+    return out
 
-    A proposal whose topic is not a known slug counts as a validation failure
-    (escalates small → primary); network / auth failures do not escalate.
+
+def jev_fields(q: CanonicalQuestion, records: Sequence[EnrichmentProposalRecord]) -> set[str]:
+    """Missing fields the heuristic could not auto-approve (what Jev is asked)."""
+    approved = {r.field for r in records if r.status == "approved"}
+    return _missing_fields(q) - approved
+
+
+def heuristic_sufficient(
+    records: Sequence[EnrichmentProposalRecord], q: CanonicalQuestion | None = None
+) -> bool:
+    """Skip the network: every missing field already has an auto-approved proposal.
+
+    Without ``q`` (legacy callers) only topic / domain proposals are checked.
     """
-    from ibpe_corpus.answers.llm_client import LlmValidationError, Tier, run_tiered
-
-    def attempt(tier: Any) -> Any:
-        prop = client.propose(q, tier=tier) if tier is not None else client.propose(q)
-        if normalise_topic(prop.topic) is None:
-            raise LlmValidationError("unknown topic slug", errors=[f"unknown_topic:{prop.topic}"])
-        return prop
-
-    if getattr(client, "supports_tiers", False):
-        plan = list(client.tier_plan())
-        return run_tiered([(t, (lambda t=t: attempt(t))) for t in plan])
-    return run_tiered([(Tier.SMALL, lambda: attempt(None))])
+    if q is None:
+        return all(r.status == "approved" for r in records if r.field in {"topic", "domain"})
+    return not jev_fields(q, records)
 
 
-def _llm_guess(q: CanonicalQuestion, hints: SourceHints, prop: Any) -> TaxonomyGuess:
-    """enrich-v1 proposal mapped onto the heuristic guess shape."""
-    topic = normalise_topic(prop.topic)
-    base = classify_taxonomy(
-        q.canonical_wording,
-        source_category=hints.category,
-        source_track=hints.track,
-        source_domain=hints.domain,
-        source_difficulty=hints.difficulty,
-        source_answer_text=hints.answer_text,
+def _approve(value: Any, confidence: float, rule: Any) -> tuple[bool, str]:
+    bar = jev_auto_approve()
+    if value is None:
+        return False, "no Jev answer"
+    if rule is not None and value == rule and confidence >= bar:
+        return True, f"Jev agrees with keyword rules (confidence {confidence:.2f} >= {bar:.2f})"
+    if confidence >= JEV_SOLO_APPROVE:
+        return True, f"Jev confidence {confidence:.2f} >= {JEV_SOLO_APPROVE:.2f}"
+    return False, f"needs review: jev={value} rules={rule} confidence={confidence:.2f}"
+
+
+def _answer_json(ans: Any) -> dict[str, Any]:
+    return ans.model_dump(mode="json", exclude={"type", "legend"}, exclude_none=True)
+
+
+def _jev_records(
+    q: CanonicalQuestion,
+    guess: TaxonomyGuess,
+    hints: SourceHints,
+    resp: DecisionResponse,
+    heuristic: Sequence[EnrichmentProposalRecord],
+    *,
+    asked: set[str],
+    model: str,
+) -> list[EnrichmentProposalRecord]:
+    """Proposals from one Jev response; un-asked fields keep their heuristic record."""
+    out = [r for r in heuristic if r.field not in asked]
+    heur_by_field = {r.field: r for r in heuristic}
+    signals: dict[str, Any] = {
+        **guess.signals,
+        "jev": {k: _answer_json(a) for k, a in resp.answers.items() if k in asked},
+    }
+    common = dict(model=model, prompt_version=TAXONOMY_JEV_PROMPT_VERSION, signals=signals,
+                  reviewer="rules+jev")
+    topic_now = None if _missing_topic(q) else q.topic
+    if "topic" in asked:
+        ans = resp.choice("topic")
+        rule = guess.rule_topic if guess.rule_topic != UNTAGGED else None
+        approve, note = _approve(ans.choice, ans.conf, rule)
+        if approve:
+            topic_now = ans.choice
+        out.append(_record(q, "topic", ans.choice, q.topic, confidence=ans.conf, approve=approve,
+                           note=note, **common))
+    elif "topic" in heur_by_field and heur_by_field["topic"].status == "approved":
+        topic_now = (heur_by_field["topic"].proposal_json or {}).get("value")
+    if "domain" in asked:
+        ans = resp.choice("domain")
+        declared = guess.signals.get("declared_domain")
+        rule = declared or domain_for_topic(topic_now or guess.rule_topic)
+        approve, note = _approve(ans.choice, ans.conf, rule)
+        if ans.choice == Domain.OTHER.value:
+            approve, note = False, "needs review: Jev says not an IB/PE question"
+        out.append(_record(q, "domain", ans.choice, q.domain.value if q.domain else None,
+                           confidence=ans.conf, approve=approve, note=note, **common))
+    if "difficulty" in asked:
+        ans = resp.score("difficulty")
+        value = DIFFICULTY_LEVELS[ans.index(len(DIFFICULTY_LEVELS))]
+        approve, note = _approve(value, ans.conf, guess.difficulty)
+        out.append(_record(q, "difficulty", value, q.difficulty, confidence=ans.conf,
+                           approve=approve, note=note, **common))
+    if "pe_strategy" in asked:
+        ans = resp.choice("pe_strategy")
+        if ans.choice != "general":
+            rule = rule_pe_strategy(" ".join(filter(None, [q.canonical_wording, hints.answer_text])))
+            approve, note = _approve(ans.choice, ans.conf, rule)
+            out.append(_record(q, "pe_strategy", ans.choice, q.pe_strategy, confidence=ans.conf,
+                               approve=approve, note=note, **common))
+    return out
+
+
+def _is_pe(q: CanonicalQuestion, records: Sequence[EnrichmentProposalRecord]) -> bool:
+    if q.domain == Domain.PE:
+        return True
+    return any(
+        r.field == "domain" and r.status == "approved" and (r.proposal_json or {}).get("value") == "pe"
+        for r in records
     )
-    track = (prop.track or "").strip().lower()
-    llm_domain = {"ib": "ib", "pe": "pe", "both": "both"}.get(track)
-    conf = float(prop.confidence or 0.0)
-    difficulty = (prop.difficulty or "").strip().lower() or None
-    if difficulty not in {"easy", "medium", "hard"}:
-        difficulty = None
-    return TaxonomyGuess(
-        topic=topic,
-        topic_confidence=conf,
-        rule_topic=base.rule_topic,
-        domain=base.signals.get("declared_domain") or llm_domain or domain_for_topic(topic),
-        domain_confidence=max(base.domain_confidence, conf if llm_domain else 0.0),
-        difficulty=base.difficulty if base.difficulty_confidence >= 0.8 else difficulty,
-        difficulty_confidence=base.difficulty_confidence
-        if base.difficulty_confidence >= 0.8
-        else min(conf, 0.7),
-        signals={**base.signals, "llm_topic": topic, "llm_track": track or None},
-    )
-
-
-def heuristic_sufficient(records: Sequence[EnrichmentProposalRecord]) -> bool:
-    """Skip the model: every topic / domain proposal is already auto-approved.
-
-    Difficulty is excluded — an LLM difficulty guess is capped below the
-    auto-approve bar, so calling the model for it would never change status.
-    """
-    return all(r.status == "approved" for r in records if r.field in {"topic", "domain"})
 
 
 def propose_taxonomy(
     questions: Sequence[CanonicalQuestion],
     hints: dict[str, SourceHints],
     *,
-    client: Any | None = None,
+    decider: Any | None = None,
     routes: Any | None = None,
 ) -> list[EnrichmentProposalRecord]:
     """Proposals for every teaching question missing topic / domain / difficulty.
 
-    ``routes`` (an :class:`~ibpe_corpus.answers.llm_client.LlmRouteCounts`)
-    records whether each question was settled by the heuristic, the small or
-    primary model, or fell back after a failed model call.
+    ``decider`` is a :class:`~ibpe_corpus.answers.decisions_client.DecisionsClient`
+    (Jev); it is called once per question, and only for questions whose missing
+    fields the heuristic could not auto-approve. ``routes`` (an
+    :class:`~ibpe_corpus.answers.llm_client.LlmRouteCounts`) records whether each
+    question was settled by the heuristic, by Jev, or kept the heuristic after a
+    failed Jev call.
     """
-    use_llm = client is not None and not getattr(client, "dry_run", True)
+    from ibpe_corpus.answers.llm_client import LlmError
+
+    use_jev = decider is not None and not getattr(decider, "dry_run", True)
     out: list[EnrichmentProposalRecord] = []
     for q in questions:
-        if not (_missing_topic(q) or _missing_domain(q) or not q.difficulty):
+        if not _missing_fields(q):
             continue
         h = hints.get(q.id) or SourceHints()
         heuristic = classify_taxonomy(
@@ -305,15 +381,25 @@ def propose_taxonomy(
             q, heuristic, model=HEURISTIC_MODEL, prompt_version=HEURISTIC_PROMPT_VERSION
         )
         route = "heuristic"
-        if use_llm and not heuristic_sufficient(records):
-            prop, route = _llm_proposal(q, client)
-            if prop is not None:
-                from ibpe_corpus.answers.llm_client import ENRICH_PROMPT_VERSION
-
-                model = str(prop.model_version or getattr(client, "model", "llm"))
-                records = _proposals_for_guess(
-                    q, _llm_guess(q, h, prop), model=model, prompt_version=ENRICH_PROMPT_VERSION
-                )
+        ask = jev_fields(q, records) if use_jev else set()
+        if ask:
+            if not q.pe_strategy and (_is_pe(q, records) or heuristic.domain == "pe"):
+                ask.add("pe_strategy")  # rides along in the same request
+            state = question_state(
+                q.canonical_wording,
+                source_category=h.category,
+                source_track=h.track,
+                source_answer=h.answer_text,
+            )
+            try:
+                resp = decider.decide(state, taxonomy_questions(ask))
+            except LlmError as exc:
+                route = "failed"  # keep the heuristic proposals
+                log.warning("jev taxonomy failed for %s: %s", q.id, type(exc).__name__)
+            else:
+                route = "jev"
+                model = resp.model or getattr(decider, "model", "jev")
+                records = _jev_records(q, heuristic, h, resp, records, asked=ask, model=model)
         if routes is not None:
             routes.record(route)
         out.extend(records)
@@ -324,7 +410,7 @@ def apply_approved(
     questions: Sequence[CanonicalQuestion],
     proposals: Iterable[EnrichmentProposalRecord],
 ) -> tuple[list[CanonicalQuestion], int]:
-    """Apply ``approved`` question proposals (topic / domain / difficulty) in memory."""
+    """Apply ``approved`` question proposals (topic / domain / difficulty / pe_strategy) in memory."""
     by_q: dict[str, list[EnrichmentProposalRecord]] = {}
     for p in proposals:
         if p.target_kind == "question" and p.status in {"approved", "applied"}:
@@ -346,6 +432,8 @@ def apply_approved(
                     continue
             elif p.field == "difficulty" and not q.difficulty and "difficulty" not in updates:
                 updates["difficulty"] = value
+            elif p.field == "pe_strategy" and not q.pe_strategy and "pe_strategy" not in updates:
+                updates["pe_strategy"] = value
         if updates:
             applied += len(updates)
             q = q.model_copy(update=updates)
@@ -359,13 +447,13 @@ def run_taxonomy_enrichment(
     *,
     proposal_store: ProposalStore | None = None,
     review_queue: EditorialReviewQueue | None = None,
-    client: Any | None = None,
+    decider: Any | None = None,
     routes: Any | None = None,
 ) -> tuple[list[CanonicalQuestion], list[EnrichmentProposalRecord], dict[str, Any]]:
     """Propose → persist → queue reviews → apply approved. Returns metrics."""
     store = proposal_store or ProposalStore()
     queue = review_queue or EditorialReviewQueue()
-    proposals = store.upsert_many(propose_taxonomy(questions, hints, client=client, routes=routes))
+    proposals = store.upsert_many(propose_taxonomy(questions, hints, decider=decider, routes=routes))
     for p in proposals:
         sampled = bool((p.proposal_json or {}).get("review_sample"))
         if p.status == "pending" or sampled:
@@ -390,7 +478,7 @@ def run_taxonomy_enrichment(
             1 for p in proposals if (p.proposal_json or {}).get("review_sample")
         ),
         "taxonomy_fields_applied": applied,
-        "taxonomy_mode": "llm" if client is not None and not getattr(client, "dry_run", True) else "heuristic",
+        "taxonomy_mode": "jev" if decider is not None and not getattr(decider, "dry_run", True) else "heuristic",
     }
     return updated, proposals, metrics
 

@@ -9,19 +9,23 @@ Output matches ``AnswerRubricSchema`` in ``packages/contracts/src/learning-loop.
   (topic defaults otherwise) and turn ``calculation_representation`` into
   numeric checks recomputed with ``calculators.py``. Behavioural questions get
   a STAR (or motivation) template with ``kind="star"``.
-* **LLM** (prompt ``rubric-v1``) over OpenRouter when ``OPENROUTER_API_KEY``
-  is set — **only when required**: the heuristic rubric runs first and the model
-  is called only when it fails validation or its confidence is below the
-  auto-approve bar (e.g. a single-claim answer). The small tier drafts first;
-  the primary tier ("Jev") is tried only when the small draft fails validation
-  once. Model calls are injectable so tests never hit the network.
+* **Small LLM** (prompt ``rubric-v1``, ``LLM_SMALL_MODEL`` over OpenRouter)
+  when ``OPENROUTER_API_KEY`` is set — **only when required**: the heuristic
+  rubric runs first and the model is called only when it fails validation or
+  its confidence is below the auto-approve bar (e.g. a single-claim answer).
+  Every draft is then **Jev-verified** against the teaching answer (``choice``
+  supported / unsupported / declined); with ``--escalate`` a rejected draft is
+  retried once with the small model. Model calls are injectable so tests never
+  hit the network.
 
 Every rubric runs through :func:`validate_rubric` (weights sum to 1 ± 0.01,
 ≥ 1 must-have, ≤ 6 key points, numeric checks recompute). A heuristic rubric
 is auto-approved (``review_status="approved"``, ``provenance="heuristic"``)
 only when validators pass — it is extractive, not human-reviewed. LLM rubrics
-are approved only when validators pass *and* every key point is grounded in
-the teaching answer; otherwise the heuristic rubric is used.
+are approved only when validators pass, every key point is grounded in the
+teaching answer, *and* Jev rates the draft ``supported`` at
+≥ ``JEV_ACCEPT_CONFIDENCE`` (default 0.8); otherwise the heuristic rubric is
+kept.
 
 ADR 0002: rubrics derive from teaching answers only — Glassdoor text never
 becomes a key point, red flag or expected value.
@@ -744,14 +748,24 @@ def heuristic_confidence(rubric: AnswerRubric) -> float:
     return 0.5
 
 
+RETRY_NOTE = (
+    "\nThe previous draft was rejected (validation or verification). Use ONLY statements, numbers and "
+    "phrases that appear in the teaching answer."
+)
+
+
 def _llm_step(
     call: LlmCall, answer: Answer, question: CanonicalQuestion | None, model: str | None
 ) -> Callable[[], AnswerRubric]:
-    """One tier's attempt: raises ``LlmValidationError`` when the draft is unusable."""
+    """One small-model attempt: raises ``LlmValidationError`` when the draft is unusable."""
     from ibpe_corpus.answers.llm_client import LlmValidationError
 
+    tries = {"n": 0}
+
     def run() -> AnswerRubric:
-        payload = call(_rubric_prompt(answer, question))  # hard failures propagate
+        prompt = _rubric_prompt(answer, question) + (RETRY_NOTE if tries["n"] else "")
+        tries["n"] += 1
+        payload = call(prompt)  # hard failures propagate
         candidate = _rubric_from_payload(payload, answer, model=_served_model(call, model))
         if candidate is None:
             raise LlmValidationError("rubric-v1 reply unusable", errors=["unparseable"])
@@ -765,25 +779,50 @@ def _llm_step(
     return run
 
 
+def rubric_draft_text(rubric: AnswerRubric) -> str:
+    """Compact text of a rubric draft for Jev verification."""
+    lines = [f"- {kp.text} (cues: {', '.join(kp.cues)})" for kp in rubric.key_points]
+    lines += [f"- expected {c.label}: {c.expected}" for c in rubric.numeric_checks]
+    if rubric.red_flags:
+        lines.append("Red flags: " + "; ".join(rubric.red_flags))
+    return "Key points:\n" + "\n".join(lines)
+
+
+def verify_rubric(verifier: Any, rubric: AnswerRubric, answer: Answer,
+                  question: CanonicalQuestion | None) -> Any:
+    """Jev verdict (``supported`` | ``unsupported`` | ``declined``) for one draft."""
+    from ibpe_corpus.answers.jev_questions import RUBRIC_VERIFY
+
+    return verifier.verify(
+        source=teaching_text(answer),
+        question=question.canonical_wording if question else "",
+        draft=rubric_draft_text(rubric),
+        instructions=RUBRIC_VERIFY["instructions"],
+        criteria=RUBRIC_VERIFY["criteria"],
+    )
+
+
 def build_rubric(
     answer: Answer,
     question: CanonicalQuestion | None = None,
     *,
     llm_call: LlmCall | None = None,
     model: str | None = None,
-    escalate_call: LlmCall | None = None,
-    escalate_model: str | None = None,
+    verifier: Any | None = None,
+    attempts: int | None = None,
     routes: Any | None = None,
 ) -> AnswerRubric:
     """Produce a validated rubric; ``review_status`` reflects the validators.
 
-    Heuristic first. The model (``llm_call``, small tier) runs only when the
-    heuristic rubric fails validation or is below the auto-approve bar;
-    ``escalate_call`` (primary tier) runs only when the small draft fails
-    validation. ``routes`` records heuristic / small / primary / failed.
+    Heuristic first. The small model (``llm_call``) runs only when the
+    heuristic rubric fails validation or is below the auto-approve bar, and only
+    when a Jev ``verifier`` is available — an unverified draft is never used.
+    ``attempts`` (default ``llm_call.attempts``: 2 with ``--escalate``) bounds
+    small-model retries after a validation failure or a Jev rejection.
+    ``routes`` records heuristic / small / failed.
     """
     from ibpe_corpus.answers.generate import is_placeholder_answer
-    from ibpe_corpus.answers.llm_client import run_tiered
+    from ibpe_corpus.answers.llm_client import run_verified
 
     def done(rubric: AnswerRubric, route: str) -> AnswerRubric:
         if routes is not None:
@@ -802,6 +841,8 @@ def build_rubric(
     required = bool(errors) or heuristic_confidence(rubric) < AUTO_APPROVE_CONFIDENCE
     if (
         llm_call is None
+        or verifier is None
+        or getattr(verifier, "dry_run", False)
         or not required
         or is_behavioural(question, answer)
         # The answer's own calculation is wrong: no rubric can validate, skip the model.
@@ -809,15 +850,13 @@ def build_rubric(
     ):
         return done(rubric, "heuristic")
 
-    steps: list[tuple[Any, Callable[[], AnswerRubric]]] = [
-        (getattr(llm_call, "tier", "small"), _llm_step(llm_call, answer, question, model))
-    ]
-    if escalate_call is not None:
-        steps.append(
-            (getattr(escalate_call, "tier", "primary"),
-             _llm_step(escalate_call, answer, question, escalate_model))
-        )
-    candidate, route = run_tiered(steps)
+    n = attempts if attempts is not None else int(getattr(llm_call, "attempts", 1) or 1)
+    candidate, route, _verdicts = run_verified(
+        _llm_step(llm_call, answer, question, model),
+        lambda c: verify_rubric(verifier, c, answer, question),
+        attempts=n,
+        counts=routes,
+    )
     if candidate is not None:
         return done(candidate, route)
     return done(rubric, "failed")
@@ -829,8 +868,8 @@ def attach_rubrics(
     *,
     llm_call: LlmCall | None = None,
     model: str | None = None,
-    escalate_call: LlmCall | None = None,
-    escalate_model: str | None = None,
+    verifier: Any | None = None,
+    attempts: int | None = None,
     routes: Any | None = None,
 ) -> tuple[list[Answer], dict[str, int]]:
     """Attach a rubric to every answer (existing approved human/source rubrics kept)."""
@@ -847,8 +886,8 @@ def attach_rubrics(
                 by_id.get(ans.canonical_question_id),
                 llm_call=llm_call,
                 model=model,
-                escalate_call=escalate_call,
-                escalate_model=escalate_model,
+                verifier=verifier,
+                attempts=attempts,
                 routes=routes,
             )
         stats["rubrics"] += 1

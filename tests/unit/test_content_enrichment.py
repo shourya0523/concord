@@ -26,6 +26,7 @@ from ibpe_corpus.answers.calculators import (
     net_working_capital,
     run_topic,
 )
+from ibpe_corpus.answers.decisions_client import DecisionResponse, Verdict
 from ibpe_corpus.answers.depth import propose_expansions
 from ibpe_corpus.answers.llm_client import LlmRouteCounts
 from ibpe_corpus.answers.editorial import EditorialReviewQueue, ReviewQueueStatus
@@ -454,35 +455,44 @@ def test_human_decision_survives_rerun(tmp_path: Path) -> None:
     assert topic.id == proposal_id("question", "cq_g", "topic", topic.prompt_version)
 
 
-class _FakeLlmClient:
+class _FakeDecider:
+    """Jev stand-in: fixed typed answers for whatever fields are asked."""
+
     dry_run = False
-    model = "deepseek/deepseek-test"
+    model = "typesafe/jev-test"
 
     def __init__(self, topic: str, confidence: float) -> None:
         self.topic, self.confidence = topic, confidence
+        self.asked: list[set[str]] = []
 
-    def propose(self, question):
-        from ibpe_corpus.answers.enrich_models import EnrichmentProposal
+    def decide(self, state, questions, model=None):
+        self.asked.append(set(questions))
+        answers = {}
+        for key in questions:
+            if key == "topic":
+                answers[key] = {"type": "choice", "choice": self.topic, "confidence": self.confidence}
+            elif key == "domain":
+                answers[key] = {"type": "choice", "choice": "ib", "confidence": self.confidence}
+            elif key == "difficulty":
+                answers[key] = {"type": "score", "score": 1.0, "confidence": self.confidence}
+            else:
+                answers[key] = {"type": "choice", "choice": "general", "confidence": 0.5}
+        return DecisionResponse.model_validate({"model": self.model, "answers": answers})
 
-        return EnrichmentProposal(
-            canonical_question_id=question.id,
-            topic=self.topic,
-            track="IB",
-            difficulty="medium",
-            confidence=self.confidence,
-            model_version=self.model,
-            prompt_version="enrich-v1",
-        )
 
-
-def test_taxonomy_llm_path_requires_rule_agreement() -> None:
+def test_taxonomy_jev_path_requires_rule_agreement(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("JEV_AUTO_APPROVE", raising=False)
     q = _q("Walk me through a DCF", qid="cq_l")
-    ok = propose_taxonomy([q], {}, client=_FakeLlmClient("DCF", 0.9))
+    ok = propose_taxonomy([q], {}, decider=_FakeDecider("valuation", 0.85))
     topic = next(p for p in ok if p.field == "topic")
-    assert topic.prompt_version == "enrich-v1" and topic.status == "approved"
-    assert topic.proposal_json["value"] == "valuation"
-    bad = propose_taxonomy([q], {}, client=_FakeLlmClient("lbo", 0.95))
+    assert topic.prompt_version == "taxonomy-jev-v1" and topic.status == "approved"
+    assert topic.proposal_json["value"] == "valuation" and topic.reviewer == "auto:rules+jev"
+    # Disagrees with the keyword rules below the 0.9 solo bar → pending review.
+    bad = propose_taxonomy([q], {}, decider=_FakeDecider("lbo", 0.85))
     assert next(p for p in bad if p.field == "topic").status == "pending"
+    # ≥ 0.9 alone is enough even without rule agreement.
+    solo = propose_taxonomy([q], {}, decider=_FakeDecider("lbo", 0.95))
+    assert next(p for p in solo if p.field == "topic").status == "approved"
 
 
 def test_editorial_queue_transition_persists(tmp_path: Path) -> None:
@@ -594,18 +604,23 @@ def test_llm_rubric_injected_call() -> None:
         "follow_ups": ["Why subtract cash?", "Where does NCI go?"],
     }
     routes = LlmRouteCounts()
-    r = build_rubric(thin, q, llm_call=lambda prompt: good, model="deepseek-test", routes=routes)
+    ok = _Verifier("supported", 0.95)
+    r = build_rubric(thin, q, llm_call=lambda prompt: good, model="deepseek-test", verifier=ok,
+                     routes=routes)
     assert r.provenance == "llm" and r.review_status == "approved" and r.prompt_version == "rubric-v1"
-    assert r.model == "deepseek-test" and routes.small == 1
+    assert r.model == "deepseek-test" and routes.small == 1 and len(ok.seen) == 1
+    assert "all capital providers" in ok.seen[0]["source"]
     ungrounded = json.loads(json.dumps(good))
     ungrounded["key_points"][1]["cues"] = ["merger arbitrage"]
     ungrounded["key_points"][1]["text"] = "Something not in the answer"
-    r2 = build_rubric(thin, q, llm_call=lambda prompt: ungrounded, routes=routes)
+    r2 = build_rubric(thin, q, llm_call=lambda prompt: ungrounded, verifier=ok, routes=routes)
     assert r2.provenance == "heuristic" and routes.failed == 1
 
     def boom(prompt: str) -> dict:
         raise RuntimeError("network down")
 
+    assert build_rubric(thin, q, llm_call=boom, verifier=ok).provenance == "heuristic"
+    # No Jev verifier → the small model is never called (unverified drafts are never used).
     assert build_rubric(thin, q, llm_call=boom).provenance == "heuristic"
 
 
@@ -624,12 +639,14 @@ def test_rubric_skips_llm_when_heuristic_suffices() -> None:
         return {}
 
     routes = LlmRouteCounts()
-    r = build_rubric(rich, q, llm_call=spy, escalate_call=spy, routes=routes)
-    assert calls == [] and r.provenance == "heuristic" and r.review_status == "approved"
-    assert routes.as_dict() == {"heuristic": 1, "small": 0, "primary": 0, "failed": 0}
+    verifier = _Verifier("supported", 1.0)
+    r = build_rubric(rich, q, llm_call=spy, verifier=verifier, routes=routes)
+    assert calls == [] and verifier.seen == []
+    assert r.provenance == "heuristic" and r.review_status == "approved"
+    assert routes.as_dict() == {"heuristic": 1, "jev": 0, "small": 0, "failed": 0}
 
 
-def test_rubric_escalates_to_primary_only_after_small_validation_failure() -> None:
+def test_rubric_retries_small_once_after_validation_failure_or_jev_rejection() -> None:
     q = _q("What is enterprise value?")
     thin = _src_answer(
         q.id,
@@ -652,31 +669,58 @@ def test_rubric_escalates_to_primary_only_after_small_validation_failure() -> No
             {"id": "k2", "text": "Bridge", "weight": 0.5, "must_have": False, "cues": ["net debt"]},
         ],
     }
-    seen: list[str] = []
+    replies = [bad_weights, good]
+    prompts: list[str] = []
 
     def small(prompt: str) -> dict:
-        seen.append("small")
-        return bad_weights
-
-    def primary(prompt: str) -> dict:
-        seen.append("primary")
-        return good
+        prompts.append(prompt)
+        return replies[len(prompts) - 1]
 
     routes = LlmRouteCounts()
-    r = build_rubric(thin, q, llm_call=small, model="small-m", escalate_call=primary,
-                     escalate_model="jev-m", routes=routes)
-    assert seen == ["small", "primary"]
-    assert r.provenance == "llm" and r.model == "jev-m" and routes.primary == 1
+    ok = _Verifier("supported", 0.9)
+    r = build_rubric(thin, q, llm_call=small, model="small-m", verifier=ok, attempts=2,
+                     routes=routes)
+    assert len(prompts) == 2 and "previous draft was rejected" in prompts[1]
+    assert r.provenance == "llm" and r.model == "small-m" and routes.small == 1
+    assert len(ok.seen) == 1  # only the validated draft reaches Jev
 
-    # A hard failure (network) on the small tier never escalates.
-    seen.clear()
+    # Jev rejects (unsupported) → retry once; rejected again → heuristic kept.
+    prompts.clear()
+    replies[:] = [good, good]
+    no = _Verifier("unsupported", 0.97)
+    r2 = build_rubric(thin, q, llm_call=small, verifier=no, attempts=2, routes=routes)
+    assert len(prompts) == 2 and len(no.seen) == 2
+    assert r2.provenance == "heuristic" and routes.failed == 1 and routes.jev_rejected == 2
+
+    # Supported but below JEV_ACCEPT_CONFIDENCE → rejected; no retry without --escalate.
+    prompts.clear()
+    low = _Verifier("supported", 0.6)
+    r3 = build_rubric(thin, q, llm_call=small, verifier=low, attempts=1, routes=routes)
+    assert len(prompts) == 1 and r3.provenance == "heuristic"
+
+    # A hard failure (network) on the small model never retries.
+    prompts.clear()
 
     def down(prompt: str) -> dict:
-        seen.append("small")
+        prompts.append(prompt)
         raise RuntimeError("503 after retries")
 
-    r2 = build_rubric(thin, q, llm_call=down, escalate_call=primary, routes=routes)
-    assert seen == ["small"] and r2.provenance == "heuristic" and routes.failed == 1
+    r4 = build_rubric(thin, q, llm_call=down, verifier=ok, attempts=2, routes=routes)
+    assert len(prompts) == 1 and r4.provenance == "heuristic"
+
+
+class _Verifier:
+    """Jev verification stand-in recording what it was asked."""
+
+    dry_run = False
+
+    def __init__(self, choice: str, confidence: float) -> None:
+        self.choice, self.confidence = choice, confidence
+        self.seen: list[dict] = []
+
+    def verify(self, **kw):
+        self.seen.append(kw)
+        return Verdict(choice=self.choice, confidence=self.confidence, model="typesafe/jev-test")
 
 
 def test_rubric_mirrors_ts_contract_fields() -> None:

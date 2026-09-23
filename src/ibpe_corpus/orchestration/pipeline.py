@@ -31,7 +31,7 @@ from ibpe_corpus.canonical.canonicalise import canonicalise
 from ibpe_corpus.canonical.families import build_relationship_graph
 from ibpe_corpus.canonical.firm_signals import (
     join_firm_signals,
-    llm_topic_tagger,
+    jev_topic_tagger,
     signal_join_summary,
 )
 from ibpe_corpus.orchestration.id_registry import assign_stable_ids, load_prior_ids
@@ -259,19 +259,23 @@ def run_fixture_pipeline(
     force: bool = False,
     include_question_bank: bool = True,
     llm: bool | None = None,
-    llm_tier: str | None = None,
     llm_escalate: bool = True,
 ) -> dict[str, Any]:
     """Run the full controlled collection pipeline in fixture/offline mode.
 
-    ``llm=None`` enables OpenRouter (enrich-v1 / rubric-v1 / expand-v1 /
-    signal-topic-v1) only when ``OPENROUTER_API_KEY`` is set and
-    ``IBPE_ENRICH_LLM`` is not ``0``; otherwise every enrichment stage runs in
-    deterministic heuristic mode. Even with a key the model is called only when
-    the heuristic result is not auto-approvable: ``llm_tier`` (``small`` by
-    default, ``primary`` = Jev) picks the first tier and ``llm_escalate``
-    retries validation failures on the primary tier. Route counts
-    (heuristic / small / primary / failed) are reported per stage.
+    ``llm=None`` enables the OpenRouter stage (Jev decisions + small-model
+    drafts) only when ``OPENROUTER_API_KEY`` is set and ``IBPE_ENRICH_LLM`` is
+    not ``0``; otherwise every enrichment stage runs in deterministic heuristic
+    mode with no network calls. Even with a key, work goes to a model only when
+    the heuristic result is not auto-approvable:
+
+    * taxonomy + signal topic tags → Jev (``LLM_DECISION_MODEL``), one request
+      per question / signal batch — no chat model;
+    * rubric drafts + expansion appendices (text) → small model
+      (``LLM_SMALL_MODEL``), always Jev-verified; ``llm_escalate`` retries a
+      rejected draft once with the small model.
+
+    Route counts (heuristic / jev / small / failed) are reported per stage.
     """
     db_path = Path(db_path)
     exports_dir = Path(exports_dir)
@@ -282,33 +286,25 @@ def run_fixture_pipeline(
     # this run overwrites the exports.
     prior_ids = load_prior_ids(exports_dir)
 
+    from ibpe_corpus.answers.decisions_client import DecisionsClient
     from ibpe_corpus.answers.depth import ExpansionDraft
     from ibpe_corpus.answers.llm_client import (
-        EnrichClient,
         LlmRouteCounts,
-        Tier,
+        OpenRouterClient,
         credentials_configured,
     )
     from ibpe_corpus.answers.rubric import RubricDraft
-    from ibpe_corpus.canonical.firm_signals import SignalTopicBatch
 
     if llm is None:
         llm = credentials_configured() and os.environ.get("IBPE_ENRICH_LLM", "1") != "0"
-    llm_client = EnrichClient(default_tier=llm_tier, escalate=llm_escalate) if llm else None
+    llm_client = OpenRouterClient(escalate=llm_escalate) if llm else None
+    decider = DecisionsClient() if llm else None
     llm_live = llm_client is not None and not llm_client.dry_run
+    jev = decider if decider is not None and not decider.dry_run else None
 
-    def _callers(schema: Any) -> tuple[Any, Any]:
-        """(first-tier caller, primary escalation caller or None)."""
-        if not llm_live:
-            return None, None
-        plan = llm_client.tier_plan()
-        first = llm_client.json_caller(schema, tier=plan[0])
-        escalate = llm_client.json_caller(schema, tier=plan[1]) if len(plan) > 1 else None
-        return first, escalate
-
-    tagger_call, _ = _callers(SignalTopicBatch)
-    rubric_call, rubric_escalate = _callers(RubricDraft)
-    expand_call, expand_escalate = _callers(ExpansionDraft)
+    tagger = jev_topic_tagger(jev) if jev is not None else None
+    rubric_call = llm_client.json_caller(RubricDraft) if llm_live and jev is not None else None
+    expand_call = llm_client.json_caller(ExpansionDraft) if llm_live and jev is not None else None
     llm_routes = {
         "taxonomy": LlmRouteCounts(),
         "rubric": LlmRouteCounts(),
@@ -613,7 +609,6 @@ def run_fixture_pipeline(
                 )
 
         # Join cost is O(signals × teaching); teaching stays small so fuzzy is fine.
-        tagger = llm_topic_tagger(tagger_call) if tagger_call else None
         joined_occs, join_audits = join_firm_signals(
             teaching_qs,
             teaching_vars,
@@ -753,7 +748,7 @@ def run_fixture_pipeline(
             hints,
             proposal_store=ProposalStore(store),
             review_queue=EditorialReviewQueue(store),
-            client=llm_client,
+            decider=jev,
             routes=llm_routes["taxonomy"],
         )
         by_id = {q.id: q for q in enriched_qs}
@@ -840,7 +835,7 @@ def run_fixture_pipeline(
             filled_answers,
             publishable_qs,
             llm_call=rubric_call,
-            escalate_call=rubric_escalate,
+            verifier=jev,
             routes=llm_routes["rubric"],
         )
         filled_answers, withheld_ans = filter_publishable_answers(
@@ -921,7 +916,7 @@ def run_fixture_pipeline(
                 filled_answers,
                 publishable_qs,
                 llm_call=expand_call,
-                escalate_call=expand_escalate,
+                verifier=jev,
                 routes=llm_routes["expansion"],
             )
         )
@@ -1002,12 +997,17 @@ def run_fixture_pipeline(
                 "signal_join": signal_join_summary(signal_join_rows),
                 "llm_enabled": bool(llm_live),
                 "llm_gateway": "openrouter",
-                "llm_tier": (llm_client.default_tier.value if llm_client else None),
+                "llm_escalate": (bool(llm_escalate) if llm_client else None),
                 "llm_models": (
-                    {t.value: llm_client.model_for(t) for t in Tier} if llm_client else None
+                    {"decision": decider.model, "small": llm_client.small_model}
+                    if llm_client and decider
+                    else None
                 ),
                 "llm_routes": {k: v.as_dict() for k, v in llm_routes.items()},
-                "llm_usage": (llm_client.usage if llm_live else None),
+                "jev_rejected_drafts": {k: v.jev_rejected for k, v in llm_routes.items()},
+                "llm_usage": (
+                    {"jev": decider.usage, "small": llm_client.usage} if llm_live and decider else None
+                ),
             },
         )
         return {
@@ -1030,6 +1030,8 @@ def run_fixture_pipeline(
 
     if llm_client is not None:
         llm_client.close()
+    if decider is not None:
+        decider.close()
     snap = metrics.snapshot()
     return {
         "db_path": str(db_path),
