@@ -34,7 +34,8 @@ secrets_hygiene:
     - HTTPS_PROXY
     - GLASSDOOR_
     - CAPSOLVER_
-    - GEMINI_API_KEY
+    - OPENROUTER_API_KEY
+    - GEMINI_API_KEY  # retired (ADR 0007) — still never public
     - BLOB_READ_WRITE_TOKEN
     - DATABASE_URL
     - NEON_AUTH_COOKIE_SECRET

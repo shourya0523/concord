@@ -2,7 +2,7 @@
 
 How Concord turns raw sources into **teachable questions**, **firm signals**, and **practice-ready sessions** — and how we know the corpus is complete enough to ship.
 
-> **Thesis (ADR 0002):** GitHub/curated Q/A = teaching truth. Glassdoor = firm signals only. Gemini = enrich with explicit synthesised provenance. Never treat Glassdoor review prose as answers.
+> **Thesis (ADR 0002):** GitHub/curated Q/A = teaching truth. Glassdoor = firm signals only. LLMs (OpenRouter, ADR 0007) = enrich with explicit synthesised provenance, only when heuristics fall short. Never treat Glassdoor review prose as answers.
 
 ## Three lanes (not one conveyor)
 
@@ -48,12 +48,12 @@ The architecture diagram once implied a single stage chain. In practice the prod
 | Extract | T/S | GitHub importers; Glassdoor parse → `ExtractedRecord` | Unchanged semantics (`docs/extraction.md`) |
 | Classify PE | T/S | `pe/classifier.py` on role metadata | Also tag teaching domain IB/PE (today skewed `other`) |
 | Canonicalise | T vs S | Teaching fuzzy ≥92; signals exact-hash; `strip_question_prefix` before hashing; compound Qs with one paired source answer are never split | Keep split; never let bank volume disable teaching fuzzy |
-| Join signals | S→T | `join_firm_signals`: exact → fuzzy 88 → hashing-embedding cosine ≥0.82; keyword rules v4 topic per signal (LLM tagger `signal-topic-v1` when keyed) → `exports/occurrence_joins.jsonl` | publish-teaching sets `canonical_question_id` / `join_score` / `join_method` / `topic` |
-| Enrich taxonomy | T | `answers/taxonomy_enrich.py`: heuristic (source labels + rules v4 + source answer) or `enrich-v1`; durable proposals (SQLite `enrichment_proposals`, `exports/enrichment_proposals.jsonl`); auto-approve only rule-agreeing ≥0.8 | Human review of pending + 10% samples |
-| Answer fill | T only | `fill_answers`: source → match → synth | Gemini enrich as optional post-step, not in fixture critical path |
+| Join signals | S→T | `join_firm_signals`: exact → fuzzy 88 → hashing-embedding cosine ≥0.82; keyword rules v4 topic per signal (small-tier LLM tagger `signal-topic-v1` for what the rules leave `untagged`, when keyed) → `exports/occurrence_joins.jsonl` | publish-teaching sets `canonical_question_id` / `join_score` / `join_method` / `topic` |
+| Enrich taxonomy | T | `answers/taxonomy_enrich.py`: heuristic (source labels + rules v4 + source answer) first; `enrich-v1` (small tier → primary on validation failure) only for questions whose topic/domain the heuristic cannot auto-approve; durable proposals (SQLite `enrichment_proposals`, `exports/enrichment_proposals.jsonl`); auto-approve only rule-agreeing ≥0.8 | Human review of pending + 10% samples |
+| Answer fill | T only | `fill_answers`: source → match → synth | LLM enrich as optional post-step, not in fixture critical path |
 | Validate | T only | Four validators + depth tag (`needs_expansion`); placeholders → `needs_generation` (withheld); source answers validated too | Re-run (or attest) before Neon stamp |
-| Rubrics | T only | `answers/rubric.py` (`rubric-v1`): heuristic extractive / STAR, or LLM when keyed; validators gate `approved` | Human spot-check; grader reads `rubric_json` when `rubric_status='approved'` |
-| Depth | T only | `answers/depth.py`: pending expansion proposals for shallow source answers | Editor approves → publish applies |
+| Rubrics | T only | `answers/rubric.py` (`rubric-v1`): heuristic extractive / STAR first; LLM draft (small → primary) only when the heuristic fails validation or is below the 0.8 bar; validators gate `approved` | Human spot-check; grader reads `rubric_json` when `rubric_status='approved'` |
+| Depth | T only | `answers/depth.py`: pending expansion proposals for shallow source answers (topic handler; `expand-v1` LLM draft only when no handler exists) | Editor approves → publish applies |
 | Score quality | T | `JOB_NAMES` stub only | Implement or drop the name |
 | Export | T/S | `export_all` → `exports/*.jsonl` + reports | Teaching JSONL ≠ firm_signals JSONL (already) |
 | Publish | T | `npm run publish:teaching` (answers + `rubric_json`, proposals upsert/apply, occurrence joins, placeholder retire, `--retire-missing`) | Separate signal import path; never Glassdoor as answers |
@@ -73,7 +73,8 @@ source .venv/bin/activate
 
 # Assemble offline teaching + signal corpus (SQLite + exports/ + reports/)
 ibpe run-pipeline --mode fixtures --force          # heuristic enrich/rubrics (no key)
-ibpe run-pipeline --mode fixtures --force --llm    # Gemini enrich-v1 / rubric-v1 when keyed
+ibpe run-pipeline --mode fixtures --force --llm    # OpenRouter small tier, only where heuristics fall short
+ibpe run-pipeline --mode fixtures --force --llm --tier primary   # start on LLM_PRIMARY_MODEL (Jev)
 PYTHONPATH=src python3 -m ibpe_corpus.metrics.completeness   # reports only, from exports
 ibpe proposals --status pending                     # review queue
 ibpe review-proposal <id> approved --reviewer you@example.com
@@ -84,7 +85,7 @@ python main.py batch --track PE --limit 1
 
 # Publish teaching truth to Neon + RAG index
 DATABASE_URL=… npm run publish:teaching -w @ibpe/database -- --retire-missing
-DATABASE_URL=… GEMINI_API_KEY=… npm run embed:rag -w @ibpe/database
+DATABASE_URL=… OPENROUTER_API_KEY=… npm run embed:rag -w @ibpe/database   # text-embedding-3-small @768 (ADR 0007)
 ```
 
 ## Practice interviews (Lane P)
@@ -123,7 +124,7 @@ response_text
   → load firm context pack (signals only):
         topic heat rows + occurrence snippets for firm_ids
         + RAG hits for this question/topic (teaching docs only)
-  → Gemini structured grade (rubric):
+  → LLM structured grade via OpenRouter (rubric):
         correctness 0–1, coverage of key points, red flags,
         firm_alignment note ("this firm heat skews to X — you missed…")
         citations restricted to teaching answer ids + heat topic ids
@@ -136,7 +137,7 @@ Hard rules for the grader:
 1. Glassdoor text is **context for weighting / coaching**, never the gold answer.
 2. Every firm-specific claim in feedback must cite heat topic or occurrence id — same cite-only discipline as `rag-brief.ts`.
 3. Numerical questions prefer deterministic checks from `calculation_representation` before/alongside LLM.
-4. Fail open to self-score with `score_source=self` when `GEMINI_API_KEY` missing; never invent firm facts.
+4. Fail open to self-score with `score_source=self` when `OPENROUTER_API_KEY` missing; never invent firm facts.
 
 ### Glassdoor leverage (efficient use)
 
@@ -171,7 +172,7 @@ Schema exists: `canonical.diagrams` + `diagram_versions` (`format=mermaid|intera
 | Gap | Target |
 |-----|--------|
 | Few diagrams / weak concept links | Every core concept (DCF, LBO, 3-statement, WACC, …) has ≥1 published mermaid version |
-| Enrich may invent diagrams without publish gate | Gemini diagram drafts → review → `diagram_versions` with provenance |
+| Enrich may invent diagrams without publish gate | LLM diagram drafts → review → `diagram_versions` with provenance |
 | Checkpoints reference empty `diagram_id` / drills | Module checkpoints point at real `diagram_id` + question_ids |
 | RAG index ignores diagram a11y text | Embed diagram title + a11y_fallback into `rag_documents` for concept retrieval |
 
@@ -229,7 +230,7 @@ Order inside `run_fixture_pipeline` (offline, no key needed):
 8. **Depth proposals** — synthesised appendices for shallow source answers, pending editor approval.
 9. **Export + reports** — `answers.jsonl` carries `rubric`, `quality_tags`, `coaching_notes`; reports are computed from exports.
 
-Honesty notes: heuristic taxonomy auto-approvals and heuristic rubrics are **rule-validated, not human-reviewed**; ~10% of auto-approvals are queued as review samples. Gemini paths (`enrich-v1`, `rubric-v1`, `signal-topic-v1`) run only with `GEMINI_API_KEY` / `AI_GATEWAY_API_KEY` and fall back to heuristics on any failure.
+Honesty notes: heuristic taxonomy auto-approvals and heuristic rubrics are **rule-validated, not human-reviewed**; ~10% of auto-approvals are queued as review samples. LLM paths (`enrich-v1`, `rubric-v1`, `expand-v1`, `signal-topic-v1`) run only with `OPENROUTER_API_KEY`, only for items the heuristics cannot auto-approve, and fall back to heuristics on any failure. `run-summary.json` → `enrichment.llm_routes` counts heuristic / small / primary / failed per stage (see ADR 0007).
 
 ## Job orchestration (honest catalog)
 
@@ -240,7 +241,7 @@ Honesty notes: heuristic taxonomy auto-approvals and heuristic rubrics are **rul
 3. Collapsed jobs (`answers:fill+validate:v2`) stay collapsed if atomic; document the composite key.
 4. Neon publish + embed are **post-export worker steps**, not pretend Python jobs.
 
-Workers (`apps/worker`) host: scrape enqueue, `run-pipeline`, Gemini enrich, `publish:teaching`, `embed:rag`. Never long scrapes inside Vercel request timeouts.
+Workers (`apps/worker`) host: scrape enqueue, `run-pipeline`, LLM enrich (OpenRouter), `publish:teaching`, `embed:rag`. Never long scrapes inside Vercel request timeouts.
 
 ## Related docs
 
@@ -250,4 +251,5 @@ Workers (`apps/worker`) host: scrape enqueue, `run-pipeline`, Gemini enrich, `pu
 - [answer-generation.md](./answer-generation.md) / [answer-validation.md](./answer-validation.md)
 - [private-equity-coverage.md](./private-equity-coverage.md)
 - [decisions/0002-data-thesis-github-glassdoor-gemini.md](./decisions/0002-data-thesis-github-glassdoor-gemini.md)
+- [decisions/0007-openrouter-llm-stack.md](./decisions/0007-openrouter-llm-stack.md) — OpenRouter tiers, "only when required"
 - Plan: [plans/2026-08-01-001-architecture-data-pipeline-rethink-plan.md](./plans/2026-08-01-001-architecture-data-pipeline-rethink-plan.md)

@@ -15,10 +15,12 @@ schedules:
       ibpe run-pipeline --mode fixtures --force
     env_from: worker-secrets
 
-  # Taxonomy + rubric enrichment runs inside run-pipeline (heuristic without a key,
-  # Gemini enrich-v1 / rubric-v1 with GEMINI_API_KEY). Proposals persist in the
-  # corpus DB and exports/enrichment_proposals.jsonl; publish applies approved ones.
-  - name: gemini-enrich-nightly
+  # Taxonomy + rubric enrichment runs inside run-pipeline (heuristic without a key;
+  # with OPENROUTER_API_KEY the small model handles only what heuristics cannot
+  # auto-approve, escalating to LLM_PRIMARY_MODEL on validation failure — ADR 0007).
+  # Proposals persist in the corpus DB and exports/enrichment_proposals.jsonl;
+  # publish applies approved ones.
+  - name: llm-enrich-nightly
     cron: "0 8 * * *"
     command: >
       ibpe run-pipeline --mode fixtures --force --llm

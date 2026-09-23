@@ -45,6 +45,15 @@ Each generated answer includes:
 No LLM calls. Same `CanonicalQuestion` input yields the same answer content and
 routing decision.
 
+LLMs never write teaching answers directly. Downstream enrichment uses OpenRouter
+(ADR 0007) **only when required**: rubric drafts (`rubric-v1`) when the extractive
+rubric fails validation or is below the 0.8 auto-approve bar, and expansion
+appendices (`expand-v1`) only for short source answers with no topic handler.
+Both start on the small tier (`LLM_SMALL_MODEL`, default `deepseek/deepseek-v4-flash`)
+and escalate to the primary tier (`LLM_PRIMARY_MODEL`, "Jev") only when the small
+draft fails validation. Model output is always a pending proposal or a validated
+rubric, with the served OpenRouter model id recorded in `model`.
+
 ## Pipeline integration
 
 `fill_answers` invokes generation only after source ingest and corpus match fail.
