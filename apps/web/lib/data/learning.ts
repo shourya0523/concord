@@ -19,6 +19,14 @@ import type {
   LearningModuleListItem,
   LearningModuleListResponse,
 } from "@/lib/api/schemas";
+import {
+  CURRICULUM_CONCEPTS,
+  CURRICULUM_DIAGRAMS,
+  CURRICULUM_MODULES,
+  type CurriculumDiagram,
+} from "@/lib/data/curriculum";
+import { QUESTION_DIAGRAM_LINKS } from "@/lib/data/curriculum/question-diagram-links.generated";
+import { linkDiagramsForQuestion } from "@/lib/data/curriculum/question-diagram-rules";
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { topicForConceptId } from "@/lib/topics";
 
@@ -60,7 +68,7 @@ type DiagramRow = {
   title: string;
   a11y_fallback: string | null;
   format: string | null;
-  version: number | null;
+  version: string | number | null;
   body: string | null;
 };
 
@@ -73,308 +81,104 @@ type ResourceRow = {
   concept_id: string | null;
 };
 
-/** concept_id → diagram_id (stable DB convention). */
+/** concept_id → primary diagram_id (stable DB convention). */
 const CONCEPT_DIAGRAM: Record<string, string> = {
   concept_accounting_foundations: "diag_three_statement",
   concept_ev_equity_value: "diag_ev_bridge",
+  concept_valuation_comps: "diag_comps_precedents",
   concept_dcf_wacc: "diag_dcf_wacc",
   concept_lbo_paper_lbo: "diag_lbo_sources_uses",
-}
+  concept_merger_model: "diag_merger_model",
+  concept_pe_fund_mechanics: "diag_returns_attribution",
+};
 
+/**
+ * Code-registered diagrams (no-DB fallback). Mirrors migrations 059/061 —
+ * both are rendered from apps/web/lib/data/curriculum.
+ */
 const STUB_DIAGRAM_BODIES: Record<
   string,
-  { title: string; mermaid: string; a11y: string }
-> = {
-  diag_three_statement: {
-    title: "Three-statement linkages",
-    mermaid: `flowchart TB
-  IS[Income statement] -->|Net income| CFS[Cash flow statement]
-  IS -->|Retained earnings| BS[Balance sheet]
-  CFS -->|Ending cash| BS`,
-    a11y:
-      "Net income flows from the income statement into the cash flow statement and retained earnings on the balance sheet. Ending cash from the cash flow statement updates the balance sheet cash line.",
-  },
-  diag_ev_bridge: {
-    title: "EV to Equity Bridge",
-    mermaid: `flowchart LR
-  EV[Enterprise Value] --> Debt[Subtract Net Debt]
-  Debt --> Equity[Equity Value]`,
-    a11y:
-      "Start with enterprise value, subtract net debt and other claims to arrive at equity value.",
-  },
-  diag_dcf_wacc: {
-    title: "DCF and WACC Flow",
-    mermaid: `flowchart LR
-  FCF[Free Cash Flow] --> TV[Terminal Value]
-  TV --> WACC[Discount at WACC]
-  WACC --> EV[Enterprise Value]`,
-    a11y:
-      "Unlevered free cash flows and terminal value are discounted at WACC to enterprise value, then bridged to equity value.",
-  },
-  diag_lbo_sources_uses: {
-    title: "LBO Sources and Uses",
-    mermaid: `flowchart LR
-  Uses[Purchase Price and Fees] --> Sources[Debt plus Sponsor Equity]
-  Sources --> Returns[Exit Equity Value]`,
-    a11y:
-      "Sources: sponsor equity and debt facilities fund the buyout. Uses: acquire target equity, refinance debt, and pay fees.",
-  },
-  diag_wacc_build: {
-    title: "WACC build-up",
-    mermaid: `flowchart LR
-  Re[Cost of equity] --> WACC[WACC]
-  Rd[After-tax cost of debt] --> WACC
-  W[E/V and D/V weights] --> WACC
-  WACC --> Discount[Discount UFCF]`,
-    a11y:
-      "WACC blends cost of equity and after-tax cost of debt by target capital structure weights.",
-  },
-  diag_accretion_dilution: {
-    title: "Accretion and dilution",
-    mermaid: `flowchart TB
-  Standalone[Standalone EPS] --> Compare{Compare}
-  ProForma[Pro-forma EPS] --> Compare
-  Compare -->|Higher| Acc[Accretive]
-  Compare -->|Lower| Dil[Dilutive]`,
-    a11y:
-      "Compare pro-forma EPS with standalone EPS. Accretive if pro-forma EPS rises; dilutive if it falls.",
-  },
-  diag_moic_irr: {
-    title: "MOIC and IRR",
-    mermaid: `flowchart LR
-  Entry[Entry equity] --> MOIC[MOIC = Exit / Entry]
-  Exit[Exit equity] --> MOIC
-  MOIC --> IRR[IRR ≈ MOIC^(1/n) - 1]`,
-    a11y:
-      "MOIC is exit equity over entry equity. IRR annualises that multiple over the hold period.",
-  },
-  diag_paper_lbo_returns: {
-    title: "Paper LBO returns bridge",
-    mermaid: `flowchart TB
-  EntryEq[Entry equity] --> Bridge[Returns bridge]
-  Delev[Debt paydown] --> Bridge
-  Ebitda[EBITDA growth] --> Bridge
-  Mult[Exit multiple] --> Bridge
-  Bridge --> ExitEq[Exit equity]
-  ExitEq --> Returns[MOIC and IRR]`,
-    a11y:
-      "Entry equity, debt paydown, EBITDA growth, and exit multiple change bridge to exit equity and MOIC/IRR.",
-  },
-}
+  Pick<CurriculumDiagram, "title" | "body" | "format" | "version" | "a11y" | "concept_ids">
+> = Object.fromEntries(
+  CURRICULUM_DIAGRAMS.map((diagram) => [
+    diagram.id,
+    {
+      title: diagram.title,
+      body: diagram.body,
+      format: diagram.format,
+      version: diagram.version,
+      a11y: diagram.a11y,
+      concept_ids: diagram.concept_ids,
+    },
+  ]),
+);
 
-const STUB_CONCEPTS: Concept[] = [
-  ConceptSchema.parse({
-    id: "concept_accounting_foundations",
-    slug: "accounting-foundations",
-    title: "Accounting Foundations",
-    prerequisites: [],
-    firm_relevance: {},
-    domain: "ib",
-    summary: "Three-statement linkage and interview-ready accounting.",
-  }),
-  ConceptSchema.parse({
-    id: "concept_ev_equity_value",
-    slug: "ev-equity-value",
-    title: "EV and Equity Value",
-    prerequisites: ["concept_accounting_foundations"],
-    firm_relevance: {},
-    domain: "ib",
-    summary: "Bridge from enterprise value to equity value via net debt and other claims.",
-  }),
-  ConceptSchema.parse({
-    id: "concept_dcf_wacc",
-    slug: "dcf-wacc",
-    title: "DCF and WACC",
-    prerequisites: ["concept_accounting_foundations"],
-    firm_relevance: {},
-    domain: "both",
-    summary: "Unlevered free cash flow, WACC build-up, terminal value.",
-  }),
-  ConceptSchema.parse({
-    id: "concept_lbo_paper_lbo",
-    slug: "lbo-paper-lbo",
-    title: "LBO and Paper LBO",
-    prerequisites: ["concept_dcf_wacc"],
-    firm_relevance: {},
-    domain: "pe",
-    summary: "Sources and uses, debt schedule, returns to equity at exit.",
-  }),
-  ConceptSchema.parse({
-    id: "concept_behavioural_story",
-    slug: "behavioural-story",
-    title: "Behavioural Story",
-    prerequisites: [],
-    firm_relevance: {},
-    domain: "both",
-    summary: "Fit stories with firm-apply bridges.",
-  }),
-]
+const CURRICULUM_CONCEPT_BY_ID = new Map(CURRICULUM_CONCEPTS.map((c) => [c.id, c]));
 
-const STUB_MODULES: LearningModule[] = [
-  LearningModuleSchema.parse({
-    id: "module_accounting_foundations",
-    slug: "accounting-foundations",
-    title: "Accounting Foundations",
-    domain: "ib",
-    track: "IB",
-    summary: "Build the three-statement base required for technical interview answers.",
-    estimated_minutes: 45,
-    concept_ids: ["concept_accounting_foundations"],
-    diagram_ids: ["diag_three_statement"],
-    prereq_module_ids: [],
-    checkpoints: [
-      {
-        id: "chk_acct_lesson",
-        kind: "lesson",
-        title: "Three statements and accrual logic",
-        position: 1,
-        concept_id: "concept_accounting_foundations",
-        question_ids: [],
-      },
-      {
-        id: "chk_acct_drill",
-        kind: "drill",
-        title: "Working capital and depreciation drill",
-        position: 2,
-        concept_id: "concept_accounting_foundations",
-        question_ids: [],
-      },
-    ],
-    lesson_ids: ["chk_acct_lesson"],
-    publishable: true,
+const STUB_CONCEPTS: Concept[] = CURRICULUM_CONCEPTS.map((concept) =>
+  ConceptSchema.parse({
+    id: concept.id,
+    slug: concept.slug,
+    title: concept.title,
+    prerequisites: concept.prerequisites,
+    firm_relevance: {},
+    domain: concept.domain,
+    summary: concept.summary,
   }),
-  LearningModuleSchema.parse({
-    id: "module_ev_equity_value",
-    slug: "ev-equity-value",
-    title: "EV and Equity Value",
-    domain: "ib",
-    track: "IB",
-    summary: "Learn the bridge between enterprise value, equity value, and claims.",
-    estimated_minutes: 40,
-    concept_ids: ["concept_ev_equity_value"],
-    diagram_ids: ["diag_ev_bridge"],
-    prereq_module_ids: ["module_accounting_foundations"],
-    checkpoints: [
-      {
-        id: "chk_ev_lesson",
-        kind: "lesson",
-        title: "EV versus equity value",
-        position: 1,
-        concept_id: "concept_ev_equity_value",
-        question_ids: [],
-      },
-      {
-        id: "chk_ev_diagram",
-        kind: "diagram",
-        title: "EV to equity bridge",
-        position: 2,
-        concept_id: "concept_ev_equity_value",
-        diagram_id: "diag_ev_bridge",
-        question_ids: [],
-      },
-    ],
-    lesson_ids: ["chk_ev_lesson"],
-    publishable: true,
-  }),
-  LearningModuleSchema.parse({
-    id: "module_dcf_wacc",
-    slug: "dcf-wacc",
-    title: "DCF and WACC",
-    domain: "both",
-    track: "IB",
-    summary: "Turn forecasts into value with WACC, terminal value, and sensitivities.",
-    estimated_minutes: 50,
-    concept_ids: ["concept_dcf_wacc"],
-    diagram_ids: ["diag_dcf_wacc"],
-    prereq_module_ids: ["module_ev_equity_value"],
-    checkpoints: [
-      {
-        id: "chk_dcf_lesson",
-        kind: "lesson",
-        title: "Forecasts, WACC, and terminal value",
-        position: 1,
-        concept_id: "concept_dcf_wacc",
-        question_ids: [],
-      },
-      {
-        id: "chk_dcf_diagram",
-        kind: "diagram",
-        title: "DCF flow diagram",
-        position: 2,
-        concept_id: "concept_dcf_wacc",
-        diagram_id: "diag_dcf_wacc",
-        question_ids: [],
-      },
-    ],
-    lesson_ids: ["chk_dcf_lesson"],
-    publishable: true,
-  }),
-  LearningModuleSchema.parse({
-    id: "module_lbo_paper_lbo",
-    slug: "lbo-paper-lbo",
-    title: "LBO and Paper LBO",
-    domain: "pe",
-    track: "PE",
-    summary: "Practice sponsor returns math and paper LBO shortcuts.",
-    estimated_minutes: 55,
-    concept_ids: ["concept_lbo_paper_lbo"],
-    diagram_ids: ["diag_lbo_sources_uses"],
-    prereq_module_ids: ["module_dcf_wacc"],
-    checkpoints: [
-      {
-        id: "chk_lbo_lab",
-        kind: "concept_lab",
-        title: "Paper LBO returns lab",
-        position: 1,
-        concept_id: "concept_lbo_paper_lbo",
-        diagram_id: "diag_lbo_sources_uses",
-        question_ids: [],
-      },
-      {
-        id: "chk_lbo_quiz",
-        kind: "quiz",
-        title: "LBO returns quiz",
-        position: 2,
-        concept_id: "concept_lbo_paper_lbo",
-        question_ids: [],
-      },
-    ],
-    lesson_ids: [],
-    publishable: true,
-  }),
-  LearningModuleSchema.parse({
-    id: "module_behavioural_story",
-    slug: "behavioural-story",
-    title: "Behavioural Story",
-    domain: "both",
-    track: "IB",
-    summary: "Shape fit, motivation, and deal stories for banking and PE interviews.",
-    estimated_minutes: 35,
-    concept_ids: ["concept_behavioural_story"],
-    diagram_ids: [],
-    prereq_module_ids: [],
-    checkpoints: [
-      {
-        id: "chk_beh_lesson",
-        kind: "lesson",
-        title: "Personal story structure",
-        position: 1,
-        concept_id: "concept_behavioural_story",
-        question_ids: [],
-      },
-      {
-        id: "chk_beh_drill",
-        kind: "drill",
-        title: "Why this firm and why this role",
-        position: 2,
-        concept_id: "concept_behavioural_story",
-        question_ids: [],
-      },
-    ],
-    lesson_ids: ["chk_beh_lesson"],
-    publishable: true,
-  }),
-];
+);
+
+const STUB_MODULES: LearningModule[] = [...CURRICULUM_MODULES]
+  .sort((a, b) => a.order - b.order)
+  .map((learningModule) =>
+    LearningModuleSchema.parse({
+      id: learningModule.id,
+      slug: learningModule.slug,
+      title: learningModule.title,
+      domain: learningModule.domain,
+      track: learningModule.track,
+      summary: learningModule.summary,
+      estimated_minutes: learningModule.estimated_minutes,
+      concept_ids: [learningModule.concept_id],
+      diagram_ids: [
+        ...new Set(
+          learningModule.checkpoints
+            .map((checkpoint) => checkpoint.diagram_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ],
+      prereq_module_ids: learningModule.prereq_module_ids,
+      checkpoints: learningModule.checkpoints.map((checkpoint) => ({
+        id: checkpoint.id,
+        kind: checkpoint.kind,
+        title: checkpoint.title,
+        position: checkpoint.position,
+        concept_id: checkpoint.concept_id,
+        diagram_id: checkpoint.diagram_id ?? null,
+        question_ids: checkpoint.question_ids,
+      })),
+      lesson_ids: learningModule.checkpoints
+        .filter((checkpoint) => checkpoint.kind === "lesson")
+        .map((checkpoint) => checkpoint.id),
+      publishable: true,
+    }),
+  );
+
+/** checkpoint id → curriculum lesson markdown (stub + DB-null fallback). */
+const STUB_CHECKPOINT_BODIES = new Map(
+  CURRICULUM_MODULES.flatMap((learningModule) =>
+    learningModule.checkpoints
+      .filter((checkpoint) => checkpoint.body_markdown)
+      .map((checkpoint) => [checkpoint.id, checkpoint.body_markdown!] as const),
+  ),
+);
+
+const STUB_CHECKPOINT_METADATA = new Map(
+  CURRICULUM_MODULES.flatMap((learningModule) =>
+    learningModule.checkpoints.map(
+      (checkpoint) => [checkpoint.id, checkpoint.metadata ?? {}] as const,
+    ),
+  ),
+);
 
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -386,6 +190,13 @@ function domainFromTrack(track: string | null, domain: string | null): string {
   const t = track?.toLowerCase();
   if (t === "ib" || t === "pe" || t === "both") return t;
   return "both";
+}
+
+/** Numeric part of a diagram version label ('v1', '1', '2' → 1, 1, 2). */
+export function diagramVersionNumber(version: string | number | null | undefined): number {
+  if (typeof version === "number") return version;
+  const digits = String(version ?? "").replace(/[^0-9]/g, "");
+  return digits ? Number(digits) : 0;
 }
 
 function rowToModule(
@@ -468,7 +279,10 @@ async function loadModulesFromDb(): Promise<LearningModuleListItem[] | null> {
       ) AS diagram_ids
     FROM canonical.learning_modules m
     WHERE m.publishable = true
-    ORDER BY m.title ASC
+    ORDER BY
+      CASE WHEN (m.metadata_json->>'order') ~ '^[0-9]+$'
+        THEN (m.metadata_json->>'order')::int END ASC NULLS LAST,
+      m.title ASC
   `) as ModuleRow[];
 
   if (rows.length === 0) return null;
@@ -555,7 +369,7 @@ export async function listLearningModules(): Promise<LearningModuleListResponse>
     return {
       items: listStubLearningModules(),
       source: "stub",
-      note: "DATABASE_URL unset — static MVP modules.",
+      note: "DATABASE_URL unset — built-in curriculum.",
     };
   }
 
@@ -565,7 +379,7 @@ export async function listLearningModules(): Promise<LearningModuleListResponse>
       return {
         items: listStubLearningModules(),
         source: "stub",
-        note: "No publishable modules in DB — static MVP fallback.",
+        note: "No publishable modules in DB — built-in curriculum fallback.",
       };
     }
     return { items, source: "published" };
@@ -574,7 +388,7 @@ export async function listLearningModules(): Promise<LearningModuleListResponse>
     return {
       items: listStubLearningModules(),
       source: "stub",
-      note: "DB module read failed — static MVP fallback.",
+      note: "DB module read failed — built-in curriculum fallback.",
     };
   }
 }
@@ -591,7 +405,7 @@ export async function getLearningModule(
       module: learningModule,
       checkpoints: learningModule.checkpoints,
       source: "stub",
-      note: "DATABASE_URL unset — static MVP module.",
+      note: "DATABASE_URL unset — built-in curriculum module.",
     };
   }
 
@@ -622,8 +436,58 @@ export async function getLearningModule(
     module: stub,
     checkpoints: stub.checkpoints,
     source: "stub",
-    note: "Module not in DB — static MVP fallback.",
+    note: "Module not in DB — built-in curriculum fallback.",
   };
+}
+
+export type CheckpointContent = {
+  /** Lesson / concept-lab markdown (may be null for drills). */
+  body_markdown: string | null;
+  /** checkpoint metadata_json, e.g. {"mode":"quiz"} for diagram quizzes. */
+  metadata: Record<string, unknown>;
+};
+
+/**
+ * Lesson bodies + metadata for a module's checkpoints (checkpoint id → content).
+ * DB first (published view); curriculum source fills anything missing so
+ * no-DB mode and a DB without migration 060 still show real lessons.
+ */
+export async function getModuleCheckpointContent(
+  moduleId: string,
+): Promise<Map<string, CheckpointContent>> {
+  const map = new Map<string, CheckpointContent>();
+  const learningModule = CURRICULUM_MODULES.find((item) => item.id === moduleId);
+  for (const checkpoint of learningModule?.checkpoints ?? []) {
+    map.set(checkpoint.id, {
+      body_markdown: STUB_CHECKPOINT_BODIES.get(checkpoint.id) ?? null,
+      metadata: STUB_CHECKPOINT_METADATA.get(checkpoint.id) ?? {},
+    });
+  }
+  if (!isDatabaseConfigured()) return map;
+  try {
+    const sql = requireSql();
+    const rows = (await sql`
+      SELECT id, body_markdown, metadata_json
+      FROM published.v_learning_module_checkpoints
+      WHERE module_id = ${moduleId}
+    `) as Array<{
+      id: string;
+      body_markdown: string | null;
+      metadata_json: Record<string, unknown> | null;
+    }>;
+    for (const row of rows) {
+      const fallback = map.get(row.id);
+      map.set(row.id, {
+        body_markdown: row.body_markdown?.trim()
+          ? row.body_markdown
+          : (fallback?.body_markdown ?? null),
+        metadata: { ...(fallback?.metadata ?? {}), ...(row.metadata_json ?? {}) },
+      });
+    }
+  } catch (err) {
+    console.warn("[learn] checkpoint content load failed; using curriculum source", err);
+  }
+  return map;
 }
 
 // ---------------------------------------------------------------------------
@@ -631,39 +495,52 @@ export async function getLearningModule(
 // ---------------------------------------------------------------------------
 
 function rowToConcept(row: ConceptRow): Concept {
+  const curriculum = CURRICULUM_CONCEPT_BY_ID.get(row.id);
   return ConceptSchema.parse({
     id: row.id,
     slug: row.slug,
     title: row.title,
-    prerequisites: [],
+    prerequisites: curriculum?.prerequisites ?? [],
     firm_relevance: {},
     domain:
-      row.track?.toLowerCase() === "ib" || row.track?.toLowerCase() === "pe"
+      curriculum?.domain ??
+      (row.track?.toLowerCase() === "ib" || row.track?.toLowerCase() === "pe"
         ? row.track.toLowerCase()
-        : "both",
+        : "both"),
     summary: row.summary ?? undefined,
   });
 }
 
-async function loadDiagramAssets(): Promise<Map<string, DiagramAsset>> {
+function stubAsset(id: string): DiagramAsset | null {
+  const stub = STUB_DIAGRAM_BODIES[id];
+  if (!stub) return null;
+  return {
+    ref: DiagramRefSchema.parse({
+      id,
+      type: stub.title,
+      format: stub.format,
+      version: stub.version,
+      a11y_fallback: stub.a11y,
+      concept_ids: stub.concept_ids,
+    }),
+    title: stub.title,
+    body: stub.body,
+  };
+}
+
+function loadDiagramAssetsFallback(): Map<string, DiagramAsset> {
   const map = new Map<string, DiagramAsset>();
-  if (!isDatabaseConfigured()) {
-    for (const [id, stub] of Object.entries(STUB_DIAGRAM_BODIES)) {
-      map.set(id, {
-        ref: DiagramRefSchema.parse({
-          id,
-          type: stub.title,
-          format: "mermaid",
-          version: "1",
-          a11y_fallback: stub.a11y,
-          concept_ids: [],
-        }),
-        title: stub.title,
-        body: stub.mermaid,
-      });
-    }
-    return map;
+  for (const id of Object.keys(STUB_DIAGRAM_BODIES)) {
+    const asset = stubAsset(id);
+    if (asset) map.set(id, asset);
   }
+  return map;
+}
+
+/** Latest version per diagram: DB rows over the code-registered curriculum. */
+async function loadDiagramAssets(): Promise<Map<string, DiagramAsset>> {
+  const map = loadDiagramAssetsFallback();
+  if (!isDatabaseConfigured()) return map;
   try {
     const sql = requireSql();
     const rows = (await sql`
@@ -680,7 +557,9 @@ async function loadDiagramAssets(): Promise<Map<string, DiagramAsset>> {
         SELECT format, version, body
         FROM canonical.diagram_versions v
         WHERE v.diagram_id = d.id
-        ORDER BY version DESC
+        ORDER BY
+          coalesce(nullif(regexp_replace(v.version, '[^0-9]', '', 'g'), ''), '0')::int DESC,
+          v.created_at DESC
         LIMIT 1
       ) dv ON true
     `) as DiagramRow[];
@@ -693,7 +572,7 @@ async function loadDiagramAssets(): Promise<Map<string, DiagramAsset>> {
           format: row.format === "interactive-json" ? "interactive-json" : "mermaid",
           version: String(row.version ?? 1),
           a11y_fallback: row.a11y_fallback ?? undefined,
-          concept_ids: [],
+          concept_ids: STUB_DIAGRAM_BODIES[row.id]?.concept_ids ?? [],
         }),
         title: row.title,
         body: row.body,
@@ -701,29 +580,23 @@ async function loadDiagramAssets(): Promise<Map<string, DiagramAsset>> {
     }
   } catch (err) {
     console.warn("[learn] diagram load failed; using code-registered diagrams", err);
-    return loadDiagramAssetsFallback();
   }
-  if (map.size === 0) return loadDiagramAssetsFallback();
   return map;
 }
 
-function loadDiagramAssetsFallback(): Map<string, DiagramAsset> {
-  const map = new Map<string, DiagramAsset>();
-  for (const [id, stub] of Object.entries(STUB_DIAGRAM_BODIES)) {
-    map.set(id, {
-      ref: DiagramRefSchema.parse({
-        id,
-        type: stub.title,
-        format: "mermaid",
-        version: "1",
-        a11y_fallback: stub.a11y,
-        concept_ids: [],
-      }),
-      title: stub.title,
-      body: stub.mermaid,
-    });
+/** Resolved diagram assets for the given ids (missing ids are skipped). */
+export async function getDiagramAssetsByIds(
+  ids: string[],
+): Promise<Map<string, DiagramAsset>> {
+  const wanted = new Set(ids);
+  const result = new Map<string, DiagramAsset>();
+  if (wanted.size === 0) return result;
+  const assets = await loadDiagramAssets();
+  for (const id of wanted) {
+    const asset = assets.get(id);
+    if (asset) result.set(id, asset);
   }
-  return map;
+  return result;
 }
 
 async function loadResourcesByConcept(): Promise<Map<string, LearningResource[]>> {
@@ -782,7 +655,7 @@ async function loadFirmRelevanceByConcept(): Promise<
       entry[row.firm_id] = Math.max(entry[row.firm_id] ?? 0, Number(row.intensity));
       byTopic.set(row.topic_id, entry);
     }
-    for (const conceptId of Object.keys(CONCEPT_DIAGRAM)) {
+    for (const conceptId of CURRICULUM_CONCEPTS.map((c) => c.id)) {
       const topic = topicForConceptId(conceptId);
       if (topic && byTopic.has(topic)) {
         map.set(conceptId, byTopic.get(topic)!);
@@ -794,6 +667,15 @@ async function loadFirmRelevanceByConcept(): Promise<
   return map;
 }
 
+/** Primary diagram first, then other mermaid diagrams tagged with the concept. */
+function diagramIdsForConcept(conceptId: string): string[] {
+  const primary = CONCEPT_DIAGRAM[conceptId];
+  const tagged = CURRICULUM_DIAGRAMS.filter(
+    (diagram) => diagram.format === "mermaid" && diagram.concept_ids.includes(conceptId),
+  ).map((diagram) => diagram.id);
+  return [...new Set([...(primary ? [primary] : []), ...tagged])];
+}
+
 function conceptWithAssets(options: {
   concept: Concept;
   diagrams: Map<string, DiagramAsset>;
@@ -801,8 +683,9 @@ function conceptWithAssets(options: {
   firmRelevance: Map<string, Record<string, number>>;
 }): ConceptWithAssets {
   const { concept, diagrams, resources, firmRelevance } = options;
-  const diagramId = CONCEPT_DIAGRAM[concept.id];
-  const asset = diagramId ? diagrams.get(diagramId) : undefined;
+  const assets = diagramIdsForConcept(concept.id)
+    .map((id) => diagrams.get(id))
+    .filter((asset): asset is DiagramAsset => Boolean(asset));
   const topic = topicForConceptId(concept.id);
   const enriched = ConceptSchema.parse({
     ...concept,
@@ -811,8 +694,8 @@ function conceptWithAssets(options: {
   return {
     concept: enriched,
     topic,
-    diagram_refs: asset ? [asset.ref] : [],
-    diagrams: asset ? [asset] : [],
+    diagram_refs: assets.map((asset) => asset.ref),
+    diagrams: assets,
     resources: resources.get(concept.id) ?? [],
   };
 }
@@ -910,6 +793,169 @@ export async function getDiagramAssetForConcept(
   if (!diagramId) return null;
   const assets = await loadDiagramAssets();
   return assets.get(diagramId) ?? null;
+}
+
+export type QuestionDiagram = DiagramAsset & {
+  relevance: number;
+  /** Where the link came from: canonical.question_diagrams or a fallback. */
+  link_source: "published" | "generated" | "rules";
+};
+
+/**
+ * Diagrams linked to a canonical question, most relevant first (P2.9).
+ *
+ * 1. canonical.question_diagrams (migration 059/061)
+ * 2. the generated export link map (same rules, works without a DB)
+ * 3. keyword / topic rules on `wording` + `topic` (passed by the caller or
+ *    read from published.v_questions)
+ */
+export async function listDiagramsForQuestion(
+  questionId: string,
+  options: { topic?: string | null; wording?: string | null; limit?: number } = {},
+): Promise<QuestionDiagram[]> {
+  const limit = options.limit ?? 3;
+  let links: Array<{ diagram_id: string; relevance: number }> = [];
+  let linkSource: QuestionDiagram["link_source"] = "generated";
+  let topic = options.topic ?? null;
+  let wording = options.wording ?? null;
+
+  if (isDatabaseConfigured()) {
+    try {
+      const sql = requireSql();
+      const rows = (await sql`
+        SELECT diagram_id, relevance
+        FROM canonical.question_diagrams
+        WHERE question_id = ${questionId}
+        ORDER BY relevance DESC, diagram_id ASC
+        LIMIT ${limit}
+      `) as Array<{ diagram_id: string; relevance: number }>;
+      links = rows.map((row) => ({
+        diagram_id: row.diagram_id,
+        relevance: Number(row.relevance),
+      }));
+      linkSource = "published";
+      if (links.length === 0 && (!topic || !wording)) {
+        const questionRows = (await sql`
+          SELECT topic, canonical_wording
+          FROM published.v_questions
+          WHERE id = ${questionId}
+          LIMIT 1
+        `) as Array<{ topic: string | null; canonical_wording: string | null }>;
+        topic = topic ?? questionRows[0]?.topic ?? null;
+        wording = wording ?? questionRows[0]?.canonical_wording ?? null;
+      }
+    } catch (err) {
+      console.warn("[learn] question diagram links failed; using fallback", err);
+    }
+  }
+
+  if (links.length === 0) {
+    const generated = QUESTION_DIAGRAM_LINKS[questionId];
+    if (generated?.length) {
+      links = generated.map(([diagram_id, relevance]) => ({ diagram_id, relevance }));
+      linkSource = "generated";
+    } else {
+      links = linkDiagramsForQuestion({ wording, topic });
+      linkSource = "rules";
+    }
+  }
+  if (links.length === 0) return [];
+
+  const assets = await getDiagramAssetsByIds(links.map((link) => link.diagram_id));
+  return links
+    .slice(0, limit)
+    .map((link) => {
+      const asset = assets.get(link.diagram_id);
+      return asset
+        ? { ...asset, relevance: link.relevance, link_source: linkSource }
+        : null;
+    })
+    .filter((item): item is QuestionDiagram => Boolean(item));
+}
+
+export type QuestionSummary = {
+  id: string;
+  canonical_wording: string;
+  difficulty: string | null;
+};
+
+let exportQuestionCache: Map<string, QuestionSummary> | null = null;
+
+/** exports/questions.jsonl (teaching corpus export) — no-DB wording lookup. */
+async function loadExportQuestions(): Promise<Map<string, QuestionSummary>> {
+  if (exportQuestionCache) return exportQuestionCache;
+  const map = new Map<string, QuestionSummary>();
+  try {
+    const [{ readFile }, path] = await Promise.all([
+      import("node:fs/promises"),
+      import("node:path"),
+    ]);
+    const file =
+      process.env.QUESTION_EXPORT_PATH?.trim() ||
+      path.resolve(process.cwd(), "../../exports/questions.jsonl");
+    const text = await readFile(file, "utf8");
+    for (const line of text.split("\n")) {
+      if (!line.trim()) continue;
+      const row = JSON.parse(line) as Partial<QuestionSummary>;
+      if (typeof row.id === "string" && typeof row.canonical_wording === "string") {
+        map.set(row.id, {
+          id: row.id,
+          canonical_wording: row.canonical_wording,
+          difficulty: typeof row.difficulty === "string" ? row.difficulty : null,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("[learn] exports/questions.jsonl unavailable", err);
+  }
+  exportQuestionCache = map;
+  return map;
+}
+
+/**
+ * Wording for checkpoint question ids, in the order given. Published view
+ * first; the teaching export fills gaps (and serves no-DB mode).
+ */
+export async function getQuestionSummaries(ids: string[]): Promise<QuestionSummary[]> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return [];
+  const found = new Map<string, QuestionSummary>();
+  if (isDatabaseConfigured()) {
+    try {
+      const sql = requireSql();
+      const rows = (await sql`
+        SELECT id, canonical_wording, difficulty
+        FROM published.v_questions
+        WHERE id = ANY(${unique}::text[])
+      `) as QuestionSummary[];
+      for (const row of rows) found.set(row.id, row);
+    } catch (err) {
+      console.warn("[learn] question summaries failed; using export", err);
+    }
+  }
+  if (found.size < unique.length) {
+    const exported = await loadExportQuestions();
+    for (const id of unique) {
+      if (!found.has(id) && exported.has(id)) found.set(id, exported.get(id)!);
+    }
+  }
+  return unique
+    .map((id) => found.get(id))
+    .filter((row): row is QuestionSummary => Boolean(row));
+}
+
+/** Question ids the curriculum attaches to a concept's checkpoints (in order). */
+export function curriculumQuestionIdsForConcept(conceptId: string, limit = 6): string[] {
+  const ids: string[] = [];
+  for (const learningModule of CURRICULUM_MODULES) {
+    for (const checkpoint of learningModule.checkpoints) {
+      if (checkpoint.concept_id !== conceptId) continue;
+      for (const id of checkpoint.question_ids) {
+        if (!ids.includes(id)) ids.push(id);
+      }
+    }
+  }
+  return ids.slice(0, limit);
 }
 
 /** Published teaching questions for a concept's topic (drill linking). */
