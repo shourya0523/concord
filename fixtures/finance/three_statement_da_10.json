@@ -1,0 +1,22 @@
+{
+  "fixture_id": "finance-three-statement-da-10",
+  "topic": "three_statement_da",
+  "ts_only": true,
+  "description": "D&A +10 at a 25% tax rate flows through IS, CFS and BS",
+  "inputs": {
+    "da_change": 10.0,
+    "tax_rate": 0.25
+  },
+  "expected": {
+    "pretax_income_change": -10.0,
+    "tax_change": -2.5,
+    "net_income_change": -7.5,
+    "cfo_change": 2.5,
+    "cash_change": 2.5,
+    "ppe_change": -10.0,
+    "total_assets_change": -7.5,
+    "retained_earnings_change": -7.5,
+    "liabilities_equity_change": -7.5,
+    "balanced": 1.0
+  }
+}

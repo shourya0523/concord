@@ -17,6 +17,7 @@ export const config = {
     "/api/practice/:path*",
     "/api/notes/:path*",
     "/api/mastery/:path*",
+    "/api/drills/:path*",
     "/api/admin/:path*",
   ],
 };
