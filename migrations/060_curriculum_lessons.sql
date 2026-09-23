@@ -104,7 +104,7 @@ VALUES
         1,
         'concept_accounting_foundations',
         NULL,
-        '["cq_6378b2cfd93442a4","cq_e82a9a5d93284b06","cq_68b428ba6b9d444f","cq_7eb46b60e55140cb"]'::jsonb,
+        '["cq_63504fd1349e41a3","cq_f12a05458b2a4e0b","cq_68b428ba6b9d444f","cq_7eb46b60e55140cb"]'::jsonb,
         $$## Why interviewers start here
 
 Almost every technical interview opens with "walk me through the three statements". The interviewer is not testing memory of line items — they want to hear that you understand **how the statements link**, because every model you will build (DCF, LBO, merger) is a three-statement model underneath.
@@ -242,7 +242,7 @@ Use the working capital cycle diagram in this module to trace each arrow before 
         1,
         'concept_ev_equity_value',
         NULL,
-        '["cq_eae136fa2f914030","cq_ccb203dbbac0404c","cq_a38f594a71df47da","cq_6b8932f1b2684545"]'::jsonb,
+        '["cq_d3cb5b15d30a4d36","cq_ccb203dbbac0404c","cq_a38f594a71df47da","cq_6b8932f1b2684545"]'::jsonb,
         $$## Two values, two audiences
 
 **Equity value** is what the company is worth to **common shareholders** only: diluted shares outstanding × share price for a public company. **Enterprise value** is the value of the **core operating business** to **all capital providers** — equity, debt, preferred stock and minority holders.
@@ -373,7 +373,7 @@ There is no fixed rule, but if diluted equity value is more than roughly 10–20
         5,
         'concept_ev_equity_value',
         NULL,
-        '["cq_4f54eee0b0d64098","cq_7f3b290cb078425d","cq_5c123fab555c4855","cq_858f9b80b4334667","cq_5a955926b69a4ff5"]'::jsonb,
+        '["cq_617fc6eaff9a441a","cq_7f3b290cb078425d","cq_5c123fab555c4855","cq_858f9b80b4334667","cq_5a955926b69a4ff5"]'::jsonb,
         NULL,
         '{"seed":"060_curriculum_lessons"}'::jsonb
     ),
@@ -517,7 +517,7 @@ A common interview question is "rank the methods from highest to lowest". A good
         1,
         'concept_dcf_wacc',
         NULL,
-        '["cq_1990bf98f34d4d15","cq_b1b65546c5624d38","cq_50de245aab934a9c","cq_14f0acda1fd344cb","cq_0051b6ee2aee4244"]'::jsonb,
+        '["cq_1990bf98f34d4d15","cq_b1b65546c5624d38","cq_71a764c3f71741ff","cq_14f0acda1fd344cb","cq_0051b6ee2aee4244"]'::jsonb,
         $$## The idea
 
 A discounted cash flow values a business as the **present value of the cash it will generate for all capital providers**. It is an intrinsic method: it depends on your forecast and discount rate, not on what peers trade at.
@@ -599,7 +599,7 @@ When cash flows are unpredictable (early-stage companies), negative for a long t
         5,
         'concept_dcf_wacc',
         'diag_ddm',
-        '["cq_3f17ac0de02146c0","cq_21ab1c196db34188","cq_9f0737b1e2d0463e"]'::jsonb,
+        '["cq_00a1635dbfc14545","cq_21ab1c196db34188","cq_9f0737b1e2d0463e"]'::jsonb,
         $$## Why banks break the normal DCF
 
 For an industrial company, debt is financing and interest sits below operating profit. For a **bank**, deposits and borrowings are the raw material: interest expense is a cost of goods sold. There is no meaningful EBITDA, capex or working capital, and regulators require the bank to hold a minimum level of equity capital. So we **value the equity directly** using a dividend discount model (DDM), discounting at the **cost of equity**, not WACC.
@@ -1245,7 +1245,7 @@ Write each story as five bullets (S, T, A, R, R). Say it aloud against a 90-seco
         3,
         'concept_behavioural_story',
         NULL,
-        '["cq_4b80e96097924476","cq_f4c6cf2a201c44a0","cq_15589ebea2ea4f1d","cq_16711e138ef74362","cq_c5a206272f864f6d","cq_eef790f3cb184a10"]'::jsonb,
+        '["cq_4b80e96097924476","cq_d6630e525d6742e6","cq_15589ebea2ea4f1d","cq_16711e138ef74362","cq_c5a206272f864f6d","cq_eef790f3cb184a10"]'::jsonb,
         NULL,
         '{"seed":"060_curriculum_lessons"}'::jsonb
     )

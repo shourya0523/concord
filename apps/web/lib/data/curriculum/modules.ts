@@ -128,8 +128,8 @@ export const CURRICULUM_MODULES: CurriculumModule[] = [
         position: 1,
         concept_id: "concept_accounting_foundations",
         question_ids: [
-          "cq_6378b2cfd93442a4",
-          "cq_e82a9a5d93284b06",
+          "cq_63504fd1349e41a3",
+          "cq_f12a05458b2a4e0b",
           "cq_68b428ba6b9d444f",
           "cq_7eb46b60e55140cb",
         ],
@@ -216,7 +216,7 @@ export const CURRICULUM_MODULES: CurriculumModule[] = [
         position: 1,
         concept_id: "concept_ev_equity_value",
         question_ids: [
-          "cq_eae136fa2f914030",
+          "cq_d3cb5b15d30a4d36",
           "cq_ccb203dbbac0404c",
           "cq_a38f594a71df47da",
           "cq_6b8932f1b2684545",
@@ -273,7 +273,7 @@ export const CURRICULUM_MODULES: CurriculumModule[] = [
         position: 5,
         concept_id: "concept_ev_equity_value",
         question_ids: [
-          "cq_4f54eee0b0d64098",
+          "cq_617fc6eaff9a441a",
           "cq_7f3b290cb078425d",
           "cq_5c123fab555c4855",
           "cq_858f9b80b4334667",
@@ -378,7 +378,7 @@ export const CURRICULUM_MODULES: CurriculumModule[] = [
         question_ids: [
           "cq_1990bf98f34d4d15",
           "cq_b1b65546c5624d38",
-          "cq_50de245aab934a9c",
+          "cq_71a764c3f71741ff",
           "cq_14f0acda1fd344cb",
           "cq_0051b6ee2aee4244",
         ],
@@ -435,7 +435,7 @@ export const CURRICULUM_MODULES: CurriculumModule[] = [
         concept_id: "concept_dcf_wacc",
         diagram_id: "diag_ddm",
         question_ids: [
-          "cq_3f17ac0de02146c0",
+          "cq_00a1635dbfc14545",
           "cq_21ab1c196db34188",
           "cq_9f0737b1e2d0463e",
         ],
@@ -782,7 +782,7 @@ export const CURRICULUM_MODULES: CurriculumModule[] = [
         concept_id: "concept_behavioural_story",
         question_ids: [
           "cq_4b80e96097924476",
-          "cq_f4c6cf2a201c44a0",
+          "cq_d6630e525d6742e6",
           "cq_15589ebea2ea4f1d",
           "cq_16711e138ef74362",
           "cq_c5a206272f864f6d",
