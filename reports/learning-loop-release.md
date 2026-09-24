@@ -50,7 +50,7 @@ Bugs found and fixed during integration: new users without target firms crashed 
 
 ## Needs owner action (Neon / secrets / people)
 
-Nothing below was done from this session — Neon was deliberately not touched.
+Item 1 was done from this session. Items 2–7 need the owner's secrets, accounts or review.
 
 1. ✅ **Schema migrations applied to Neon production (2026-09-23):** 040, 043, 044, 045, 046, 054, 057 and 062 were applied to branch `production` as one atomic block, after a dry run on branch `test/learning-loop-migrations-040-062` (`br-holy-sound-axymfaun`, safe to delete). Verified: 10 new `app.*` tables, all 7 grade columns, `score_source` CHECK includes `jev`, 0 RLS violations, `concord_app` grants present. **Still to run:** content migrations 059–061 — use the **DB release** workflow below.
 2. **Publish the new corpus + curriculum:** add repo secrets `DATABASE_URL` (Neon owner URL) and `OPENROUTER_API_KEY`, then run **Actions → DB release** (`.github/workflows/db-release.yml`). It runs `publish:teaching -- --retire-missing` (666 Q/A + rubrics, unpublishes 38 retired fragments), applies 059–061 (22 diagrams, 538 question↔diagram links, 8 modules), re-checks 042's RLS guard, and optionally `embed:rag`. **`embed:rag` must re-run over everything** — the embedding model changed (Gemini → `openai/text-embedding-3-small` via OpenRouter, still 768-d); dense search ignores old-model rows until it has run (lexical fallback meanwhile). Rehearsed end-to-end on a production-equivalent local DB.
