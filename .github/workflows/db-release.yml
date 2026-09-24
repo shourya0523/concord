@@ -1,0 +1,92 @@
+# One-click database release for the learning-loop rollout (manual only).
+#
+# Runs against the Neon database in the DATABASE_URL repository secret
+# (owner / neondb_owner URL, direct or pooled). Nothing runs on push.
+#
+# Order matters: publish the teaching corpus first so migration 059 can link
+# question ids to diagrams, then apply the curriculum content migrations,
+# then (re)build RAG embeddings with the OpenRouter embedding model.
+#
+# Schema migrations 040, 043–046, 054, 057 and 062 were already applied to the
+# production branch on 2026-09-23. Every step below is idempotent.
+
+name: DB release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_teaching:
+        description: "npm run publish:teaching -- --retire-missing (666-question corpus + rubrics)"
+        type: boolean
+        default: true
+      curriculum_migrations:
+        description: "Apply migrations 059–061 (diagrams, lessons, interactive diagrams)"
+        type: boolean
+        default: true
+      embed_rag:
+        description: "npm run embed:rag (needs OPENROUTER_API_KEY secret)"
+        type: boolean
+        default: false
+      dry_run:
+        description: "embed:rag --dry-run only (count docs, no API calls)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: db-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require DATABASE_URL
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Add the DATABASE_URL repository secret (Neon owner URL) first."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install
+        run: npm ci
+
+      - name: Publish teaching corpus
+        if: ${{ inputs.publish_teaching }}
+        run: npm run publish:teaching -w @ibpe/database -- --retire-missing
+
+      - name: Apply curriculum migrations 059–061
+        if: ${{ inputs.curriculum_migrations }}
+        run: |
+          for f in migrations/059_diagrams_core.sql migrations/060_curriculum_lessons.sql migrations/061_interactive_diagrams.sql; do
+            echo "Applying $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          # 042's guard: fails if any app.* table lacks RLS, FORCE or a policy.
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f migrations/042_app_rls_role.sql
+
+      - name: Embed RAG documents
+        if: ${{ inputs.embed_rag || inputs.dry_run }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            npm run embed:rag -w @ibpe/database -- --dry-run
+          elif [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error::Add the OPENROUTER_API_KEY repository secret to embed."
+            exit 1
+          else
+            npm run embed:rag -w @ibpe/database
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          psql "$DATABASE_URL" -At -c "SELECT 'questions', count(*) FROM published.v_questions UNION ALL SELECT 'answers_with_rubric', count(*) FROM canonical.answers WHERE rubric_status = 'approved' UNION ALL SELECT 'diagrams', count(*) FROM canonical.diagrams UNION ALL SELECT 'question_diagrams', count(*) FROM canonical.question_diagrams UNION ALL SELECT 'modules', count(*) FROM canonical.learning_modules UNION ALL SELECT 'rag_documents', count(*) FROM canonical.rag_documents" || true
