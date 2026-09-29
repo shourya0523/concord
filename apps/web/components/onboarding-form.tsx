@@ -322,11 +322,7 @@ export function OnboardingForm({
                   >
                     <p className="font-medium">
                       {on ? (
-                        <Annotate
-                          type="underline"
-                          color="var(--lime)"
-                          padding={2}
-                        >
+                        <Annotate type="underline" padding={2}>
                           <span>{label}</span>
                         </Annotate>
                       ) : (

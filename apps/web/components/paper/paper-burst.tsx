@@ -3,7 +3,7 @@
 import * as React from "react"
 import rough from "roughjs"
 
-import { prefersReducedMotion, seedFrom } from "@/lib/mockups/motion"
+import { prefersReducedMotion, resolveCssColor, seedFrom } from "@/lib/mockups/motion"
 
 /**
  * Hand-drawn paper-burst (rough.js polygons scattering) — the milestone
@@ -28,7 +28,9 @@ export function PaperBurst({
     const rc = rough.svg(svg)
     const cx = 120
     const cy = 60
-    const colors = ["var(--streak)", "var(--milestone)", "var(--success)", "var(--stone)"]
+    const colors = ["var(--streak)", "var(--milestone)", "var(--success)", "var(--stone)"].map(
+      (c) => resolveCssColor(svg, c),
+    )
     for (let i = 0; i < 14; i++) {
       const seed = seedFrom(`${seedKey}-${i}`)
       const angle = (i / 14) * Math.PI * 2 + (seed % 10) / 14

@@ -32,7 +32,7 @@ export function WarrenCallout({
       </p>
       <div className="mt-1 text-sm leading-relaxed">
         {bracket ? (
-          <Annotate type="bracket" color="var(--graphite)" padding={3}>
+          <Annotate type="bracket" padding={4} block>
             {children}
           </Annotate>
         ) : (

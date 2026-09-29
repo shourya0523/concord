@@ -236,11 +236,7 @@ export function HeatInsightsIsland({
                     key={entry.topic}
                     className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-stone/60 py-2.5"
                   >
-                    <Annotate
-                      type="underline"
-                      color="var(--success)"
-                      padding={2}
-                    >
+                    <Annotate type="underline" padding={2}>
                       <span className="text-sm text-foreground">
                         {topicLabel(entry.topic)}
                       </span>
@@ -287,9 +283,9 @@ export function HeatInsightsIsland({
                     className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-stone/60 py-2.5"
                   >
                     <Annotate
-                      type="bracket"
+                      type="underline"
                       color="var(--graphite)"
-                      padding={3}
+                      padding={2}
                     >
                       <span className="text-sm text-foreground">
                         {topicLabel(entry.topic)} —{" "}

@@ -855,12 +855,6 @@ export function StudyClient({ voiceEnabled = false }: { voiceEnabled?: boolean }
               layer.kind === "text" && layer.annotate && revealed > layerIndex
                 ? layer.annotate
                 : undefined
-            const annotationColor =
-              annotation === "highlight"
-                ? "var(--success)"
-                : annotation === "underline"
-                  ? "var(--error-foreground)"
-                  : "var(--ink)"
             return (
               <li
                 key={`${layer.label}-${layerIndex}`}
@@ -889,7 +883,7 @@ export function StudyClient({ voiceEnabled = false }: { voiceEnabled?: boolean }
                     </Link>
                   )
                 ) : annotation ? (
-                  <Annotate type={annotation} color={annotationColor} padding={3}>
+                  <Annotate type={annotation}>
                     <span className="whitespace-pre-line">{layer.body}</span>
                   </Annotate>
                 ) : (

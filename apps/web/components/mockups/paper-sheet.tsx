@@ -11,11 +11,11 @@ type PaperSheetProps = {
   className?: string
   contentClassName?: string
   /**
-   * Decorative torn strips on top/bottom edges — never filters text.
-   * Default true for intentional paper moments (study/pack/score/module cards).
+   * Torn top/bottom edges (baked CSS mask). Default true for intentional paper
+   * moments (study/pack/score/module cards). Text is never filtered or masked.
    */
   torn?: boolean
-  /** Hero animated torn (score / milestone only). */
+  /** Hero animated tear (score / milestone only — 1–2 per screen). */
   hero?: boolean
   padding?: number
   stroke?: "ink" | "lime" | "graphite"
@@ -23,8 +23,9 @@ type PaperSheetProps = {
 }
 
 /**
- * Cream paper insert: rough.js border + optional torn edge chrome (DESIGN.md §2/§7).
- * Use for study cards, packs, score moments, module cards — not list rows.
+ * Paper insert (DESIGN.md §2/§7): a lighter sheet with grain + fibre texture,
+ * torn edges and a drop shadow that follows the tear, then a rough.js ink
+ * frame inset inside the tear. The decorative layers sit behind the content.
  */
 export function PaperSheet({
   seedKey,
@@ -37,41 +38,25 @@ export function PaperSheet({
   stroke = "ink",
   hatch = false,
 }: PaperSheetProps) {
-  const filter = hero ? "url(#torn-paper-hero)" : "url(#torn-paper-static)"
-
   return (
-    <div className={cn("relative", className)}>
-      {torn ? (
-        <>
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-3 top-0 z-20 h-4 bg-paper shadow-[0_1px_0_rgba(35,31,28,0.08)]"
-            style={{ filter }}
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-4 bottom-0 z-20 h-4 bg-paper shadow-[0_-1px_0_rgba(35,31,28,0.08)]"
-            style={{ filter }}
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute top-4 bottom-4 left-0 z-20 w-3 bg-paper/95"
-            style={{ filter }}
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute top-5 right-0 bottom-5 z-20 w-3 bg-paper/95"
-            style={{ filter }}
-          />
-        </>
-      ) : null}
+    <div className={cn("relative isolate", className)} data-paper-sheet={hero ? "hero" : "static"}>
+      <div aria-hidden className="paper-sheet-shadow pointer-events-none absolute inset-0 -z-10">
+        <div
+          className={cn(
+            "paper-sheet-surface absolute inset-0",
+            torn ? "paper-torn" : "rounded-[3px]",
+            hero && "paper-torn-hero",
+          )}
+        />
+      </div>
       <RoughFrame
         seedKey={seedKey}
-        padding={padding}
+        // Keep the ink frame inside the torn band so the tear stays visible.
+        padding={padding ?? (torn ? 22 : 10)}
         stroke={stroke}
         hatch={hatch}
-        contentClassName={contentClassName}
-        className="bg-paper text-ink"
+        contentClassName={cn(torn && "py-7 md:py-8", contentClassName)}
+        className="h-full bg-transparent text-ink"
       >
         {children}
       </RoughFrame>

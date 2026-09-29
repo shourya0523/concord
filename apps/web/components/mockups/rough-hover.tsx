@@ -1,19 +1,101 @@
 "use client"
 
 import * as React from "react"
-import { annotate } from "rough-notation"
+import rough from "roughjs"
 
 import { cn } from "@ibpe/ui/lib/utils"
-import { prefersReducedMotion } from "@/lib/mockups/motion"
+import { prefersReducedMotion, resolveCssColor, seedFrom } from "@/lib/mockups/motion"
 
-type Ann = ReturnType<typeof annotate>
+/**
+ * Lime hover box (DESIGN.md §7/§8) drawn in one fixed, body-level overlay.
+ *
+ * rough-notation inserts its SVG beside the target, so any `overflow-hidden`,
+ * `truncate` or scroll-clipped ancestor (heatmap viewport, truncated links)
+ * cut the box off. A single overlay is never clipped and never shifts layout.
+ */
+type HoverOptions = { padding: number; strokeWidth: number; duration: number }
 
-/** Lime stroke for line hover accents (DESIGN.md). */
-function limeHoverColor(): string {
-  if (typeof window === "undefined") return "#b8e046"
-  const raw = getComputedStyle(document.documentElement).getPropertyValue("--lime").trim()
-  if (!raw || raw.startsWith("oklch") || raw.startsWith("var")) return "#b8e046"
-  return raw
+let overlay: SVGSVGElement | null = null
+let activeTarget: HTMLElement | null = null
+let activeOptions: HoverOptions | null = null
+
+function getOverlay(): SVGSVGElement {
+  if (overlay && overlay.isConnected) return overlay
+  overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+  overlay.setAttribute("aria-hidden", "true")
+  overlay.dataset.roughHoverOverlay = ""
+  Object.assign(overlay.style, {
+    position: "fixed",
+    inset: "0",
+    width: "100vw",
+    height: "100vh",
+    pointerEvents: "none",
+    overflow: "visible",
+    zIndex: "60",
+  })
+  document.body.appendChild(overlay)
+  return overlay
+}
+
+function draw(target: HTMLElement, options: HoverOptions, animate: boolean) {
+  const svg = getOverlay()
+  while (svg.firstChild) svg.removeChild(svg.firstChild)
+  const box = target.getBoundingClientRect()
+  if (box.width < 2 || box.height < 2) return
+  const { padding } = options
+  const node = rough.svg(svg).rectangle(
+    box.left - padding,
+    box.top - padding,
+    box.width + padding * 2,
+    box.height + padding * 2,
+    {
+      // Stable per-target linework — no wobble between hovers.
+      seed: seedFrom(target.textContent?.slice(0, 64) || target.tagName),
+      roughness: 1.3,
+      bowing: 1,
+      stroke: resolveCssColor(target, "var(--lime)"),
+      strokeWidth: options.strokeWidth,
+      disableMultiStroke: true,
+    },
+  )
+  svg.appendChild(node)
+  if (!animate) return
+  node.querySelectorAll("path").forEach((path) => {
+    const length = path.getTotalLength()
+    path.style.strokeDasharray = `${length}`
+    path.style.strokeDashoffset = `${length}`
+    path.style.transition = `stroke-dashoffset ${options.duration}ms ease-out`
+    path.getBoundingClientRect()
+    path.style.strokeDashoffset = "0"
+  })
+}
+
+function follow() {
+  if (activeTarget && activeOptions) {
+    if (!activeTarget.isConnected) return hideHoverBox()
+    draw(activeTarget, activeOptions, false)
+  }
+}
+
+export function showHoverBox(target: HTMLElement, options: HoverOptions) {
+  if (activeTarget === target) return
+  const first = activeTarget === null
+  activeTarget = target
+  activeOptions = options
+  draw(target, options, !prefersReducedMotion())
+  if (first) {
+    window.addEventListener("scroll", follow, { capture: true, passive: true })
+    window.addEventListener("resize", follow, { passive: true })
+  }
+}
+
+export function hideHoverBox(target?: HTMLElement) {
+  if (target && target !== activeTarget) return
+  activeTarget = null
+  activeOptions = null
+  window.removeEventListener("scroll", follow, { capture: true })
+  window.removeEventListener("resize", follow)
+  if (overlay) while (overlay.firstChild) overlay.removeChild(overlay.firstChild)
 }
 
 /**
@@ -29,30 +111,15 @@ export function RoughHover({
   padding?: number
 }) {
   const ref = React.useRef<HTMLSpanElement>(null)
-  const ann = React.useRef<Ann | null>(null)
-
-  const clear = React.useCallback(() => {
-    ann.current?.remove()
-    ann.current = null
-  }, [])
 
   const show = React.useCallback(() => {
-    const el = ref.current
-    if (!el) return
-    clear()
-    const a = annotate(el, {
-      type: "box",
-      color: limeHoverColor(),
-      strokeWidth: 1.5,
-      padding,
-      animate: !prefersReducedMotion(),
-      animationDuration: prefersReducedMotion() ? 0 : 280,
-    })
-    ann.current = a
-    a.show()
-  }, [clear, padding])
+    if (ref.current) showHoverBox(ref.current, { padding, strokeWidth: 1.5, duration: 280 })
+  }, [padding])
+  const clear = React.useCallback(() => {
+    if (ref.current) hideHoverBox(ref.current)
+  }, [])
 
-  React.useEffect(() => () => clear(), [clear])
+  React.useEffect(() => clear, [clear])
 
   return (
     <span
@@ -69,7 +136,8 @@ export function RoughHover({
 }
 
 /**
- * Event-delegation: lime rough box around hovered buttons in a scope (heatmap cells).
+ * Event delegation: lime rough box around hovered controls in a scope
+ * (heatmap cells, button rows).
  */
 export function InkHoverScope({
   children,
@@ -81,47 +149,27 @@ export function InkHoverScope({
   selector?: string
 }) {
   const rootRef = React.useRef<HTMLDivElement>(null)
-  const ann = React.useRef<Ann | null>(null)
-  const active = React.useRef<Element | null>(null)
 
   React.useEffect(() => {
     const root = rootRef.current
     if (!root) return
-
-    const clear = () => {
-      ann.current?.remove()
-      ann.current = null
-      active.current = null
-    }
+    let active: HTMLElement | null = null
 
     const onOver = (e: Event) => {
       const t = e.target
       if (!(t instanceof Element)) return
-      const btn = t.closest(selector)
-      if (!btn || !root.contains(btn)) return
-      if (active.current === btn) return
-      clear()
-      active.current = btn
-      const a = annotate(btn as HTMLElement, {
-        type: "box",
-        color: limeHoverColor(),
-        strokeWidth: 1.4,
-        padding: 2,
-        animate: !prefersReducedMotion(),
-        animationDuration: prefersReducedMotion() ? 0 : 220,
-      })
-      ann.current = a
-      a.show()
+      const el = t.closest<HTMLElement>(selector)
+      if (!el || !root.contains(el) || el === active) return
+      active = el
+      showHoverBox(el, { padding: 2, strokeWidth: 1.4, duration: 220 })
     }
 
     const onOut = (e: Event) => {
-      const t = e.target
-      if (!(t instanceof Element)) return
-      const btn = t.closest(selector)
-      if (!btn || btn !== active.current) return
-      const related = (e as MouseEvent).relatedTarget
-      if (related instanceof Node && btn.contains(related)) return
-      clear()
+      if (!active) return
+      const related = (e as MouseEvent | FocusEvent).relatedTarget
+      if (related instanceof Node && active.contains(related)) return
+      hideHoverBox(active)
+      active = null
     }
 
     root.addEventListener("mouseover", onOver)
@@ -129,7 +177,7 @@ export function InkHoverScope({
     root.addEventListener("focusin", onOver)
     root.addEventListener("focusout", onOut)
     return () => {
-      clear()
+      if (active) hideHoverBox(active)
       root.removeEventListener("mouseover", onOver)
       root.removeEventListener("mouseout", onOut)
       root.removeEventListener("focusin", onOver)

@@ -514,6 +514,14 @@ annotate(element, { type: 'circle', animate: !prefersReducedMotion });
 }
 ```
 
+**As implemented (`PaperSheet`, `packages/ui/src/styles/globals.css`):**
+- Sheets use `--sheet` (#fcf9f1), one step lighter than the cream shell, so the tear reads against the shell; body carries a faint `--paper-grain`.
+- Layers back → front: `.paper-sheet-shadow` (drop-shadow following the tear) → `.paper-sheet-surface` (sheet fill + `--paper-fibre` + `--paper-grain`) masked by `.paper-torn` (baked seeded `--torn-top` / `--torn-bottom` SVG masks) → rough.js ink frame inset inside the tear → content. Text is never filtered or masked.
+- `hero` adds `.paper-torn-hero` (live `#torn-paper-hero` turbulence); reduced motion falls back to `#torn-paper-static`.
+- rough.js / rough-notation colours are resolved from `var(--token)` to concrete values before they reach SVG attributes (`resolveCssColor`).
+- `Annotate`: underline / highlight / strike-through follow each wrapped line; box / circle / bracket / crossed-off wrap the element once. Pass `block` when children are block-level.
+- Hover boxes (`RoughHover`, `InkHoverScope`) draw in one fixed body-level overlay so `overflow-hidden` / `truncate` ancestors can't clip them.
+
 **Binding constraint (performance):**
 - **Bake the effect into static pre-rendered assets** for routine, repeated cards (list items, drill cards). Use a **single shared filter with a fixed seed** applied via CSS.
 - **Reserve the live, dynamically recalculated filter** (`torn-paper-hero` with animated baseFrequency) for **one or two hero moments only** (e.g. final score reveal modal).

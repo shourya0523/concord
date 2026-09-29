@@ -756,7 +756,7 @@ export function ProgressIsland() {
                 </span>
                 <div className="flex-1">
                   {isCurrent ? (
-                    <Annotate type="circle" color="var(--ink)" padding={3}>
+                    <Annotate type="box" padding={3} block>
                       {cells}
                     </Annotate>
                   ) : (

@@ -13,25 +13,41 @@ type Props = {
 }
 
 /**
- * Ceremonial handwriting moment — readable display phrase + path underline draw.
- * Reserved for rare score / streak / welcome headlines (DESIGN.md).
+ * Ceremonial handwriting moment — readable display phrase + a hand-drawn
+ * stroke drawn on with Vivus (DESIGN.md §7). Reserved for rare score / streak
+ * / welcome headlines. Reduced motion shows the final state instantly.
  */
 export function HandwritingHeadline({ phrase, className, play = true }: Props) {
-  const pathRef = React.useRef<SVGPathElement>(null)
+  const svgRef = React.useRef<SVGSVGElement>(null)
 
   React.useEffect(() => {
-    const path = pathRef.current
-    if (!path) return
-    const length = path.getTotalLength()
-    path.style.strokeDasharray = String(length)
+    const svg = svgRef.current
+    if (!svg) return
     if (!play || prefersReducedMotion()) {
-      path.style.strokeDashoffset = "0"
+      svg.querySelectorAll("path").forEach((path) => {
+        path.style.strokeDasharray = ""
+        path.style.strokeDashoffset = ""
+      })
       return
     }
-    path.style.strokeDashoffset = String(length)
-    path.getBoundingClientRect()
-    path.style.transition = "stroke-dashoffset 1.4s var(--ease-calm, ease-out)"
-    path.style.strokeDashoffset = "0"
+
+    let cancelled = false
+    let vivus: { destroy: () => void } | null = null
+    // Vivus touches `window` — load it client-side only.
+    void import("vivus").then(({ default: Vivus }) => {
+      if (cancelled) return
+      // @types/vivus says HTMLElement; Vivus accepts an <svg> at runtime.
+      vivus = new Vivus(svg as unknown as HTMLElement, {
+        type: "oneByOne",
+        duration: 90,
+        start: "autostart",
+        animTimingFunction: Vivus.EASE_OUT,
+      })
+    })
+    return () => {
+      cancelled = true
+      vivus?.destroy()
+    }
   }, [phrase, play])
 
   return (
@@ -44,14 +60,21 @@ export function HandwritingHeadline({ phrase, className, play = true }: Props) {
       >
         {phrase}
       </p>
-      <svg viewBox="0 0 360 18" className="h-4 w-full max-w-md" aria-hidden>
+      <svg ref={svgRef} viewBox="0 0 360 22" className="h-5 w-full max-w-md" aria-hidden>
         <path
-          ref={pathRef}
-          d="M4 10 C 40 4, 80 16, 120 8 C 160 2, 200 14, 240 7 C 280 2, 320 12, 356 9"
+          d="M4 12 C 40 5, 80 18, 120 9 C 160 2, 200 16, 240 8 C 280 2, 320 14, 356 10"
           fill="none"
           stroke="var(--lime)"
           strokeWidth="2.5"
           strokeLinecap="round"
+        />
+        <path
+          d="M28 17 C 90 12, 170 19, 250 14 C 290 12, 318 15, 334 14"
+          fill="none"
+          stroke="var(--lime)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          opacity="0.7"
         />
       </svg>
     </div>
