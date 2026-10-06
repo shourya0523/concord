@@ -1563,3 +1563,22 @@ Nothing animates on page load except state-confirmed reactions. `prefers-reduced
 - Unit: `lib/career.test.ts`, `lib/data/streaks.test.ts` (run), `achievement-shelf.test.ts`, `weekly-recap.test.ts`, `leagues.test.ts` (tiers).
 - Opt-in Postgres: `lib/data/leagues.db.test.ts` (lazy settlement under RLS, via `scripts/dev/neon_http_shim.py`).
 - E2E: `apps/web/e2e/working-papers.spec.ts` (Playwright, stub mode) — `npm run build -w @ibpe/web && npm run e2e -w @ibpe/web`; runs in CI (`e2e` job).
+
+## 17. Landing — Paper Concorde
+
+`/` is the public landing (`app/page.tsx` → `components/landing/`). One long scroll stage (`h-[760svh]`, sticky 100svh viewport). A rAF scroll handler maps progress 0–1 to CSS custom properties (transforms + opacity only) and moves the fold's polygon vertices (`lib/landing/plane-geometry.ts`, unit tested).
+
+| Progress | Scene | Art |
+|---|---|---|
+| 0–0.07 | Hero | Desk: index card ("Walk me through a DCF."), card stack + paperclip, sticky note, ledger corner, loose question cards, coffee ring, pencil |
+| 0.07–0.24 | Fold | The card folds into a paper Concorde; desk items drift |
+| 0.24–0.4 | Takeoff | Desk drops away, dawn sky, torn-paper sun, paper-cut skyline with lit windows, "Concord" title card |
+| 0.34–0.76 | Clouds | Torn-paper clouds at two depths, ink birds; product cards: Firm intel (manila heat map), graded answer (index card + red-pen stamp), drill set (ledger) |
+| 0.7–0.88 | Cruise | Night: stars, cratered paper moon, pencil constellations (the bull, the bear), shooting star, moonlit torn-paper cloud deck, Earth curve with city lights, distant paper planes, contrail, "Today's set" luggage tag (8 cards ≈ 12 min, matching `DEFAULT_SET_SIZE` × `MINUTES_PER_CARD`), tally scrap |
+| 0.88–1 | Land | Dusk, the skyline comes back up; boarding pass section is the sign-up (stub tears, then `/sign-up`) |
+
+- **Copy** follows the owner's voice: plain statements, no slogans or em-dashes. Hero: "CS has LeetCode. You have Concord." + "Interview prep for investment banking and private equity."
+- **CTA**: "Start prepping" → `/sign-up` in the fixed header (always visible), the hero, and the boarding-pass stub. "Sign in" in the header and under the pass.
+- **Reduced motion**: same scenes as still frames, no stage.
+- **Phones**: the plane flies higher during the product cards, which sit at the bottom.
+- e2e: `apps/web/e2e/landing.spec.ts`.
