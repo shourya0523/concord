@@ -1,5 +1,5 @@
 import { handleRouteError, jsonError, jsonOk } from "@/lib/api/http";
-import { refreshLeagueXp } from "@/lib/data/leagues";
+import { isMissingColumn, refreshLeagueXp, settleLeagueWeeks } from "@/lib/data/leagues";
 import { featureFlags } from "@/lib/flags";
 import { appBaseUrl, isAuthorizedCron } from "@/lib/notify/config";
 import { getCronSql, roleBypassesRls } from "@/lib/notify/db";
@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /**
- * GET /api/cron/notify — hourly reminder run (plan P6.4) + league XP refresh.
+ * GET /api/cron/notify — hourly reminder run (plan P6.4) + league XP refresh
+ * and settlement of finished league weeks (tiers, migration 063).
  *
  * Guarded by `Authorization: Bearer ${CRON_SECRET}` (Vercel sends it for
  * crons in apps/web/vercel.json). Spans users, so it uses the cron/owner
@@ -77,6 +78,7 @@ export async function GET(request: Request) {
     }
 
     let leagueRowsUpdated: number | null = null;
+    let leagueRowsSettled: number | null = null;
     if (flags.leagues && !dryRun) {
       try {
         leagueRowsUpdated = await refreshLeagueXp(sql, now);
@@ -84,14 +86,25 @@ export async function GET(request: Request) {
         console.warn("[cron/notify] league XP refresh failed", err);
         notes.push("League XP refresh failed.");
       }
+      // After the refresh, so finished weeks rank on final XP.
+      try {
+        leagueRowsSettled = await settleLeagueWeeks(sql, now);
+      } catch (err) {
+        if (isMissingColumn(err)) {
+          notes.push("League tiers off: apply migration 063 to settle weeks.");
+        } else {
+          console.warn("[cron/notify] league settlement failed", err);
+          notes.push("League settlement failed.");
+        }
+      }
     }
 
-    console.info("[cron/notify]", JSON.stringify({ notify, leagueRowsUpdated, rlsBypass }));
+    console.info("[cron/notify]", JSON.stringify({ notify, leagueRowsUpdated, leagueRowsSettled, rlsBypass }));
     return jsonOk({
       ok: true,
       rls_bypass: rlsBypass,
       notify,
-      leagues: { xp_rows_updated: leagueRowsUpdated },
+      leagues: { xp_rows_updated: leagueRowsUpdated, rows_settled: leagueRowsSettled },
       notes,
     });
   } catch (err) {

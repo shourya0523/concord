@@ -3,7 +3,7 @@
 import * as React from "react"
 import rough from "roughjs"
 
-import { prefersReducedMotion, seedFrom } from "@/lib/mockups/motion"
+import { prefersReducedMotion, resolveCssColor, seedFrom } from "@/lib/mockups/motion"
 
 const REVEAL_MS = 420
 const STAGGER_MS = 80
@@ -57,6 +57,7 @@ export function RoughHeatBorders({
       const reduce = prefersReducedMotion()
 
       const rc = rough.svg(overlay)
+      const ink = resolveCssColor(host, "var(--ink)")
       const buttons = host.querySelectorAll<HTMLElement>(
         '[data-slot="topic-heatmap"] tbody button',
       )
@@ -80,9 +81,8 @@ export function RoughHeatBorders({
           seed: seedFrom(`${seedKey}-cell-${index}`),
           roughness: 1.1,
           bowing: 0.7,
-          stroke: "var(--ink)",
+          stroke: ink,
           strokeWidth: 1.05,
-          fill: "transparent",
         }) as SVGElement
         if (animateReveal && !reduce && firmCount > 0) {
           const firmIndex = index % firmCount

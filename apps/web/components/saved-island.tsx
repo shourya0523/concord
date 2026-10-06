@@ -525,7 +525,7 @@ export function SavedIsland() {
           <ul className="space-y-3">
             {filteredNotes.map((note) => (
               <li key={note.id}>
-                <PaperSheet seedKey={`note-${note.id}`}>
+                <PaperSheet seedKey={`note-${note.id}`} stock="index">
                   {editingNoteId === note.id ? (
                     <div className="space-y-2">
                       <textarea
@@ -608,7 +608,7 @@ export function SavedIsland() {
           <ul className="grid gap-3 md:grid-cols-2">
             {filteredCollections.map((collection) => (
               <li key={collection.id}>
-                <PaperSheet seedKey={`collection-${collection.id}`}>
+                <PaperSheet seedKey={`collection-${collection.id}`} stock="manila">
                   <p className="font-medium">{collection.title}</p>
                   {collection.description ? (
                     <p className="mt-1 text-sm text-muted-foreground">{collection.description}</p>

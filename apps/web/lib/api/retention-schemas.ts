@@ -113,6 +113,8 @@ export const TodayResponseSchema = z.object({
     at_risk: z.boolean(),
     /** A freeze was spent on yesterday during this read. */
     freeze_used_yesterday: z.boolean(),
+    /** Current run as tally marks, oldest first (goal = ink, freeze = pencil). */
+    run: z.array(z.enum(["goal", "freeze"])).optional(),
   }),
   xp: z.object({
     total: z.number().int().nonnegative(),
@@ -120,6 +122,10 @@ export const TodayResponseSchema = z.object({
     level: z.number().int().positive(),
     level_floor: z.number().int().nonnegative(),
     next_level_at: z.number().int().positive(),
+    /** Career-ladder title for the level (business card). */
+    title: z.string().optional(),
+    next_title: z.string().optional(),
+    track: z.enum(["IB", "PE"]).optional(),
   }),
   daily_set: z.object({
     goal: z.number().int().positive(),
@@ -169,9 +175,17 @@ export const PlacementActionResponseSchema = z.object({
 export const AchievementRowSchema = AchievementEarnedSchema.extend({
   earned_at: z.string().nullable(),
 })
+export const LockedAchievementSchema = AchievementEarnedSchema.extend({
+  /** 0–1 toward unlocking; null when there's no meaningful measure. */
+  progress: z.number().min(0).nullable().optional(),
+  progress_label: z.string().nullable().optional(),
+})
+
 export const AchievementsResponseSchema = z.object({
   earned: z.array(AchievementRowSchema),
-  locked: z.array(AchievementEarnedSchema),
+  locked: z.array(LockedAchievementSchema),
+  /** Earned by this read (readiness / concept milestones evaluated on load). */
+  newly_earned: z.array(AchievementEarnedSchema).optional(),
   source: RetentionSourceSchema,
 })
 export type AchievementsResponse = z.infer<typeof AchievementsResponseSchema>

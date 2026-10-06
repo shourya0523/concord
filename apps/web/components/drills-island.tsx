@@ -14,7 +14,7 @@ import { MetadataPill } from "@ibpe/ui/components/editorial"
 import { cn } from "@ibpe/ui/lib/utils"
 
 import { DrillCard } from "@/components/drill-card"
-import { SemanticPill, WarrenCallout } from "@/components/paper"
+import { CircledNumber, PaperSheet, SemanticPill, WarrenCallout } from "@/components/paper"
 import type {
   DrillAttemptResponse,
   DrillNextResponse,
@@ -81,6 +81,49 @@ function readInitialMode(): Mode | null {
   return null
 }
 
+/** Drills per session sheet. */
+const DRILL_SET = 5
+
+function DrillSessionSummary({
+  summary,
+  onContinue,
+}: {
+  summary: { correct: number; xp: number; total: number }
+  onContinue: () => void
+}) {
+  const accuracy = Math.round((summary.correct / summary.total) * 100)
+  return (
+    <PaperSheet seedKey={`drill-summary-${summary.correct}-${summary.xp}`} contentClassName="space-y-4">
+      <div data-testid="drill-session-summary" className="space-y-4">
+        <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+          Session sheet · {summary.total} drills
+        </p>
+        <div className="flex flex-wrap items-end gap-6">
+          <CircledNumber value={`${accuracy}%`} label="accuracy" size="sm" />
+          <p className="text-sm text-muted-foreground tabular-nums">
+            {summary.correct} of {summary.total} exact · <span className="text-streak-foreground">+{summary.xp} XP</span>
+          </p>
+        </div>
+        <p className="text-sm leading-relaxed">
+          {accuracy >= 80
+            ? "Clean set. Lock it in with the next module checkpoint, or take five more."
+            : "Re-read the worked solutions you missed, then take five more on the same template."}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={onContinue}>
+            Another five
+          </Button>
+          <Link href="/learn">
+            <Button type="button" variant="outline">
+              Next module checkpoint
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </PaperSheet>
+  )
+}
+
 export function DrillsIsland() {
   const [phase, setPhase] = React.useState<Phase>("loading")
   const [templates, setTemplates] = React.useState<DrillTemplateSummary[]>([])
@@ -88,7 +131,8 @@ export function DrillsIsland() {
   const [drill, setDrill] = React.useState<DrillInstance | null>(null)
   const [drillNote, setDrillNote] = React.useState<string | null>(null)
   const [loadingDrill, setLoadingDrill] = React.useState(false)
-  const [session, setSession] = React.useState({ attempts: 0, correct: 0 })
+  const [session, setSession] = React.useState({ attempts: 0, correct: 0, setCorrect: 0, setXp: 0 })
+  const [summary, setSummary] = React.useState<{ correct: number; xp: number; total: number } | null>(null)
   const runnerRef = React.useRef<HTMLDivElement>(null)
 
   const loadDrill = React.useCallback(async (next: Mode) => {
@@ -145,7 +189,18 @@ export function DrillsIsland() {
   }, [loadDrill])
 
   const onGraded = React.useCallback((result: DrillAttemptResponse) => {
-    setSession((s) => ({ attempts: s.attempts + 1, correct: s.correct + (result.correct ? 1 : 0) }))
+    setSession((s) => {
+      const attempts = s.attempts + 1
+      const correct = s.correct + (result.correct ? 1 : 0)
+      const setCorrect = s.setCorrect + (result.correct ? 1 : 0)
+      const setXp = s.setXp + (result.activity?.xp_awarded ?? 0)
+      // Every DRILL_SET drills close on a summary sheet (DESIGN.md §16 ceremony budget).
+      if (attempts % DRILL_SET === 0) {
+        setSummary({ correct: setCorrect, xp: setXp, total: DRILL_SET })
+        return { attempts, correct, setCorrect: 0, setXp: 0 }
+      }
+      return { attempts, correct, setCorrect, setXp }
+    })
     const templateId = result.drill_id.split(":")[1]
     setTemplates((items) =>
       items.map((t) =>
@@ -263,14 +318,24 @@ export function DrillsIsland() {
           {drillNote ? <span className="text-xs text-muted-foreground">{drillNote}</span> : null}
         </div>
 
-        {drill ? (
+        {summary ? (
+          <DrillSessionSummary
+            summary={summary}
+            onContinue={() => {
+              setSummary(null)
+              void loadDrill(mode ?? (drill ? { kind: "template", id: drill.template_id } : { kind: "mixed" }))
+            }}
+          />
+        ) : null}
+
+        {drill && !summary ? (
           <DrillCard
             key={drill.id}
             drill={drill}
             onGraded={onGraded}
             onNext={() => void loadDrill(mode ?? { kind: "template", id: drill.template_id })}
           />
-        ) : (
+        ) : summary ? null : (
           <WarrenCallout>
             Pick a drill and press <strong>Start</strong>. Each one is freshly generated with banker-style
             numbers, checked exactly, and followed by the worked solution. Mental math first — then check.

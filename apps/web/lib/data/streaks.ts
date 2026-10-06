@@ -157,3 +157,34 @@ export function streakFromGoalDates(dates: Iterable<string>, today: string): num
   }
   return streak
 }
+
+export type StreakDay = { date: string; goal_met: boolean; freeze_used: boolean }
+export type StreakMark = "goal" | "freeze"
+
+/** Longest run the tally calendar draws; older days collapse into a count. */
+export const STREAK_RUN_CAP = 60
+
+/**
+ * The current run as tally marks, oldest first: one "goal" mark per goal-met
+ * day and one "freeze" mark per day a freeze covered. Walks back from the
+ * latest covered day (today or yesterday) until a day is neither. Freeze marks
+ * keep the run alive but don't add to `current`.
+ */
+export function streakRunFrom(days: Iterable<StreakDay>, today: string, cap = STREAK_RUN_CAP): StreakMark[] {
+  const byDate = new Map<string, StreakDay>()
+  for (const day of days) byDate.set(day.date, day)
+  const covered = (date: string) => {
+    const day = byDate.get(date)
+    return Boolean(day && (day.goal_met || day.freeze_used))
+  }
+  let cursor = covered(today) ? today : addDays(today, -1)
+  const marks: StreakMark[] = []
+  while (covered(cursor) && marks.length < cap) {
+    const day = byDate.get(cursor)!
+    marks.push(day.goal_met ? "goal" : "freeze")
+    cursor = addDays(cursor, -1)
+  }
+  // A run can't start on a freeze: freezes only bridge between goal days.
+  while (marks.length > 0 && marks[marks.length - 1] === "freeze") marks.pop()
+  return marks.reverse()
+}

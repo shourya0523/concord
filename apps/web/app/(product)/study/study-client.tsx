@@ -18,7 +18,6 @@ import {
   HeatStrip,
   InkHoverScope,
   NotionCallout,
-  PaperBurst,
   PaperSheet,
   ProvenanceChip,
   RoughHover,
@@ -855,12 +854,6 @@ export function StudyClient({ voiceEnabled = false }: { voiceEnabled?: boolean }
               layer.kind === "text" && layer.annotate && revealed > layerIndex
                 ? layer.annotate
                 : undefined
-            const annotationColor =
-              annotation === "highlight"
-                ? "var(--success)"
-                : annotation === "underline"
-                  ? "var(--error-foreground)"
-                  : "var(--ink)"
             return (
               <li
                 key={`${layer.label}-${layerIndex}`}
@@ -889,7 +882,7 @@ export function StudyClient({ voiceEnabled = false }: { voiceEnabled?: boolean }
                     </Link>
                   )
                 ) : annotation ? (
-                  <Annotate type={annotation} color={annotationColor} padding={3}>
+                  <Annotate type={annotation}>
                     <span className="whitespace-pre-line">{layer.body}</span>
                   </Annotate>
                 ) : (
@@ -986,7 +979,6 @@ export function StudyClient({ voiceEnabled = false }: { voiceEnabled?: boolean }
         {sessionComplete ? (
           <PaperSheet seedKey={`study-close-${detail?.question.id}`}>
             <div className="flex flex-wrap items-center gap-5">
-              <PaperBurst play seedKey={`burst-${detail?.question.id}`} />
               <div className="min-w-0 flex-1">
                 <p className="font-medium">Session close</p>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">

@@ -15,7 +15,7 @@ import * as React from "react"
 
 import type { ActivityResult } from "@ibpe/contracts"
 import type { AttemptGradeResponse } from "@/lib/api/schemas"
-import { PaperBurst, SemanticPill } from "@/components/paper"
+import { ActivityReward, SemanticPill } from "@/components/paper"
 import { topicLabel } from "@/lib/topics"
 import { cn } from "@ibpe/ui/lib/utils"
 
@@ -332,8 +332,8 @@ function FollowUpBlock({
 }
 
 /**
- * Small inline pills for streak / XP / achievements after a graded action.
- * Plays the PaperBurst celebration when an achievement was earned.
+ * Rewards after a graded action — delegates to the paper kit's ceremony
+ * budget (`ActivityReward`). Kept under this name for existing call sites.
  */
 export function ActivityPills({
   activity,
@@ -344,45 +344,7 @@ export function ActivityPills({
   seedKey: string
   className?: string
 }) {
-  const achievements = activity.achievements_earned ?? []
-  const xp = activity.xp_awarded ?? 0
-  const streak = activity.streak
-  const daily = activity.daily_set
-  if (xp <= 0 && !streak && !daily && achievements.length === 0) return null
-  return (
-    <div
-      className={cn("relative flex flex-wrap items-center gap-2", className)}
-      aria-label="Progress this attempt"
-    >
-      {xp > 0 ? (
-        <SemanticPill tone="milestone" icon={false}>
-          +{xp} XP{activity.xp_total != null ? ` · ${activity.xp_total} total` : ""}
-        </SemanticPill>
-      ) : null}
-      {streak && streak.current > 0 ? (
-        <SemanticPill tone="streak">
-          {streak.current}-day streak{streak.goal_met_today ? " · goal met" : ""}
-        </SemanticPill>
-      ) : null}
-      {daily ? (
-        <SemanticPill tone={daily.completed >= daily.goal ? "success" : "neutral"} icon={false}>
-          Today {Math.min(daily.completed, daily.goal)}/{daily.goal}
-        </SemanticPill>
-      ) : null}
-      {achievements.map((achievement) => (
-        <SemanticPill key={achievement.id} tone="milestone">
-          {achievement.title}
-        </SemanticPill>
-      ))}
-      {achievements.length > 0 ? (
-        <PaperBurst
-          play
-          seedKey={`${seedKey}-${achievements.map((a) => a.id).join("-")}`}
-          className="pointer-events-none absolute -top-12 right-0 opacity-80"
-        />
-      ) : null}
-    </div>
-  )
+  return <ActivityReward activity={activity} seedKey={seedKey} className={className} />
 }
 
 function formatNumber(value: number): string {

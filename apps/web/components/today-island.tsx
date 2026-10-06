@@ -3,27 +3,31 @@
 /**
  * Today — post-login home (plan 2026-09-23-001 P4.4). Readiness is the hero
  * (KD-7); streak, freezes and XP sit beside it; the daily set launches in-page.
- * Numbers render statically (calm rule); PaperBurst fires only on a
- * state-confirmed goal or milestone.
+ * Numbers render statically (calm rule). Rewards follow the ceremony budget
+ * (DESIGN.md §16): the FILED stamp and tally mark fire only on a confirmed goal.
  */
 import * as React from "react"
 import Link from "next/link"
-import { Snowflake } from "lucide-react"
 
 import type { ActivityResult } from "@ibpe/contracts"
 import { Button } from "@ibpe/ui/components/button"
 
 import { DailySetPlayer } from "@/components/daily-set-player"
 import {
+  BusinessCard,
   CircledNumber,
+  FiledStamp,
   HeatStrip,
-  PaperBurst,
   PaperSheet,
   SemanticPill,
+  TallyCalendar,
+  Tombstone,
   Warren,
   WarrenCallout,
 } from "@/components/paper"
 import { readStoredTargets } from "@/components/target-select-island"
+import { tombstoneFace } from "@/lib/achievements"
+import { careerCard } from "@/lib/career"
 import type {
   DailySet,
   DailySetResponse,
@@ -188,6 +192,16 @@ export function TodayIsland({ gamification = true }: { gamification?: boolean })
     ? { ...today.streak, current: lastActivity.streak.current, freezes: lastActivity.streak.freezes, goal_met_today: lastActivity.streak.goal_met_today }
     : today.streak
   const xpTotal = lastActivity?.xp_total ?? today.xp.total
+  const card = careerCard(xpTotal, today.xp.track ?? "IB")
+  // A goal met during this visit adds today's mark to the run without a reload.
+  const metThisVisit = Boolean(lastActivity?.goal_met_now) && !today.streak.goal_met_today
+  const run = today.streak.run ?? []
+  const tallyRun = metThisVisit ? [...run, "goal" as const] : run
+  const monthLabel = new Date(`${today.local_date}T12:00:00Z`).toLocaleDateString(undefined, {
+    month: "long",
+    timeZone: "UTC",
+  })
+  const newAchievements = [...today.achievements_earned, ...(lastActivity?.achievements_earned ?? [])]
 
   return (
     <div className="space-y-10">
@@ -255,19 +269,17 @@ export function TodayIsland({ gamification = true }: { gamification?: boolean })
             ) : null}
 
             <section className="relative space-y-4 border border-ink/20 bg-streak/10 px-4 py-5" aria-label="Daily set">
-              <PaperBurst
-                play={celebrate && streak.goal_met_today}
-                seedKey={`today-goal-${today.local_date}`}
-                className="pointer-events-none absolute right-2 top-0"
-              />
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
                     Today&apos;s set · {total} cards · ~{minutes} min
                   </p>
-                  <p className="mt-1 font-display text-2xl tracking-tight">
+                  <div className="mt-1 flex flex-wrap items-center gap-4 font-display text-2xl tracking-tight">
                     {setComplete ? "Set complete" : `${done} of ${total || goal} done`}
-                  </p>
+                    {streak.goal_met_today ? (
+                      <FiledStamp localDate={today.local_date} play={celebrate && metThisVisit} />
+                    ) : null}
+                  </div>
                 </div>
                 {total > 0 ? (
                   <Button
@@ -327,48 +339,51 @@ export function TodayIsland({ gamification = true }: { gamification?: boolean })
             </WarrenCallout>
 
             {gamification ? (
-              <section className="flex flex-wrap items-center gap-4 border border-ink/20 bg-streak/10 px-4 py-3" aria-label="Streak">
-                <CircledNumber value={String(streak.current)} label="day streak" size="sm" />
-                <div className="space-y-1.5">
-                  <SemanticPill tone="streak">
-                    {streak.goal_met_today ? "goal met today" : streak.current > 0 ? "keep it going" : "start a streak"}
-                  </SemanticPill>
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Snowflake className="size-3.5" aria-hidden />
-                    {streak.freezes} freeze{streak.freezes === 1 ? "" : "s"} banked · best {Math.max(streak.longest, streak.current)}
-                  </p>
-                  {today.streak.freeze_used_yesterday ? (
-                    <p className="text-xs text-muted-foreground">A freeze covered yesterday — streak safe.</p>
-                  ) : null}
-                </div>
-              </section>
+              <TallyCalendar
+                current={streak.current}
+                longest={streak.longest}
+                freezes={streak.freezes}
+                run={tallyRun}
+                goalMetToday={streak.goal_met_today}
+                drawLatest={metThisVisit}
+                freezeJustEarned={Boolean(lastActivity?.freeze_earned)}
+                monthLabel={monthLabel}
+              />
+            ) : null}
+            {gamification && today.streak.freeze_used_yesterday ? (
+              <p className="text-xs text-muted-foreground">A freeze covered yesterday. It&apos;s drawn in pencil.</p>
             ) : null}
 
             {gamification ? (
-              <section className="space-y-1 border border-border px-4 py-3" aria-label="Experience">
-                <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-                  Level {today.xp.level}
-                </p>
-                <p className="text-sm">
-                  <span className="font-display text-2xl tracking-tight tabular-nums">{xpTotal}</span> XP
-                  <span className="text-muted-foreground"> · next level at {today.xp.next_level_at}</span>
-                </p>
-                <p className="text-xs text-muted-foreground">XP rewards graded quality, not volume.</p>
-              </section>
+              <BusinessCard
+                title={card.title}
+                nextTitle={card.next_title}
+                level={card.level}
+                track={card.track}
+                xp={card.xp}
+                floor={card.floor}
+                next={card.next}
+              />
             ) : null}
 
-            {today.achievements_earned.length > 0 || (lastActivity?.achievements_earned.length ?? 0) > 0 ? (
-              <section className="space-y-2" aria-label="New milestones">
+            {newAchievements.length > 0 ? (
+              <section className="space-y-2" aria-label="New on the shelf">
                 <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-                  New milestones
+                  New on the shelf
                 </p>
-                <ul className="flex flex-wrap gap-2">
-                  {[...today.achievements_earned, ...(lastActivity?.achievements_earned ?? [])].map((a) => (
-                    <li key={a.id}>
-                      <SemanticPill tone="success">{a.title}</SemanticPill>
-                    </li>
-                  ))}
+                <ul className="grid grid-cols-2 gap-3">
+                  {newAchievements.map((a) => {
+                    const face = tombstoneFace(a)
+                    return (
+                      <li key={a.id}>
+                        <Tombstone id={a.id} face={face.face} what={face.what} compact place earnedAt={new Date().toISOString()} />
+                      </li>
+                    )
+                  })}
                 </ul>
+                <Link href="/achievements" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
+                  See the shelf →
+                </Link>
               </section>
             ) : null}
 

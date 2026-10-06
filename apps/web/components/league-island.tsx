@@ -7,7 +7,7 @@ import { Button } from "@ibpe/ui/components/button"
 import { Input } from "@ibpe/ui/components/input"
 import { Label } from "@ibpe/ui/components/label"
 
-import { PaperSheet, SemanticPill, WarrenCallout } from "@/components/paper"
+import { Annotate, PaperSheet, SemanticPill, WarrenCallout } from "@/components/paper"
 
 /**
  * /leagues — opt-in weekly XP league (plan P7.3). Standings show anonymous
@@ -32,6 +32,109 @@ type League = {
   copy: string
   source: string
   note?: string
+  tier?: { index: number; name: string }
+  tiers?: string[]
+  last_week?: {
+    week_start: string
+    tier: number
+    tier_name: string
+    result: "promoted" | "held" | "demoted"
+    next_tier: number
+    next_tier_name: string
+    rank: number
+    size: number
+    standings: Standing[]
+  } | null
+}
+
+const RESULT_COPY: Record<NonNullable<League["last_week"]>["result"], (lw: NonNullable<League["last_week"]>) => string> = {
+  promoted: (lw) => `Promoted to ${lw.next_tier_name}.`,
+  held: (lw) =>
+    lw.tier === 3 && lw.rank === 1 ? `Held the top table.` : `Held ${lw.tier_name}.`,
+  demoted: (lw) => `Moved down to ${lw.next_tier_name}. One good week brings you back.`,
+}
+
+const SEEN_KEY = "concord.league.result-seen"
+
+/** The settled week as a league table with your row circled (DESIGN.md §16). */
+function WeeklyResult({ lastWeek }: { lastWeek: NonNullable<League["last_week"]> }) {
+  // Hero tear + circle draw only the first time this week's result is seen.
+  // Client-only (rendered after the league fetch), so reading storage here is safe.
+  const [first] = React.useState(() => {
+    try {
+      return window.localStorage.getItem(SEEN_KEY) !== lastWeek.week_start
+    } catch {
+      return false // storage blocked: show the calm version
+    }
+  })
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(SEEN_KEY, lastWeek.week_start)
+    } catch {
+      // ignore
+    }
+  }, [lastWeek.week_start])
+  const you = lastWeek.standings.find((row) => row.is_you)
+  const window5 = lastWeek.standings.filter((row) => Math.abs(row.rank - lastWeek.rank) <= 3).slice(0, 7)
+  return (
+    <PaperSheet seedKey={`league-result-${lastWeek.week_start}`} hero={first} contentClassName="space-y-4">
+      <div data-testid="league-result" className="space-y-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="font-display text-2xl tracking-tight">{lastWeek.tier_name}</h2>
+          <span className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+            League table · week of {formatDay(lastWeek.week_start)}
+          </span>
+        </div>
+        <table className="w-full border-collapse text-sm tabular-nums">
+          <thead>
+            <tr className="border-b border-ink text-left font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+              <th className="py-1.5 pr-3 font-medium">Rank</th>
+              <th className="py-1.5 pr-3 font-medium">Desk</th>
+              <th className="py-1.5 text-right font-medium">XP</th>
+            </tr>
+          </thead>
+          <tbody>
+            {window5.map((row) => (
+              <tr key={`${row.handle}-${row.rank}`} className="border-b border-stone/70">
+                <td className="py-1.5 pr-3">
+                  {row.is_you ? (
+                    <Annotate type="circle" padding={5} show>
+                      <span>{row.rank}</span>
+                    </Annotate>
+                  ) : (
+                    row.rank
+                  )}
+                </td>
+                <td className={row.is_you ? "py-1.5 pr-3 font-semibold" : "py-1.5 pr-3"}>
+                  {row.is_you ? "You" : row.handle}
+                </td>
+                <td className="py-1.5 text-right">{row.xp}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="text-sm">
+          #{lastWeek.rank} of {lastWeek.size}
+          {you ? ` · ${you.xp} XP` : ""}. {RESULT_COPY[lastWeek.result](lastWeek)}
+        </p>
+      </div>
+    </PaperSheet>
+  )
+}
+
+function TierLadder({ tiers, current }: { tiers: string[]; current: number }) {
+  return (
+    <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] text-muted-foreground" aria-label="League tiers">
+      {tiers.map((name, index) => (
+        <li key={name} className="flex items-center gap-2">
+          <span className={index === current ? "font-medium text-ink underline decoration-streak decoration-[3px] underline-offset-4" : undefined}>
+            {name}
+          </span>
+          {index < tiers.length - 1 ? <span aria-hidden>→</span> : null}
+        </li>
+      ))}
+    </ol>
+  )
 }
 
 type Phase = "loading" | "ready" | "unauthenticated" | "disabled" | "error"
@@ -173,6 +276,15 @@ export function LeagueIsland() {
 
   return (
     <div className="space-y-6">
+      {league.last_week ? <WeeklyResult lastWeek={league.last_week} /> : null}
+      {league.tier && league.tiers ? (
+        <div className="space-y-1">
+          <h2 className="font-display text-3xl tracking-tight" data-testid="league-tier">
+            {league.tier.name}
+          </h2>
+          <TierLadder tiers={league.tiers} current={league.tier.index} />
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
@@ -219,7 +331,10 @@ export function LeagueIsland() {
 
       <p className="text-xs text-muted-foreground">
         XP comes from your daily sets (Progress) and updates hourly. Week resets Monday (
-        {league.time_zone}). Promotion and demotion are bragging rights for now — no tiers yet.
+        {league.time_zone}).{" "}
+        {league.tier
+          ? "When the week closes, the top 20% move up a table and the bottom 20% move down."
+          : "Promotion and demotion are bragging rights for now."}
       </p>
 
       <details className="space-y-3 border border-dashed border-border px-4 py-3">

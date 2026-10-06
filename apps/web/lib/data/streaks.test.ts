@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { describe, it } from "node:test"
+import test, { describe, it } from "node:test"
 
 import { localDate } from "@/lib/local-day"
 import {
@@ -7,6 +7,7 @@ import {
   applyGoalMet,
   rolloverStreak,
   streakFromGoalDates,
+  streakRunFrom,
   viewStreak,
   type StreakState,
 } from "./streaks"
@@ -178,4 +179,32 @@ describe("streakFromGoalDates", () => {
     assert.equal(streakFromGoalDates(["2026-09-20"], "2026-09-23"), 0)
     assert.equal(streakFromGoalDates([], "2026-09-23"), 0)
   })
+})
+
+test("streakRunFrom draws goal and freeze marks oldest first", () => {
+  const days = [
+    { date: "2026-10-01", goal_met: true, freeze_used: false },
+    { date: "2026-10-02", goal_met: false, freeze_used: true },
+    { date: "2026-10-03", goal_met: true, freeze_used: false },
+    { date: "2026-10-04", goal_met: true, freeze_used: false },
+  ]
+  assert.deepEqual(streakRunFrom(days, "2026-10-04"), ["goal", "freeze", "goal", "goal"])
+  // Today still open: the run ends yesterday.
+  assert.deepEqual(streakRunFrom(days, "2026-10-05"), ["goal", "freeze", "goal", "goal"])
+  // A gap breaks the run.
+  assert.deepEqual(streakRunFrom(days, "2026-10-07"), [])
+})
+
+test("streakRunFrom never starts a run on a freeze and respects the cap", () => {
+  const days = [
+    { date: "2026-10-01", goal_met: false, freeze_used: true },
+    { date: "2026-10-02", goal_met: true, freeze_used: false },
+  ]
+  assert.deepEqual(streakRunFrom(days, "2026-10-02"), ["goal"])
+  const long = Array.from({ length: 80 }, (_, i) => ({
+    date: new Date(Date.UTC(2026, 6, 1 + i)).toISOString().slice(0, 10),
+    goal_met: true,
+    freeze_used: false,
+  }))
+  assert.equal(streakRunFrom(long, long[79]!.date).length, 60)
 })

@@ -14,7 +14,7 @@ import { cn } from "@ibpe/ui/lib/utils"
 
 import { DrillCard } from "@/components/drill-card"
 import { GradeFeedbackCard } from "@/components/grade-feedback-card"
-import { PaperBurst, PaperSheet, SemanticPill, WarrenCallout } from "@/components/paper"
+import { ActivityReward, FiledStamp, Paperclip, PaperSheet, SemanticPill, WarrenCallout } from "@/components/paper"
 import type {
   DailySet,
   DailySetActionResponse,
@@ -113,7 +113,7 @@ export function AnswerCard({
   }
 
   return (
-    <PaperSheet seedKey={`answer-${questionId}`}>
+    <PaperSheet seedKey={`answer-${questionId}`} stock="index">
       {header}
       <p className="mt-2 font-display text-2xl leading-snug tracking-tight">{prompt}</p>
       <label className="mt-4 block text-xs font-medium text-muted-foreground" htmlFor={`answer-${questionId}`}>
@@ -156,19 +156,17 @@ export function AnswerCard({
   )
 }
 
-function ActivityStrip({ activity }: { activity: ActivityResult | null | undefined }) {
-  if (!activity) return null
+/**
+ * Index cards still in the pack, peeking out behind the top card (DESIGN.md
+ * §7 handling: the stack shows how many are left), held by a paperclip.
+ */
+function MorningPackStack({ remaining }: { remaining: number }) {
+  const peek = Math.min(2, remaining)
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm" aria-live="polite">
-      {activity.xp_awarded > 0 ? <SemanticPill tone="milestone">+{activity.xp_awarded} XP</SemanticPill> : null}
-      {activity.streak?.goal_met_today ? (
-        <SemanticPill tone="streak">{activity.streak.current}-day streak</SemanticPill>
-      ) : null}
-      {activity.achievements_earned.map((achievement) => (
-        <SemanticPill key={achievement.id} tone="success">
-          {achievement.title}
-        </SemanticPill>
-      ))}
+    <div aria-hidden className="pointer-events-none absolute inset-0">
+      {peek >= 2 ? <div className="paper-stack-sheet translate-x-[10px] translate-y-[10px] rotate-[1.4deg]" /> : null}
+      {peek >= 1 ? <div className="paper-stack-sheet translate-x-[5px] translate-y-[5px] -rotate-[0.8deg]" /> : null}
+      <Paperclip className="absolute -top-3 left-6 z-30" />
     </div>
   )
 }
@@ -317,8 +315,17 @@ export function DailySetPlayer({
       ) : null}
 
       {allDone && !graded ? (
-        <div className="relative space-y-3 border border-ink/20 bg-streak/10 px-4 py-5">
-          <PaperBurst play seedKey={`set-done-${set.local_date}`} className="pointer-events-none absolute inset-x-0 top-0 mx-auto" />
+        <div className="relative space-y-4 py-2" data-testid="morning-pack-filed">
+          <div className="relative">
+            <MorningPackStack remaining={2} />
+            <PaperSheet seedKey={`set-filed-${set.local_date}`} stock="index" className="relative">
+              <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+                Morning pack · {set.items.length} of {set.items.length}
+              </p>
+              <p className="mt-3 font-display text-2xl tracking-tight">Every card answered.</p>
+              <FiledStamp localDate={set.local_date} play className="absolute right-5 bottom-4" />
+            </PaperSheet>
+          </div>
           <WarrenCallout mood="celebrating" bracket>
             Set complete — {set.items.length} cards graded today. Anything more is a bonus.
           </WarrenCallout>
@@ -329,7 +336,7 @@ export function DailySetPlayer({
           ) : null}
         </div>
       ) : current ? (
-        <div className="space-y-4">
+        <div key={current.id} className="motion-draw-card space-y-4">
           {graded ? (
             <div className="space-y-3">
               {header(current, set.items.findIndex((item) => item.id === current.id) + 1)}
@@ -343,7 +350,9 @@ export function DailySetPlayer({
                   <p>{graded.drill.solution.explanation}</p>
                 </section>
               ) : null}
-              <ActivityStrip activity={graded.activity} />
+              {graded.activity ? (
+                <ActivityReward activity={graded.activity} seedKey={`set-${current.id}`} />
+              ) : null}
               {markError ? (
                 <p role="alert" className="text-sm text-error-foreground">
                   {markError}
@@ -366,7 +375,9 @@ export function DailySetPlayer({
               </button>
             </div>
           ) : current.question_id ? (
-            <AnswerCard
+            <div className="relative">
+              <MorningPackStack remaining={Math.max(0, queue.length - 1)} />
+              <AnswerCard
               key={current.id}
               sessionId={sessionId}
               questionId={current.question_id}
@@ -375,6 +386,7 @@ export function DailySetPlayer({
               onGraded={(result) => handleAttempt(current, result)}
               onSkip={queue.length > 1 ? () => skip(current) : undefined}
             />
+            </div>
           ) : null}
         </div>
       ) : (

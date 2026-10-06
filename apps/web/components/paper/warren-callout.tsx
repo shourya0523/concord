@@ -3,13 +3,14 @@
 import * as React from "react"
 
 import { Annotate } from "@/components/mockups/annotate"
-import { NotionCallout } from "@/components/mockups/journey-shell"
 import { Warren, type WarrenMood } from "@/components/mockups/warren"
 
 /**
- * Warren's paper callout — coach aside in a Notion-style block.
- * The bracket annotation is Warren's signature mark (semantic map).
- * Breathing pauses while the user types/reads (userFocused).
+ * Warren's aside on onionskin (DESIGN.md §7 material map): a translucent sheet
+ * laid over your work with a slight tilt, so his note sits on top without
+ * hiding what's underneath. Onionskin is Warren-only. The bracket annotation
+ * is his signature mark (semantic map). Breathing pauses while the user
+ * types/reads (userFocused).
  */
 export function WarrenCallout({
   children,
@@ -26,19 +27,25 @@ export function WarrenCallout({
   bracket?: boolean
 }) {
   return (
-    <NotionCallout warren={<Warren mood={mood} userFocused={userFocused} size={size} />}>
-      <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-        Warren
-      </p>
-      <div className="mt-1 text-sm leading-relaxed">
-        {bracket ? (
-          <Annotate type="bracket" color="var(--graphite)" padding={3}>
-            {children}
-          </Annotate>
-        ) : (
-          children
-        )}
+    <aside
+      className="paper-onionskin flex rotate-[0.4deg] gap-3 rounded-[2px] px-3 py-3 text-sm leading-relaxed text-ink"
+      data-paper-stock="onionskin"
+    >
+      <div className="shrink-0 pt-0.5">
+        <Warren mood={mood} userFocused={userFocused} size={size} />
       </div>
-    </NotionCallout>
+      <div className="min-w-0 flex-1 pt-1">
+        <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">Warren</p>
+        <div className="mt-1 text-sm leading-relaxed">
+          {bracket ? (
+            <Annotate type="bracket" padding={4} block>
+              {children}
+            </Annotate>
+          ) : (
+            children
+          )}
+        </div>
+      </div>
+    </aside>
   )
 }
