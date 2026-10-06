@@ -30,6 +30,11 @@ import {
 import {
   Birds,
   CardStack,
+  CityLights,
+  DailySetTag,
+  DistantPlane,
+  NightSky,
+  ShootingStar,
   DeskClutter,
   DrillCard,
   GradedCard,
@@ -61,6 +66,14 @@ const FEATURES = [
   { title: "See what each firm actually asks.", window: [0.4, 0.53], side: "left", Card: HeatCard },
   { title: "Get every answer graded.", window: [0.51, 0.64], side: "right", Card: GradedCard },
   { title: "Drill the math until it's automatic.", window: [0.62, 0.75], side: "left", Card: DrillCard },
+] as const
+
+/** Moonlit cloud deck under the plane at cruise: x (vw), width (vw), bottom (vh), silhouette. */
+const NIGHT_CLOUDS = [
+  { x: -6, w: 36, bottom: 4, shape: 1, tone: "#22345a" },
+  { x: 26, w: 30, bottom: -2, shape: 0, tone: "#1d2e52" },
+  { x: 52, w: 34, bottom: 6, shape: 2, tone: "#26395f" },
+  { x: 78, w: 30, bottom: 0, shape: 1, tone: "#1f3055" },
 ] as const
 
 /** Torn-paper clouds: x (vw), width (vw), depth (scroll speed), start offset (vh), silhouette. */
@@ -338,10 +351,14 @@ function StillFrames() {
       </section>
       <section className="relative flex min-h-[60svh] flex-col items-center justify-center gap-8 overflow-hidden bg-[linear-gradient(#0f1730,#2b4268)] px-4 py-20">
         <PaperMoon className="top-10 left-[8vw] w-20" />
+        <NightSky />
         <p className="text-center font-display text-4xl tracking-tight text-[#f7f1e4] md:text-6xl">
           It only takes about 12 minutes a day.
         </p>
-        <TallyScrap className="!static w-56" />
+        <div className="flex flex-wrap items-center justify-center gap-8">
+          <DailySetTag className="!static w-60 rotate-[3deg]" />
+          <TallyScrap className="!static w-56" />
+        </div>
       </section>
       <BoardingPass reduced />
     </div>
@@ -411,6 +428,9 @@ export function PaperConcordeLanding() {
         "--wordmark": windowOpacity(p, [0.27, 0.42]).toFixed(3),
         "--night": windowOpacity(p, [0.7, 0.92]).toFixed(3),
         "--earth": cruise.toFixed(4),
+        "--night-drift": segment(p, 0.68, 0.92).toFixed(4),
+        "--shoot": windowOpacity(p, [0.75, 0.81]).toFixed(3),
+        "--shoot-t": segment(p, 0.75, 0.81).toFixed(4),
       }
       FEATURES.forEach((feature, i) => {
         vars[`--feature-${i}`] = windowOpacity(p, feature.window).toFixed(3)
@@ -494,8 +514,15 @@ export function PaperConcordeLanding() {
                 }}
               />
             ))}
-            <PaperMoon className="top-[12vh] left-[8vw] w-[min(22vw,7rem)]" />
+            <PaperMoon className="top-[10vh] left-[6vw] w-[min(20vw,7rem)] md:top-[12vh] md:left-[8vw]" />
+            <NightSky />
           </div>
+          <ShootingStar
+            style={{
+              opacity: "var(--shoot, 0)",
+              transform: "translate3d(calc(var(--shoot-t, 0) * 14vw), calc(var(--shoot-t, 0) * 6vh), 0)",
+            }}
+          />
           <div
             aria-hidden
             className="absolute left-1/2 h-[240vw] w-[240vw] rounded-full"
@@ -506,6 +533,37 @@ export function PaperConcordeLanding() {
               boxShadow: "0 -6px 30px 4px rgba(150, 200, 255, 0.35)",
               opacity: "calc(var(--earth, 0) * (1 - var(--land, 0) * 2))",
             }}
+          >
+            <CityLights />
+          </div>
+
+          {/* Moonlit cloud deck below the plane. */}
+          <div
+            aria-hidden
+            className="absolute inset-0"
+            style={{
+              opacity: "calc(var(--night, 0) * 0.95)",
+              transform: "translate3d(calc(var(--night-drift, 0) * -10vw), 0, 0)",
+            }}
+          >
+            {NIGHT_CLOUDS.map((cloud) => (
+              <TornCloud
+                key={cloud.x}
+                tone={cloud.tone}
+                rim="#7f95c2"
+                shape={cloud.shape}
+                className="absolute"
+                style={{ left: `${cloud.x}vw`, width: `max(${cloud.w}vw, 14rem)`, bottom: `${cloud.bottom}vh` }}
+              />
+            ))}
+          </div>
+          <DistantPlane
+            className="top-[58vh] right-[16vw] w-14"
+            style={{ opacity: "var(--night, 0)", transform: "translate3d(calc(var(--night-drift, 0) * 10vw), calc(var(--night-drift, 0) * -3vh), 0) rotate(-6deg)" }}
+          />
+          <DistantPlane
+            className="top-[66vh] left-[20vw] hidden w-9 md:block"
+            style={{ opacity: "calc(var(--night, 0) * 0.7)", transform: "translate3d(calc(var(--night-drift, 0) * 6vw), 0, 0) rotate(-3deg)" }}
           />
 
           {/* Torn-paper clouds, at different depths. */}
@@ -541,7 +599,7 @@ export function PaperConcordeLanding() {
           >
             <path
               ref={contrailRef}
-              d="M -5 62 C 15 58, 30 50, 46 47"
+              d="M -5 66 C 15 60, 30 47, 44 40"
               pathLength={1}
               strokeDasharray="1 1"
               strokeDashoffset={1}
@@ -620,18 +678,22 @@ export function PaperConcordeLanding() {
           ))}
 
           <p
-            className="absolute inset-x-4 top-[18vh] text-center font-display text-4xl tracking-tight text-[#f7f1e4] md:text-6xl"
+            className="absolute inset-x-4 top-[20vh] text-center font-display text-4xl tracking-tight text-[#f7f1e4] md:top-[18vh] md:text-6xl"
             style={{ opacity: "var(--night, 0)" }}
           >
             It only takes about 12 minutes a day.
           </p>
+          <DailySetTag
+            className="bottom-[9vh] left-[6vw] w-[min(64vw,15rem)] rotate-[4deg] md:bottom-[12vh] md:left-[8vw]"
+            style={{ opacity: "var(--night, 0)" }}
+          />
           <TallyScrap
-            className="right-[6vw] bottom-[14vh] w-[min(56vw,15rem)] rotate-[-3deg]"
+            className="right-[6vw] bottom-[14vh] hidden w-[15rem] rotate-[-3deg] md:block"
             style={{ opacity: "var(--night, 0)" }}
           />
           <p
             aria-hidden
-            className="absolute bottom-6 left-6 font-mono text-[11px] tracking-[0.18em] text-[#f7f1e4]/80 uppercase"
+            className="absolute right-6 bottom-6 font-mono text-[11px] tracking-[0.18em] text-[#f7f1e4]/80 uppercase"
             style={{ opacity: "var(--night, 0)" }}
           >
             FL600 · 60,000 ft

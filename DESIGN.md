@@ -1574,7 +1574,7 @@ Nothing animates on page load except state-confirmed reactions. `prefers-reduced
 | 0.07–0.24 | Fold | The card folds into a paper Concorde; desk items drift |
 | 0.24–0.4 | Takeoff | Desk drops away, dawn sky, torn-paper sun, paper-cut skyline with lit windows, "Concord" title card |
 | 0.34–0.76 | Clouds | Torn-paper clouds at two depths, ink birds; product cards: Firm intel (manila heat map), graded answer (index card + red-pen stamp), drill set (ledger) |
-| 0.7–0.88 | Cruise | Night, stars, paper moon, Earth curve, contrail, tally scrap |
+| 0.7–0.88 | Cruise | Night: stars, cratered paper moon, pencil constellations (the bull, the bear), shooting star, moonlit torn-paper cloud deck, Earth curve with city lights, distant paper planes, contrail, "Today's set" luggage tag (8 cards ≈ 12 min, matching `DEFAULT_SET_SIZE` × `MINUTES_PER_CARD`), tally scrap |
 | 0.88–1 | Land | Dusk, the skyline comes back up; boarding pass section is the sign-up (stub tears, then `/sign-up`) |
 
 - **Copy** follows the owner's voice: plain statements, no slogans or em-dashes. Hero: "CS has LeetCode. You have Concord." + "Interview prep for investment banking and private equity."

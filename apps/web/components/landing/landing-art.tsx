@@ -244,7 +244,12 @@ export function PaperSun({ className, style }: { className?: string; style?: Rea
 /** A crescent moon torn out of cream paper. */
 export function PaperMoon({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg viewBox="0 0 120 120" className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+    <svg
+      viewBox="0 0 120 120"
+      className={`absolute overflow-visible [filter:drop-shadow(0_0_18px_rgb(255_236_190/0.35))] ${className ?? ""}`}
+      style={style}
+      aria-hidden
+    >
       <defs>
         <mask id="moon-cut">
           <rect width="120" height="120" fill="#fff" />
@@ -254,6 +259,18 @@ export function PaperMoon({ className, style }: { className?: string; style?: Re
       <g filter="url(#landing-torn)" mask="url(#moon-cut)">
         <circle cx="56" cy="60" r="48" fill="#fffaf0" />
         <circle cx="56" cy="60" r="44" fill="#f2ead8" />
+        {[
+          [26, 72, 6],
+          [38, 94, 4.5],
+          [19, 50, 3.5],
+          [52, 103, 3],
+          [30, 86, 2],
+        ].map(([cx, cy, r]) => (
+          <g key={`${cx}-${cy}`}>
+            <circle cx={cx} cy={cy} r={r} fill="#e2d8c0" />
+            <path d={`M${cx! - r!} ${cy} a ${r} ${r} 0 0 1 ${r! * 2} 0`} fill="none" stroke="#cfc3a6" strokeWidth="0.8" />
+          </g>
+        ))}
       </g>
     </svg>
   )
@@ -304,11 +321,13 @@ function CloudShape({ shape }: { shape: number }) {
 /** A cloud torn out of paper: a white fibre rim, the tinted sheet, a shaded underside. */
 export function TornCloud({
   tone,
+  rim = "#fffefb",
   shape,
   className,
   style,
 }: {
   tone: string
+  rim?: string
   shape: number
   className?: string
   style?: React.CSSProperties
@@ -326,7 +345,7 @@ export function TornCloud({
             <stop offset="1" stopColor="#2b3a5a" stopOpacity="0.12" />
           </linearGradient>
         </defs>
-        <g filter="url(#landing-torn)" fill="#fffefb" transform="translate(-1.5 -1.5) scale(1.015)">
+        <g filter="url(#landing-torn)" fill={rim} transform="translate(-1.5 -1.5) scale(1.015)">
           <CloudShape shape={shape} />
         </g>
         <g filter="url(#landing-torn)" fill={tone}>
@@ -476,6 +495,173 @@ export function TallyScrap({ className, style }: { className?: string; style?: R
         </svg>
         <p className={`${hand.className} mt-1 text-right text-xl`} style={{ color: INK_BLUE }}>
           day 21
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/* ----------------------------------------------------------------- night */
+
+type Star = readonly [number, number, number?]
+
+/** Market constellations: [x, y, size?] stars and the pencil lines joining them. */
+const BULL: { stars: Star[]; lines: Array<readonly [number, number]> } = {
+  // Charging left: horns, head, muzzle, neck, back, tail, rump, legs, belly, chest.
+  stars: [
+    [20, 16, 2.4], [40, 8], [30, 40, 3], [12, 54], [54, 34], [100, 28, 2.6], [150, 32], [176, 28],
+    [192, 48], [168, 54, 2.4], [162, 98], [110, 72], [48, 64], [54, 100],
+  ],
+  lines: [
+    [0, 2], [1, 2], [2, 3], [2, 4], [4, 5], [5, 6], [6, 7], [7, 8], [6, 9], [9, 10], [9, 11], [11, 12],
+    [12, 13], [12, 2],
+  ],
+}
+const BEAR: { stars: Star[]; lines: Array<readonly [number, number]> } = {
+  // Walking right: tail, rump, back, hump, neck, ear, head, snout, jaw, chest, legs, belly.
+  stars: [
+    [14, 46], [30, 40, 2.4], [70, 30], [110, 26, 2.8], [140, 38], [158, 24], [168, 34], [190, 50, 2.4],
+    [176, 60], [154, 64], [150, 96], [80, 70], [36, 94],
+  ],
+  lines: [
+    [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 4], [9, 10], [9, 11],
+    [11, 1], [1, 12],
+  ],
+}
+
+function Constellation({
+  shape,
+  label,
+  className,
+  style,
+}: {
+  shape: { stars: Star[]; lines: Array<readonly [number, number]> }
+  label: string
+  className?: string
+  style?: React.CSSProperties
+}) {
+  return (
+    <svg viewBox="0 0 200 116" className={`absolute overflow-visible ${className ?? ""}`} style={style} aria-hidden>
+      <g stroke="#f7f1e4" strokeOpacity="0.35" strokeWidth="0.8" strokeDasharray="2 3" strokeLinecap="round">
+        {shape.lines.map(([a, b]) => (
+          <line key={`${a}-${b}`} x1={shape.stars[a]![0]} y1={shape.stars[a]![1]} x2={shape.stars[b]![0]} y2={shape.stars[b]![1]} />
+        ))}
+      </g>
+      {shape.stars.map(([x, y, r = 1.7]) => (
+        <g key={`${x}-${y}`}>
+          <circle cx={x} cy={y} r={r * 2.6} fill="#fff6dc" opacity="0.12" />
+          <circle cx={x} cy={y} r={r} fill="#fff6dc" />
+        </g>
+      ))}
+      <text x="100" y="116" textAnchor="middle" className={hand.className} fontSize="15" fill="#f7f1e4" opacity="0.7">
+        {label}
+      </text>
+    </svg>
+  )
+}
+
+export function NightSky() {
+  return (
+    <>
+      <Constellation
+        shape={BULL}
+        label="the bull"
+        className="top-[29vh] right-[3vw] w-[min(30vw,15rem)] md:top-[11vh] md:right-[5vw]"
+      />
+      <Constellation shape={BEAR} label="the bear" className="top-[33vh] left-[5vw] hidden w-[13rem] md:block" />
+    </>
+  )
+}
+
+/** A pencil streak that crosses the sky once. */
+export function ShootingStar({ style }: { style?: React.CSSProperties }) {
+  return (
+    <svg viewBox="0 0 160 60" className="absolute top-[6vh] right-[24vw] w-40" style={style} aria-hidden>
+      <defs>
+        <linearGradient id="shoot-tail" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#fff6dc" stopOpacity="0" />
+          <stop offset="1" stopColor="#fff6dc" stopOpacity="0.9" />
+        </linearGradient>
+      </defs>
+      <path d="M4 8 L148 52" stroke="url(#shoot-tail)" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="148" cy="52" r="2.2" fill="#fff6dc" />
+    </svg>
+  )
+}
+
+/** A far-off paper plane with a blinking wingtip light: other candidates, also prepping. */
+export function DistantPlane({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg viewBox="0 0 60 26" className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+      <path d="M2 4 L58 13 L18 13 Z" fill="#e9e1cf" />
+      <path d="M2 22 L58 13 L18 13 Z" fill="#cfc6b2" />
+      <path d="M8 13 L58 13 L18 16 Z" fill="#bdb39d" />
+      <circle cx="3" cy="4.5" r="1.4" fill="#ff6b5e" className="motion-safe:animate-pulse" />
+    </svg>
+  )
+}
+
+/** Warm city lights along the top of the Earth, sized in vw to follow its curve. */
+export function CityLights() {
+  // [centre x (vw), lights in the cluster]
+  const cities = [
+    [8, 4], [17, 7], [26, 3], [33, 9], [41, 5], [47, 12], [55, 6], [62, 10], [70, 4], [77, 8], [86, 5], [93, 3],
+  ] as const
+  const curve = (x: number) => ((x - 50) ** 2) / 240
+  return (
+    <svg
+      viewBox="0 0 100 20"
+      className="absolute top-0 left-[calc(50%-50vw)] h-[20vw] w-[100vw] overflow-visible"
+      aria-hidden
+    >
+      {cities.flatMap(([cx, n], c) =>
+        Array.from({ length: n }, (_, i) => {
+          const x = cx + ((i * 37 + c * 11) % 17) / 6 - 1.4
+          const y = curve(x) + 0.7 + ((i * 53 + c * 7) % 13) / 9
+          return (
+            <circle
+              key={`${c}-${i}`}
+              cx={x}
+              cy={y}
+              r={i % 4 === 0 ? 0.22 : 0.14}
+              fill="#ffd98a"
+              opacity={0.45 + ((i * 7 + c) % 5) / 10}
+            />
+          )
+        })
+      )}
+    </svg>
+  )
+}
+
+/** Today's set as a luggage tag: what the 12 minutes is made of. */
+export function DailySetTag({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  const rows = [
+    ["Reviews due", "4"],
+    ["New questions", "2"],
+    ["From your target firm", "1"],
+    ["Math drill", "1"],
+  ] as const
+  return (
+    <div className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+      <div className="relative bg-[#f1e3c2] bg-[image:var(--paper-grain)] px-5 pt-7 pb-4 [clip-path:polygon(14%_0,86%_0,100%_9%,100%_100%,0_100%,0_9%)] [filter:drop-shadow(0_10px_16px_rgb(0_0_0/0.35))]">
+        <span className="absolute top-2 left-1/2 size-3 -translate-x-1/2 rounded-full bg-[#1b2440] ring-2 ring-[#d9c79e]" />
+        <p className="text-center font-mono text-[9px] tracking-[0.2em] text-[#6b5a35] uppercase">Today&apos;s set</p>
+        <ul className="mt-2 space-y-1">
+          {rows.map(([label, n]) => (
+            <li key={label} className="flex items-baseline justify-between gap-3 font-mono text-[11px] text-[#3b3122]">
+              <span>{label}</span>
+              <span className={`${hand.className} text-lg leading-none`} style={{ color: INK_BLUE }}>
+                {n}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 flex items-baseline justify-between border-t border-dashed border-[#6b5a35]/50 pt-2 font-mono text-[11px] text-[#3b3122]">
+          <span>8 cards</span>
+          <span className={`${hand.className} text-xl leading-none`} style={{ color: RED_PEN }}>
+            ≈ 12 min
+          </span>
         </p>
       </div>
     </div>
