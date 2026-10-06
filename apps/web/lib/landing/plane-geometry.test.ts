@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { CARD_H, CARD_W, FACETS, facetPoints, mixHex, segment, skyAt, vertexAt } from "./plane-geometry"
+import { CARD_H, CARD_W, FACETS, facetPoints, mixHex, segment, SKY_STOPS, skyAt, skyBlend, vertexAt } from "./plane-geometry"
 
 function area(points: string): number {
   const p = points.split(" ").map((pair) => pair.split(",").map(Number) as [number, number])
@@ -34,4 +34,17 @@ test("sky starts and ends on the cream desk and is dark at cruise", () => {
   assert.deepEqual(skyAt(0), { top: "#f7f1e4", bottom: "#f7f1e4" })
   assert.deepEqual(skyAt(1), { top: "#f7f1e4", bottom: "#f7f1e4" })
   assert.equal(skyAt(0.84).top, "#0f1730")
+})
+
+test("skyBlend crossfades the two stops around p and matches skyAt", () => {
+  assert.deepEqual(skyBlend(0), { lower: 0, upper: 0, t: 0 })
+  const last = SKY_STOPS.length - 1
+  assert.deepEqual(skyBlend(1), { lower: last - 1, upper: last, t: 1 })
+  for (const p of [0.3, 0.45, 0.6, 0.84, 0.95]) {
+    const { lower, upper, t } = skyBlend(p)
+    assert.equal(upper, lower + 1)
+    assert.ok(t >= 0 && t <= 1)
+    const top = mixHex(SKY_STOPS[lower]!.top, SKY_STOPS[upper]!.top, t)
+    assert.equal(top, skyAt(p).top)
+  }
 })

@@ -4,43 +4,36 @@
  * Landing (DESIGN.md §17): one long scroll. An index card on a busy desk
  * folds into a paper Concorde, takes off over a paper-cut skyline, climbs
  * through torn-paper clouds past the product, cruises at night and lands on
- * a boarding pass that is the sign-up.
+ * a Concorde boarding pass that is the sign-up.
  *
- * Scroll drives one progress value; a rAF handler turns it into CSS custom
- * properties (transforms + opacity only) and moves the fold's polygon
- * vertices. Reduced motion gets the same scenes as still frames.
+ * Performance: scroll progress goes through `frameAt` (lib/landing) and the
+ * result is written straight onto the ~40 animated elements as opacity /
+ * transform, only when a value changes. Nothing sets inherited CSS variables,
+ * so a frame never restyles the rest of the page; faded-out pieces get
+ * `visibility: hidden` so they skip paint. Reduced motion gets still frames.
  */
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { ConcordLogo } from "@/components/concord-logo"
-import {
-  CARD_FILL,
-  CARD_H,
-  CARD_W,
-  FACETS,
-  facetPoints,
-  mixHex,
-  segment,
-  skyAt,
-  vertexAt,
-} from "@/lib/landing/plane-geometry"
+import { CARD_FILL, CARD_H, CARD_W, FACETS, SKY_STOPS, facetPoints, mixHex, vertexAt } from "@/lib/landing/plane-geometry"
+import { CLOUDS, frameAt, type PieceStyle } from "@/lib/landing/scroll-frame"
 
 import {
   Birds,
   CardStack,
-  CityLights,
   DailySetTag,
-  DistantPlane,
-  NightSky,
-  ShootingStar,
   DeskClutter,
+  DistantPlane,
   DrillCard,
+  Earth,
   GradedCard,
   HeatCard,
+  NightSky,
   PaperMoon,
   PaperSun,
+  ShootingStar,
   Skyline,
   TallyScrap,
   TornCloud,
@@ -52,20 +45,10 @@ export const HEADLINE = ["CS has LeetCode.", "You have Concord."] as const
 const SUBHEAD = "Interview prep for investment banking and private equity."
 const CTA = "Start prepping"
 
-/** Scene windows along the stage's scroll progress (0–1). */
-const SCENES = {
-  hint: [0, 0.05],
-  fold: [0.07, 0.24],
-  takeoff: [0.24, 0.4],
-  clouds: [0.34, 0.76],
-  cruise: [0.7, 0.88],
-  land: [0.88, 1],
-} as const
-
 const FEATURES = [
-  { title: "See what each firm actually asks.", window: [0.4, 0.53], side: "left", Card: HeatCard },
-  { title: "Get every answer graded.", window: [0.51, 0.64], side: "right", Card: GradedCard },
-  { title: "Drill the math until it's automatic.", window: [0.62, 0.75], side: "left", Card: DrillCard },
+  { title: "See what each firm actually asks.", side: "left", Card: HeatCard },
+  { title: "Get every answer graded.", side: "right", Card: GradedCard },
+  { title: "Drill the math until it's automatic.", side: "left", Card: DrillCard },
 ] as const
 
 /** Moonlit cloud deck under the plane at cruise: x (vw), width (vw), bottom (vh), silhouette. */
@@ -76,27 +59,12 @@ const NIGHT_CLOUDS = [
   { x: 78, w: 30, bottom: 0, shape: 1, tone: "#1f3055" },
 ] as const
 
-/** Torn-paper clouds: x (vw), width (vw), depth (scroll speed), start offset (vh), silhouette. */
-const CLOUDS = [
-  { x: 70, w: 14, speed: 0.45, y: -20, tone: "#eef1f5", shape: 2, far: true },
-  { x: 4, w: 12, speed: 0.4, y: -80, tone: "#eef1f5", shape: 1, far: true },
-  { x: 40, w: 16, speed: 0.5, y: -140, tone: "#eef1f5", shape: 0, far: true },
-  { x: 84, w: 12, speed: 0.42, y: -200, tone: "#eef1f5", shape: 1, far: true },
-  { x: -4, w: 34, speed: 1.0, y: -40, tone: "#fbfaf6", shape: 0, far: false },
-  { x: 62, w: 30, speed: 1.35, y: -90, tone: "#f6f3ec", shape: 1, far: false },
-  { x: 14, w: 22, speed: 0.75, y: -150, tone: "#fdfcf9", shape: 2, far: false },
-  { x: 72, w: 24, speed: 1.6, y: -170, tone: "#fbfaf6", shape: 0, far: false },
-  { x: -8, w: 40, speed: 1.15, y: -230, tone: "#f4f1ea", shape: 1, far: false },
-  { x: 42, w: 26, speed: 0.9, y: -260, tone: "#fdfcf9", shape: 2, far: false },
-  { x: 66, w: 34, speed: 1.25, y: -320, tone: "#f6f3ec", shape: 0, far: false },
-  { x: 20, w: 30, speed: 1.4, y: -380, tone: "#fbfaf6", shape: 1, far: false },
-] as const
-
-function windowOpacity(p: number, [start, end]: readonly [number, number]): number {
-  const fadeIn = segment(p, start, start + (end - start) * 0.25)
-  const fadeOut = 1 - segment(p, end - (end - start) * 0.25, end)
-  return Math.min(fadeIn, fadeOut)
-}
+const STARS = Array.from({ length: 64 }, (_, i) => ({
+  x: (i * 37) % 100,
+  y: (i * 53) % 70,
+  size: i % 9 === 0 ? 3 : 2,
+  o: 0.3 + ((i * 7) % 6) / 10,
+}))
 
 function usePrefersReducedMotion(): boolean | null {
   const [reduced, setReduced] = React.useState<boolean | null>(null)
@@ -108,6 +76,15 @@ function usePrefersReducedMotion(): boolean | null {
     return () => query.removeEventListener("change", update)
   }, [])
   return reduced
+}
+
+/** Inline style for a piece at the top of the page (server render, before the first frame). */
+function initialStyle(style: PieceStyle | undefined): React.CSSProperties {
+  if (!style) return {}
+  return {
+    ...(style.opacity !== undefined ? { opacity: style.opacity, visibility: style.opacity < 0.002 ? "hidden" : undefined } : {}),
+    ...(style.transform !== undefined ? { transform: style.transform } : {}),
+  }
 }
 
 function CtaButton({ className = "" }: { className?: string }) {
@@ -122,20 +99,56 @@ function CtaButton({ className = "" }: { className?: string }) {
   )
 }
 
+/* ------------------------------------------------------------------ plane */
+
+type PlaneParts = {
+  facets: Array<SVGPolygonElement | null>
+  sheens: Array<SVGPolygonElement | null>
+  sheet: SVGRectElement | null
+  face: SVGGElement | null
+  keel: SVGLineElement | null
+}
+
+function planeLook(fold: number, question: boolean) {
+  return {
+    sheet: question ? Math.max(0, 1 - fold * 30) : 0,
+    sheen: question ? fold : 1,
+    face: Math.max(0, 1 - fold * 4),
+    keel: question ? Math.min(1, Math.max(0, (fold - 0.8) * 5)) : 1,
+    stroke: fold > 0.02 ? "rgba(17,17,17,0.35)" : "none",
+  }
+}
+
+/** Move the fold: vertices, facet shades and the card-face / keel fades. */
+function setFold(parts: PlaneParts, fold: number) {
+  const look = planeLook(fold, true)
+  FACETS.forEach((facet, i) => {
+    const points = facetPoints(facet.vertices, fold)
+    const el = parts.facets[i]
+    if (el) {
+      el.setAttribute("points", points)
+      el.setAttribute("fill", mixHex(CARD_FILL, facet.shade, fold))
+      el.setAttribute("stroke", look.stroke)
+    }
+    const sheen = parts.sheens[i]
+    if (sheen) {
+      sheen.setAttribute("points", points)
+      sheen.setAttribute("opacity", look.sheen.toFixed(3))
+    }
+  })
+  parts.sheet?.setAttribute("opacity", look.sheet.toFixed(3))
+  parts.face?.setAttribute("opacity", look.face.toFixed(3))
+  parts.keel?.setAttribute("opacity", look.keel.toFixed(3))
+}
+
 /** The card / plane SVG. `fold` 0 = flat card, 1 = paper Concorde. */
-function PaperPlane({
-  facetRefs,
-  sheenRefs,
-  fold = 0,
-  question = true,
-}: {
-  facetRefs?: React.RefObject<Array<SVGPolygonElement | null>>
-  sheenRefs?: React.RefObject<Array<SVGPolygonElement | null>>
-  fold?: number
-  question?: boolean
-}) {
+type PartName = "sheet" | "face" | "keel" | "facets" | "sheens"
+type OnPart = (name: PartName, el: SVGElement | null, index?: number) => void
+
+function PaperPlane({ onPart, fold = 0, question = true }: { onPart?: OnPart; fold?: number; question?: boolean }) {
   const keelFrom = vertexAt("tail", 1)
   const keelTo = vertexAt("nose", 1)
+  const look = planeLook(fold, question)
   return (
     <svg viewBox={`-20 -20 ${CARD_W + 40} ${CARD_H + 40}`} className="relative block h-auto w-full overflow-visible" aria-hidden>
       <defs>
@@ -147,20 +160,23 @@ function PaperPlane({
       </defs>
       {/* One sheet under the facets so no seams show before the fold. */}
       <rect
+        ref={(el) => {
+          onPart?.("sheet", el)
+        }}
         width={CARD_W}
         height={CARD_H}
         fill={CARD_FILL}
-        style={{ opacity: question ? "calc(1 - var(--fold, 0) * 30)" : 0 }}
+        opacity={look.sheet}
       />
       {FACETS.map((facet, i) => (
         <polygon
           key={facet.id}
           ref={(el) => {
-            if (facetRefs?.current) facetRefs.current[i] = el
+            onPart?.("facets", el, i)
           }}
           points={facetPoints(facet.vertices, fold)}
           fill={mixHex(CARD_FILL, facet.shade, fold)}
-          stroke={fold > 0.02 ? "rgba(17,17,17,0.35)" : "none"}
+          stroke={look.stroke}
           strokeWidth="0.8"
           strokeLinejoin="round"
         />
@@ -169,15 +185,20 @@ function PaperPlane({
         <polygon
           key={`${facet.id}-sheen`}
           ref={(el) => {
-            if (sheenRefs?.current) sheenRefs.current[i] = el
+            onPart?.("sheens", el, i)
           }}
           points={facetPoints(facet.vertices, fold)}
           fill="url(#facet-sheen)"
-          style={{ opacity: question ? "var(--fold, 0)" : 1 }}
+          opacity={look.sheen}
         />
       ))}
       {question ? (
-        <g style={{ opacity: "calc(1 - var(--fold, 0) * 4)" }}>
+        <g
+          ref={(el) => {
+            onPart?.("face", el)
+          }}
+          opacity={look.face}
+        >
           <line x1="0" y1="54" x2={CARD_W} y2="54" stroke="rgba(215,162,162,0.9)" strokeWidth="1.4" />
           {[86, 118, 150, 182, 214].map((y) => (
             <line key={y} x1="0" y1={y} x2={CARD_W} y2={y} stroke="rgba(157,180,207,0.45)" strokeWidth="1" />
@@ -194,6 +215,9 @@ function PaperPlane({
         </g>
       ) : null}
       <line
+        ref={(el) => {
+          onPart?.("keel", el)
+        }}
         x1={keelFrom[0]}
         y1={keelFrom[1]}
         x2={keelTo[0]}
@@ -201,7 +225,7 @@ function PaperPlane({
         stroke="rgba(17,17,17,0.55)"
         strokeWidth="1"
         strokeLinecap="round"
-        style={{ opacity: question ? "calc((var(--fold, 0) - 0.8) * 5)" : 1 }}
+        opacity={look.keel}
       />
     </svg>
   )
@@ -227,7 +251,40 @@ function Feature({ title, Card }: { title: string; Card: () => React.ReactElemen
   )
 }
 
-/** Boarding pass: the sign-up. Tearing the stub opens /sign-up. */
+/* --------------------------------------------------------- boarding pass */
+
+const PRINTED = "font-mono uppercase tracking-[0.14em] text-[#7d7d7d] [text-shadow:0_0_0.7px_rgb(0_0_0/0.35)]"
+const PASS_LABEL = "font-sans text-[10px] font-semibold uppercase tracking-[0.04em] text-[#3a3b3e] md:text-[11px]"
+
+/** The Concord mark as printed on the pass: a small swoosh over small caps. */
+function PassWordmark({ className = "", size = "lg" }: { className?: string; size?: "lg" | "sm" }) {
+  const big = size === "lg"
+  return (
+    <div className={`flex flex-col items-end leading-none ${className}`}>
+      <svg viewBox="0 0 60 12" className={big ? "mb-1 w-14" : "mb-0.5 w-10"} aria-hidden>
+        <path d="M2 9 C 22 2, 40 1, 58 4 C 44 4, 30 6, 18 10 Z" fill="currentColor" />
+      </svg>
+      <span className={`font-sans font-medium tracking-[0.08em] ${big ? "text-[2.1rem] md:text-[2.6rem]" : "text-xl"}`}>
+        C<span className={big ? "text-[1.6rem] md:text-[2rem]" : "text-[0.95rem]"}>ONCORD</span>
+      </span>
+    </div>
+  )
+}
+
+function PassBox({ label, value, className = "" }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={`flex min-h-24 flex-col bg-[#f4f3ef] px-3 pt-2 pb-3 md:min-h-28 ${className}`}>
+      <span className={`${PASS_LABEL} text-center`}>{label}</span>
+      <span className={`${PRINTED} mt-auto text-right text-3xl tracking-[0.08em] md:text-[2.6rem]`}>{value}</span>
+    </div>
+  )
+}
+
+/**
+ * Boarding pass after the 1990s Concorde passes: charcoal coupon with white
+ * printed boxes, a fast-track sticker and a light stub you tear off. Tearing
+ * the stub opens /sign-up.
+ */
 export function BoardingPass({ reduced }: { reduced: boolean }) {
   const router = useRouter()
   const [torn, setTorn] = React.useState(false)
@@ -242,69 +299,158 @@ export function BoardingPass({ reduced }: { reduced: boolean }) {
   return (
     <section
       aria-labelledby="board-heading"
-      className="relative flex min-h-[100svh] flex-col items-center justify-center gap-8 overflow-hidden bg-paper bg-[image:var(--paper-grain)] px-4 py-24"
+      className="relative flex min-h-[100svh] flex-col items-center justify-center gap-10 overflow-hidden bg-paper bg-[image:var(--paper-grain)] px-4 py-24"
     >
       <h2 id="board-heading" className="text-center font-display text-4xl tracking-tight text-ink md:text-6xl">
         Would love to have you on board!
       </h2>
-      <div
-        className="flex w-full max-w-3xl flex-col sm:flex-row"
-        style={{ filter: "drop-shadow(0 1px 0.6px rgb(60 45 20 / 0.2)) drop-shadow(0 18px 30px rgb(60 45 20 / 0.12))" }}
-        data-testid="boarding-pass"
-      >
-        <div className="relative flex-1 rounded-t-md bg-[#fffdf8] bg-[image:var(--paper-grain)] px-6 py-6 sm:rounded-l-md sm:rounded-tr-none md:px-8">
-          <div className="flex items-center justify-between gap-4">
-            <ConcordLogo size="sm" />
-            <span className="font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">Boarding pass</span>
-          </div>
-          <div className="mt-6 flex items-end justify-between gap-4">
-            <div>
-              <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">From</p>
-              <p className="font-display text-5xl leading-none md:text-6xl">CND</p>
-              <p className="mt-1 text-sm text-muted-foreground">Candidate</p>
-            </div>
-            <svg viewBox="0 0 120 20" className="mb-7 hidden w-28 sm:block" aria-hidden>
-              <path d="M2 14 Q 60 -4 118 14" fill="none" stroke="#999" strokeWidth="1.2" strokeDasharray="3 4" />
-            </svg>
-            <div className="text-right">
-              <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">To</p>
-              <p className="font-display text-5xl leading-none md:text-6xl">OFR</p>
-              <p className="mt-1 text-sm text-muted-foreground">Offer</p>
-            </div>
-          </div>
-          <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-dashed border-stone pt-4 font-mono text-xs sm:grid-cols-4">
-            {[
-              ["Passenger", "You"],
-              ["Flight", "CC 001"],
-              ["Gate", "Superday"],
-              ["Boarding", "Today"],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <dt className="text-[10px] tracking-[0.14em] text-muted-foreground uppercase">{label}</dt>
-                <dd className="mt-0.5 text-sm text-ink">{value}</dd>
-              </div>
-            ))}
-          </dl>
-          <svg viewBox="0 0 200 24" className="mt-5 h-8 w-full" aria-hidden preserveAspectRatio="none">
-            {Array.from({ length: 64 }, (_, i) => (
-              <rect key={i} x={i * 3.1} y="0" width={(i * 7) % 3 === 0 ? 2 : 1} height="24" fill="#222" />
-            ))}
-          </svg>
-        </div>
+
+      <div className="relative w-full max-w-5xl">
+        {/* Clear mounting tabs, as on a framed pass. */}
+        <span aria-hidden className="absolute -top-2 left-[30%] z-10 h-3.5 w-[34%] rounded-[2px] bg-white/25 shadow-[0_1px_1px_rgb(0_0_0/0.08)] ring-1 ring-white/50 backdrop-saturate-150" />
+        <span aria-hidden className="absolute -bottom-2 left-[30%] z-10 h-3.5 w-[34%] rounded-[2px] bg-white/25 shadow-[0_1px_1px_rgb(0_0_0/0.08)] ring-1 ring-white/50" />
+
         <div
-          className={`relative flex flex-col items-center justify-center gap-3 rounded-b-md border-t-2 border-dashed border-stone bg-[#fffdf8] bg-[image:var(--paper-grain)] px-6 py-6 transition-[transform,opacity] duration-[380ms] ease-in sm:w-56 sm:rounded-r-md sm:rounded-bl-none sm:border-t-0 sm:border-l-2 ${torn ? "translate-x-6 translate-y-10 rotate-[9deg] opacity-0" : ""}`}
+          className="grid overflow-hidden rounded-[18px] md:grid-cols-[1fr_17rem]"
+          style={{ filter: "drop-shadow(0 1px 0.6px rgb(0 0 0 / 0.35)) drop-shadow(0 22px 34px rgb(40 30 15 / 0.22))" }}
+          data-testid="boarding-pass"
         >
-          <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">Seat 1A</p>
-          <Link
-            href="/sign-up"
-            onClick={tear}
-            className="rounded-md bg-ink px-5 py-3 text-sm font-medium text-paper outline-offset-4 hover:bg-ink/90 focus-visible:outline-2 focus-visible:outline-ink"
+          {/* Coupon. */}
+          <div className="relative bg-[#3a3b3e] bg-[image:var(--paper-grain)] px-5 pt-6 pb-5 text-[#ecebe6] md:px-8 md:pt-8">
+            <PassWordmark className="mx-auto w-fit items-center text-[#ecebe6]" />
+
+            <div className="mt-6 grid grid-cols-[1fr_auto] gap-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-3 md:gap-8">
+                  <PassBox label="Gate" value="" />
+                  <PassBox label="Gate closes" value="0730" />
+                  <PassBox label="Seat" value="01A" />
+                </div>
+
+                <div className="relative flex min-h-20 items-start bg-[#f4f3ef] px-4 py-3">
+                  <span className={`${PRINTED} text-lg md:text-xl`}>No cramming</span>
+                  {/* Fast-track sticker. */}
+                  <div className="absolute top-1.5 right-1.5 bottom-1.5 flex w-[46%] max-w-56 items-center rounded-[3px] bg-white p-1.5 shadow-[0_1px_2px_rgb(0_0_0/0.25)] md:w-56">
+                    <div className="relative h-full w-full overflow-hidden bg-[#1f5a3a] [clip-path:polygon(0_0,100%_0,100%_100%,6%_100%)]">
+                      <span className="absolute top-1 right-2 font-sans text-[9px] font-semibold whitespace-nowrap text-white md:text-[10px]">
+                        Concord · 12 min
+                      </span>
+                      <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
+                        <path d="M0 40 L 34 0 L 38 0 L 6 40 Z" fill="#fff" opacity="0.92" />
+                      </svg>
+                      <span className="absolute right-2 bottom-1 font-sans text-[11px] font-bold tracking-[0.22em] whitespace-nowrap text-white italic sm:text-sm md:text-base md:tracking-[0.3em]">
+                        FAST TRACK
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#f4f3ef] px-4 py-3">
+                  <p className={`${PRINTED} text-sm md:text-lg`}>You/Candidate</p>
+                  <p className={`${PRINTED} mt-1 flex flex-wrap gap-x-6 text-sm md:gap-x-10 md:text-lg`}>
+                    <span>CC 001</span>
+                    <span>Today</span>
+                    <span>Candidate</span>
+                    <span>CND</span>
+                  </p>
+                </div>
+              </div>
+
+              <p className="hidden w-44 font-sans text-[10px] leading-[1.35] text-[#ecebe6]/85 md:block">
+                <span className="font-semibold uppercase">Not valid without a daily set attached.</span>
+                <br />
+                <br />
+                Subject to the conditions of recruiting season. Practice questions come from what each firm actually asks.
+                <br />
+                <br />
+                Please be at the gate for about 12 minutes a day before your interview.
+              </p>
+            </div>
+
+            <div className="mt-5">
+              <p className="font-sans text-2xl font-semibold tracking-[0.04em] uppercase md:text-[1.8rem]">Boarding pass</p>
+              <p className="font-sans text-[8px] text-[#ecebe6]/70 md:text-[9px]">
+                Carte d&apos;accès à bord / Bordkarte / Tarjeta de embarque
+              </p>
+            </div>
+          </div>
+
+          {/* Stub: tear it off to sign up. */}
+          <div
+            className={`relative flex flex-col border-t-2 border-dashed border-[#3a3b3e]/40 bg-[#f4f3ef] bg-[image:var(--paper-grain)] transition-[transform,opacity] duration-[380ms] ease-in md:border-t-0 md:border-l-2 ${torn ? "translate-x-6 translate-y-10 rotate-[9deg] opacity-0" : ""}`}
           >
-            {CTA}
-          </Link>
-          <p className="text-center text-xs text-muted-foreground">Tear here</p>
+            <span aria-hidden className="absolute top-[-9px] left-[-9px] hidden size-4 rounded-full bg-paper md:block" />
+            <span aria-hidden className="absolute bottom-[-9px] left-[-9px] hidden size-4 rounded-full bg-paper md:block" />
+            <div className="flex items-end justify-between bg-[#3a3b3e] px-4 pt-3 pb-2 text-[#ecebe6]">
+              <span className="font-sans text-sm font-semibold tracking-[0.06em] uppercase">Concord Air</span>
+              <PassWordmark size="sm" className="text-[#ecebe6]" />
+            </div>
+            <div className="flex flex-1 flex-col gap-2 px-4 pt-2 pb-4">
+              <div>
+                <p className="font-sans text-[7px] uppercase text-[#3a3b3e]">Name of passenger</p>
+                <p className={`${PRINTED} text-sm`}>You/Candidate</p>
+                <p className={`${PRINTED} text-sm`}>Concord</p>
+              </div>
+              <div className={`${PRINTED} grid grid-cols-[1.5rem_1fr_auto] gap-x-2 text-sm`}>
+                <span className="font-sans text-[7px] text-[#3a3b3e]">FROM</span>
+                <span>Candidate</span>
+                <span>CND</span>
+                <span className="font-sans text-[7px] text-[#3a3b3e]">TO</span>
+                <span>Offer</span>
+                <span>OFR</span>
+              </div>
+              <div className="grid grid-cols-3 border border-[#3a3b3e]/40">
+                {[
+                  ["Carrier / flight", "CC 001"],
+                  ["Class / date", "J Today"],
+                  ["Time", "0730"],
+                ].map(([label, value]) => (
+                  <div key={label} className="border-r border-[#3a3b3e]/30 px-1.5 py-1 last:border-r-0">
+                    <p className="font-sans text-[6.5px] uppercase text-[#3a3b3e]">{label}</p>
+                    <p className={`${PRINTED} text-[11px] tracking-[0.06em]`}>{value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-end justify-between border border-[#3a3b3e]/40 px-2 py-1.5">
+                <div>
+                  <p className={PASS_LABEL}>Seat</p>
+                  <p className={`${PRINTED} text-3xl tracking-[0.06em]`}>01A</p>
+                </div>
+                <Link
+                  href="/sign-up"
+                  onClick={tear}
+                  className="rounded-md bg-[#3a3b3e] px-4 py-2.5 text-sm font-medium text-[#f4f3ef] outline-offset-4 hover:bg-[#2b2c2e] focus-visible:outline-2 focus-visible:outline-ink"
+                >
+                  {CTA}
+                </Link>
+              </div>
+              <div className="grid grid-cols-4 gap-1 pt-1">
+                {[
+                  ["Pcs", "0"],
+                  ["Ck wt", "0"],
+                  ["Days", "1"],
+                  ["Seq no", "001"],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <p className="font-sans text-[6.5px] uppercase text-[#3a3b3e]">{label}</p>
+                    <p className={`${PRINTED} text-sm tracking-[0.06em]`}>{value}</p>
+                  </div>
+                ))}
+              </div>
+              <svg viewBox="0 0 120 22" preserveAspectRatio="none" className="h-7 w-full" aria-hidden>
+                {Array.from({ length: 46 }, (_, i) => (
+                  <rect key={i} x={i * 2.6} y="0" width={(i * 7) % 3 === 0 ? 1.6 : 0.8} height="22" fill="#4a4b4e" />
+                ))}
+              </svg>
+              <p className="mt-auto pt-2 font-sans text-[9px] font-semibold tracking-[0.02em] text-[#3a3b3e] uppercase">
+                Passenger ticket and baggage check
+              </p>
+              <p className="text-[10px] text-[#3a3b3e]/70">Tear here to start.</p>
+            </div>
+          </div>
         </div>
       </div>
+
       <p className="text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link href="/sign-in" className="text-ink underline underline-offset-4">
@@ -314,6 +460,8 @@ export function BoardingPass({ reduced }: { reduced: boolean }) {
     </section>
   )
 }
+
+/* ---------------------------------------------------------------- frames */
 
 function Headline() {
   return (
@@ -368,9 +516,30 @@ function StillFrames() {
 export function PaperConcordeLanding() {
   const reduced = usePrefersReducedMotion()
   const stageRef = React.useRef<HTMLDivElement>(null)
-  const facetRefs = React.useRef<Array<SVGPolygonElement | null>>([])
-  const sheenRefs = React.useRef<Array<SVGPolygonElement | null>>([])
   const contrailRef = React.useRef<SVGPathElement>(null)
+  const nodes = React.useRef(new Map<string, HTMLElement | SVGElement>())
+  const plane = React.useRef<PlaneParts>({ facets: [], sheens: [], sheet: null, face: null, keel: null })
+  const initial = React.useMemo(() => frameAt(0, false).pieces, [])
+  const onPart = React.useCallback<OnPart>((name, el, index) => {
+    const parts = plane.current
+    if (name === "facets" || name === "sheens") parts[name][index ?? 0] = el as SVGPolygonElement | null
+    else if (name === "sheet") parts.sheet = el as SVGRectElement | null
+    else if (name === "face") parts.face = el as SVGGElement | null
+    else parts.keel = el as SVGLineElement | null
+  }, [])
+
+  const bind = React.useCallback(
+    (key: string) => (el: HTMLElement | SVGElement | null) => {
+      if (el) nodes.current.set(key, el)
+      else nodes.current.delete(key)
+    },
+    []
+  )
+  /** ref + initial style for a piece. */
+  const piece = (key: string, style?: React.CSSProperties) => ({
+    ref: bind(key),
+    style: { ...style, ...initialStyle(initial[key]) },
+  })
 
   React.useEffect(() => {
     if (reduced !== false) return
@@ -378,79 +547,44 @@ export function PaperConcordeLanding() {
     if (!stage) return
     let frame = 0
     let lastFold = -1
+    let lastContrail = ""
+    const written = new WeakMap<Element, { o?: string; t?: string }>()
 
     const render = () => {
       frame = 0
       const rect = stage.getBoundingClientRect()
       const travel = Math.max(1, rect.height - window.innerHeight)
       const p = Math.min(1, Math.max(0, -rect.top / travel))
-      const narrow = window.innerWidth < 768
+      const next = frameAt(p, window.innerWidth < 768)
 
-      const fold = segment(p, ...SCENES.fold)
-      const takeoff = segment(p, ...SCENES.takeoff)
-      const clouds = segment(p, ...SCENES.clouds)
-      const cruise = segment(p, ...SCENES.cruise)
-      const land = segment(p, ...SCENES.land)
-      const sky = skyAt(p)
-      const dark = Math.min(segment(p, 0.62, 0.76), 1 - segment(p, 0.9, 0.96))
-      const hero = 1 - segment(p, 0.04, 0.1)
-      // On phones the product cards sit low, so the plane flies higher past them.
-      const lift = narrow ? Math.min(segment(p, 0.36, 0.42), 1 - segment(p, 0.72, 0.78)) : 0
-
-      // Plane path: lift off the desk, climb, level at cruise, glide down to land.
-      const scale = 1 - 0.45 * takeoff - 0.12 * clouds - 0.08 * cruise - 0.1 * lift
-      const x = 6 * takeoff - 4 * cruise
-      const y = -10 * takeoff + 2.5 * Math.sin(clouds * Math.PI * 2) - 2 * cruise + 46 * land - 22 * lift
-      const tilt = -14 * takeoff * (1 - cruise) + 10 * land
-
-      const vars: Record<string, string> = {
-        "--fold": fold.toFixed(4),
-        "--takeoff": takeoff.toFixed(4),
-        "--clouds": clouds.toFixed(4),
-        "--land": land.toFixed(4),
-        "--dark": dark.toFixed(3),
-        "--hint": (1 - segment(p, ...SCENES.hint)).toFixed(3),
-        "--hero": hero.toFixed(3),
-        "--hero-vis": hero > 0.02 ? "visible" : "hidden",
-        "--sky-top": sky.top,
-        "--sky-bottom": sky.bottom,
-        "--plane-x": `${x.toFixed(2)}vw`,
-        "--plane-y": `${y.toFixed(2)}vh`,
-        "--plane-scale": scale.toFixed(4),
-        "--plane-tilt": `${tilt.toFixed(2)}deg`,
-        "--plane-opacity": (1 - segment(p, 0.96, 1)).toFixed(3),
-        "--skyline-y": `${((1 - segment(p, 0.29, 0.36)) * 100 + segment(p, 0.38, 0.52) * 110).toFixed(2)}%`,
-        "--home-y": `${((1 - segment(p, 0.9, 0.99)) * 100).toFixed(2)}%`,
-        "--sun": windowOpacity(p, [0.26, 0.54]).toFixed(3),
-        "--sun-y": `${(30 - 24 * segment(p, 0.26, 0.5)).toFixed(2)}vh`,
-        "--birds": windowOpacity(p, [0.36, 0.58]).toFixed(3),
-        "--birds-x": `${(-20 * segment(p, 0.36, 0.58)).toFixed(2)}vw`,
-        "--wordmark": windowOpacity(p, [0.27, 0.42]).toFixed(3),
-        "--night": windowOpacity(p, [0.7, 0.92]).toFixed(3),
-        "--earth": cruise.toFixed(4),
-        "--night-drift": segment(p, 0.68, 0.92).toFixed(4),
-        "--shoot": windowOpacity(p, [0.75, 0.81]).toFixed(3),
-        "--shoot-t": segment(p, 0.75, 0.81).toFixed(4),
-      }
-      FEATURES.forEach((feature, i) => {
-        vars[`--feature-${i}`] = windowOpacity(p, feature.window).toFixed(3)
-      })
-      for (const [key, value] of Object.entries(vars)) stage.style.setProperty(key, value)
-
-      if (Math.abs(fold - lastFold) > 0.0005) {
-        lastFold = fold
-        FACETS.forEach((facet, i) => {
-          const points = facetPoints(facet.vertices, fold)
-          const el = facetRefs.current[i]
-          if (el) {
-            el.setAttribute("points", points)
-            el.setAttribute("fill", mixHex(CARD_FILL, facet.shade, fold))
-            el.setAttribute("stroke", fold > 0.02 ? "rgba(17,17,17,0.35)" : "none")
+      for (const [key, style] of Object.entries(next.pieces)) {
+        const el = nodes.current.get(key)
+        if (!el) continue
+        const prev = written.get(el) ?? {}
+        if (style.opacity !== undefined) {
+          const o = style.opacity.toFixed(3)
+          if (prev.o !== o) {
+            el.style.opacity = o
+            el.style.visibility = style.opacity < 0.002 ? "hidden" : ""
+            prev.o = o
           }
-          sheenRefs.current[i]?.setAttribute("points", points)
-        })
+        }
+        if (style.transform !== undefined && prev.t !== style.transform) {
+          el.style.transform = style.transform
+          prev.t = style.transform
+        }
+        written.set(el, prev)
       }
-      contrailRef.current?.setAttribute("stroke-dashoffset", (1 - segment(p, 0.72, 0.86)).toFixed(4))
+
+      if (Math.abs(next.fold - lastFold) > 0.0005) {
+        lastFold = next.fold
+        setFold(plane.current, next.fold)
+      }
+      const dash = next.contrail.toFixed(3)
+      if (dash !== lastContrail) {
+        lastContrail = dash
+        contrailRef.current?.setAttribute("stroke-dashoffset", dash)
+      }
     }
 
     const schedule = () => {
@@ -468,84 +602,49 @@ export function PaperConcordeLanding() {
 
   if (reduced) return <StillFrames />
 
+  const layer = "pointer-events-none absolute inset-0"
   return (
     <div className="bg-paper">
-      <div ref={stageRef} className="landing-stage relative h-[760svh]" data-testid="landing-stage">
-        <div
-          className="sticky top-0 h-[100svh] overflow-hidden"
-          style={{ background: "linear-gradient(var(--sky-top, #f7f1e4), var(--sky-bottom, #f7f1e4))" }}
-        >
+      <div ref={stageRef} className="relative h-[760svh]" data-testid="landing-stage">
+        <div className="sticky top-0 h-[100svh] overflow-hidden bg-paper [contain:layout_paint]">
           <TornEdgeFilter />
 
+          {/* Sky: fixed gradients crossfaded by opacity (no gradient repaint). */}
+          {SKY_STOPS.map((stop, i) => (
+            <div
+              key={i}
+              aria-hidden
+              className={`${layer} will-change-[opacity]`}
+              {...piece(`sky-${i}`, { background: `linear-gradient(${stop.top}, ${stop.bottom})` })}
+            />
+          ))}
+
           {/* The desk; drops away on takeoff. */}
-          <div
-            aria-hidden
-            className="absolute inset-0 bg-paper bg-[image:var(--paper-grain)]"
-            style={{
-              opacity: "calc(1 - var(--takeoff, 0) * 1.4)",
-              transform: "translate3d(0, calc(var(--takeoff, 0) * 60vh), 0)",
-            }}
-          />
-          <DeskClutter />
+          <div aria-hidden className={`${layer} bg-paper bg-[image:var(--paper-grain)] will-change-[transform,opacity]`} {...piece("desk-bg")} />
+          <DeskClutter bind={bind} />
 
           {/* Dawn: sun and the city falling away below. */}
-          <PaperSun
-            className="right-[10vw] w-[min(26vw,9rem)]"
-            style={{ top: "var(--sun-y, 30vh)", opacity: "var(--sun, 0)" }}
-          />
-          <Skyline style={{ transform: "translate3d(0, var(--skyline-y, 100%), 0)", willChange: "transform" }} />
-          <Birds
-            className="top-[16vh] left-[56vw] w-[min(30vw,11rem)]"
-            style={{ opacity: "var(--birds, 0)", transform: "translate3d(var(--birds-x, 0), 0, 0)" }}
-          />
+          <PaperSun className="top-0 right-[10vw] w-[min(26vw,9rem)] will-change-[transform,opacity]" {...piece("sun")} />
+          <Skyline {...piece("skyline")} />
+          <Birds className="top-[16vh] left-[56vw] w-[min(30vw,11rem)] will-change-[transform,opacity]" {...piece("birds")} />
 
-          {/* Night: stars, moon and the curve of the Earth. */}
-          <div aria-hidden className="absolute inset-0" style={{ opacity: "var(--dark, 0)" }}>
-            {Array.from({ length: 64 }, (_, i) => (
+          {/* Night: stars, moon and constellations. */}
+          <div aria-hidden className={`${layer} will-change-[opacity]`} {...piece("night")}>
+            {STARS.map((star, i) => (
               <span
                 key={i}
                 className="absolute rounded-full bg-[#f7f1e4]"
-                style={{
-                  left: `${(i * 37) % 100}%`,
-                  top: `${(i * 53) % 70}%`,
-                  width: i % 9 === 0 ? 3 : 2,
-                  height: i % 9 === 0 ? 3 : 2,
-                  opacity: 0.3 + ((i * 7) % 6) / 10,
-                }}
+                style={{ left: `${star.x}%`, top: `${star.y}%`, width: star.size, height: star.size, opacity: star.o }}
               />
             ))}
             <PaperMoon className="top-[10vh] left-[6vw] w-[min(20vw,7rem)] md:top-[12vh] md:left-[8vw]" />
             <NightSky />
           </div>
-          <ShootingStar
-            style={{
-              opacity: "var(--shoot, 0)",
-              transform: "translate3d(calc(var(--shoot-t, 0) * 14vw), calc(var(--shoot-t, 0) * 6vh), 0)",
-            }}
-          />
-          <div
-            aria-hidden
-            className="absolute left-1/2 h-[240vw] w-[240vw] rounded-full"
-            style={{
-              top: "calc(100svh - 18vh)",
-              transform: "translate3d(-50%, calc((1 - var(--earth, 0)) * 30vh + var(--land, 0) * 40vh), 0)",
-              background: "radial-gradient(circle at 50% 0%, #3d6a9c 0%, #1e3a63 8%, #0d1a33 30%)",
-              boxShadow: "0 -6px 30px 4px rgba(150, 200, 255, 0.35)",
-              opacity: "calc(var(--earth, 0) * (1 - var(--land, 0) * 2))",
-            }}
-          >
-            <CityLights />
-          </div>
+          <ShootingStar {...piece("shoot", { willChange: "transform, opacity" })} />
+          <Earth {...piece("earth")} />
 
           {/* Moonlit cloud deck below the plane. */}
-          <div
-            aria-hidden
-            className="absolute inset-0"
-            style={{
-              opacity: "calc(var(--night, 0) * 0.95)",
-              transform: "translate3d(calc(var(--night-drift, 0) * -10vw), 0, 0)",
-            }}
-          >
+          <div aria-hidden className={`${layer} will-change-[transform,opacity]`} {...piece("night-clouds")}>
             {NIGHT_CLOUDS.map((cloud) => (
               <TornCloud
                 key={cloud.x}
@@ -557,45 +656,40 @@ export function PaperConcordeLanding() {
               />
             ))}
           </div>
+          <DistantPlane className="top-[58vh] right-[16vw] w-14 will-change-[transform,opacity]" {...piece("dplane-0")} />
           <DistantPlane
-            className="top-[58vh] right-[16vw] w-14"
-            style={{ opacity: "var(--night, 0)", transform: "translate3d(calc(var(--night-drift, 0) * 10vw), calc(var(--night-drift, 0) * -3vh), 0) rotate(-6deg)" }}
-          />
-          <DistantPlane
-            className="top-[66vh] left-[20vw] hidden w-9 md:block"
-            style={{ opacity: "calc(var(--night, 0) * 0.7)", transform: "translate3d(calc(var(--night-drift, 0) * 6vw), 0, 0) rotate(-3deg)" }}
+            className="top-[66vh] left-[20vw] hidden w-9 will-change-[transform,opacity] md:block"
+            {...piece("dplane-1")}
           />
 
           {/* Torn-paper clouds, at different depths. */}
-          <div aria-hidden className="absolute inset-0">
+          <div aria-hidden className={`${layer} will-change-[opacity]`} {...piece("clouds")}>
             {CLOUDS.map((cloud, i) => (
               <TornCloud
                 key={i}
                 tone={cloud.tone}
                 shape={cloud.shape}
-                className="absolute"
-                style={{
+                className="absolute will-change-transform"
+                {...piece(`cloud-${i}`, {
                   left: `${cloud.x}vw`,
                   width: `max(${cloud.w}vw, ${cloud.far ? 7 : 12}rem)`,
                   top: `${cloud.y}vh`,
-                  transform: `translate3d(0, calc(var(--clouds, 0) * ${cloud.speed * 520}vh), 0)`,
-                  opacity: `calc((1 - var(--dark, 0) * 0.85) * ${cloud.far ? 0.7 : 1})`,
-                  willChange: "transform",
-                }}
+                  opacity: cloud.far ? 0.7 : 1,
+                })}
               />
             ))}
           </div>
 
           {/* Home at dusk: the city comes back up as the plane lands. */}
-          <Skyline style={{ transform: "translate3d(0, var(--home-y, 100%), 0)", willChange: "transform" }} />
+          <Skyline {...piece("home")} />
 
           {/* Contrail at cruise: a pen line drawn behind the plane. */}
           <svg
             aria-hidden
-            className="absolute inset-0 h-full w-full"
+            className="absolute inset-0 h-full w-full will-change-[opacity]"
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
-            style={{ opacity: "calc(var(--dark, 0) * (1 - var(--land, 0) * 3))" }}
+            {...piece("contrail")}
           >
             <path
               ref={contrailRef}
@@ -613,48 +707,34 @@ export function PaperConcordeLanding() {
 
           {/* The card that becomes the plane. */}
           <div
-            className="absolute top-1/2 left-1/2 w-[min(80vw,30rem)]"
-            style={{
-              transform:
-                "translate3d(calc(-50% + var(--plane-x, 0vw)), calc(-50% + var(--plane-y, 0vh)), 0) rotate(var(--plane-tilt, 0deg)) scale(var(--plane-scale, 1))",
-              opacity: "var(--plane-opacity, 1)",
-              filter: "drop-shadow(0 14px 22px rgb(30 40 70 / 0.18))",
-              willChange: "transform",
-            }}
+            className="absolute top-1/2 left-1/2 w-[min(80vw,30rem)] will-change-transform"
+            data-testid="landing-plane"
+            {...piece("plane", { filter: "drop-shadow(0 14px 22px rgb(30 40 70 / 0.18))" })}
           >
-            <CardStack />
-            <PaperPlane facetRefs={facetRefs} sheenRefs={sheenRefs} />
+            <CardStack {...piece("card-stack")} />
+            <PaperPlane onPart={onPart} />
           </div>
 
           {/* Hero copy. */}
-          <div
-            className="pointer-events-none absolute inset-x-4 top-[12vh] md:top-[11vh]"
-            style={{ opacity: "var(--hero, 1)", transform: "translate3d(0, calc((1 - var(--hero, 1)) * -4vh), 0)" }}
-          >
+          <div className="pointer-events-none absolute inset-x-4 top-[12vh] will-change-[transform,opacity] md:top-[11vh]" {...piece("hero-head")}>
             <Headline />
           </div>
-          <div
-            className="absolute inset-x-4 bottom-[8vh] flex flex-col items-center gap-4"
-            style={{
-              opacity: "var(--hero, 1)",
-              visibility: "var(--hero-vis, visible)" as React.CSSProperties["visibility"],
-            }}
-          >
+          <div className="absolute inset-x-4 bottom-[8vh] flex flex-col items-center gap-4 will-change-[opacity]" {...piece("hero-cta")}>
             <p className="max-w-md text-center text-base text-ink md:text-lg">{SUBHEAD}</p>
             <CtaButton />
           </div>
           <p
             aria-hidden
             className="absolute inset-x-0 bottom-3 text-center font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase"
-            style={{ opacity: "var(--hint, 1)" }}
+            {...piece("hint")}
           >
             Scroll
           </p>
 
           <p
             aria-hidden
-            className="absolute inset-x-0 top-[16vh] text-center font-display text-7xl tracking-tight text-ink md:text-9xl"
-            style={{ opacity: "var(--wordmark, 0)" }}
+            className="absolute inset-x-0 top-[16vh] text-center font-display text-7xl tracking-tight text-ink will-change-[opacity] md:text-9xl"
+            {...piece("wordmark")}
           >
             Concord
           </p>
@@ -663,14 +743,9 @@ export function PaperConcordeLanding() {
             <div
               key={feature.title}
               className={`absolute bottom-[5vh] left-1/2 w-[min(88vw,25rem)] -translate-x-1/2 md:top-1/2 md:bottom-auto md:translate-x-0 ${feature.side === "left" ? "md:left-[6vw]" : "md:right-[6vw] md:left-auto"}`}
-              style={{ opacity: `var(--feature-${i}, 0)` }}
             >
               <div className="md:-translate-y-1/2">
-                <div
-                  style={{
-                    transform: `translate3d(0, calc((1 - var(--feature-${i}, 0)) * 6vh), 0) rotate(${i % 2 ? 1.5 : -1.5}deg)`,
-                  }}
-                >
+                <div className="will-change-[transform,opacity]" {...piece(`feature-${i}`)}>
                   <Feature title={feature.title} Card={feature.Card} />
                 </div>
               </div>
@@ -678,23 +753,23 @@ export function PaperConcordeLanding() {
           ))}
 
           <p
-            className="absolute inset-x-4 top-[20vh] text-center font-display text-4xl tracking-tight text-[#f7f1e4] md:top-[18vh] md:text-6xl"
-            style={{ opacity: "var(--night, 0)" }}
+            className="absolute inset-x-4 top-[20vh] text-center font-display text-4xl tracking-tight text-[#f7f1e4] will-change-[opacity] md:top-[18vh] md:text-6xl"
+            {...piece("night-copy")}
           >
             It only takes about 12 minutes a day.
           </p>
           <DailySetTag
-            className="bottom-[9vh] left-[6vw] w-[min(64vw,15rem)] rotate-[4deg] md:bottom-[12vh] md:left-[8vw]"
-            style={{ opacity: "var(--night, 0)" }}
+            className="bottom-[9vh] left-[6vw] w-[min(64vw,15rem)] rotate-[4deg] will-change-[opacity] md:bottom-[12vh] md:left-[8vw]"
+            {...piece("tag")}
           />
           <TallyScrap
-            className="right-[6vw] bottom-[14vh] hidden w-[15rem] rotate-[-3deg] md:block"
-            style={{ opacity: "var(--night, 0)" }}
+            className="right-[6vw] bottom-[14vh] hidden w-[15rem] rotate-[-3deg] will-change-[opacity] md:block"
+            {...piece("tally")}
           />
           <p
             aria-hidden
             className="absolute right-6 bottom-6 font-mono text-[11px] tracking-[0.18em] text-[#f7f1e4]/80 uppercase"
-            style={{ opacity: "var(--night, 0)" }}
+            {...piece("altitude")}
           >
             FL600 · 60,000 ft
           </p>
@@ -709,7 +784,7 @@ export function PaperConcordeLanding() {
 export function LandingHeader() {
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-30 px-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] md:px-5">
-      <div className="pointer-events-auto mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-lg bg-[#fffdf8]/90 bg-[image:var(--paper-grain)] py-2 pr-2 pl-4 shadow-[0_1px_0_rgb(60_45_20/0.12),0_8px_20px_rgb(30_40_70/0.12)] backdrop-blur-sm">
+      <div className="pointer-events-auto mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-lg bg-[#fffdf8] bg-[image:var(--paper-grain)] py-2 pr-2 pl-4 shadow-[0_1px_0_rgb(60_45_20/0.12),0_8px_20px_rgb(30_40_70/0.12)]">
         <Link href="/" aria-label="Concord home" className="flex items-center gap-2">
           <ConcordLogo size="sm" priority />
           <span className="hidden font-display text-xl tracking-tight text-ink sm:inline">Concord</span>
