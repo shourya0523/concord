@@ -30,16 +30,16 @@ test("hero says what Concord is and offers a way in", async ({ page }) => {
 test("scrolling folds the card into a plane and lands on the boarding pass", async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto("/")
-  const stage = page.getByTestId("landing-stage")
-  const fold = () => stage.evaluate((el) => Number(getComputedStyle(el).getPropertyValue("--fold") || 0))
-  expect(await fold()).toBe(0)
+  // The fold moves the plane's polygon vertices.
+  const wing = page.getByTestId("landing-plane").locator("polygon").first()
+  const flat = await wing.getAttribute("points")
 
   // Halfway through the fold scene.
   await page.evaluate(() => {
     const el = document.querySelector<HTMLElement>("[data-testid=landing-stage]")!
     window.scrollTo(0, (el.offsetHeight - window.innerHeight) * 0.16)
   })
-  await expect.poll(fold).toBeGreaterThan(0.3)
+  await expect.poll(() => wing.getAttribute("points")).not.toBe(flat)
 
   const pass = page.getByTestId("boarding-pass")
   await pass.scrollIntoViewIfNeeded()

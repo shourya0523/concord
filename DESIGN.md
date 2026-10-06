@@ -1566,7 +1566,14 @@ Nothing animates on page load except state-confirmed reactions. `prefers-reduced
 
 ## 17. Landing — Paper Concorde
 
-`/` is the public landing (`app/page.tsx` → `components/landing/`). One long scroll stage (`h-[760svh]`, sticky 100svh viewport). A rAF scroll handler maps progress 0–1 to CSS custom properties (transforms + opacity only) and moves the fold's polygon vertices (`lib/landing/plane-geometry.ts`, unit tested).
+`/` is the public landing (`app/page.tsx` → `components/landing/`). One long scroll stage (`h-[760svh]`, sticky 100svh viewport). The choreography is a pure function, `frameAt(p, narrow)` in `lib/landing/scroll-frame.ts` (unit tested): scroll progress in, opacity / transform for every animated piece out. Fold geometry and sky stops live in `lib/landing/plane-geometry.ts`.
+
+**Performance rules** (the first version restyled ~2,000 elements per frame and dropped to ~12 fps):
+- Never set inherited CSS custom properties on a stage ancestor per frame. The rAF handler writes `opacity` / `transform` directly onto the ~40 bound pieces (`data-piece` keys), and only when the value changed.
+- A piece at opacity 0 also gets `visibility: hidden`, so it skips paint and hit-testing (the hero CTA can't be clicked once faded).
+- The sky is one fixed gradient layer per `SKY_STOPS` entry, crossfaded by opacity (`skyBlend`), never a repainted gradient.
+- Moving / fading pieces carry `will-change`; heavy SVG filters (torn edges) are rasterised once on their own layers.
+- Repeated art uses SVG patterns (skyline windows), and the Earth is a short SVG band, not a 240vw disc. No `backdrop-filter` over the stage.
 
 | Progress | Scene | Art |
 |---|---|---|
@@ -1575,10 +1582,11 @@ Nothing animates on page load except state-confirmed reactions. `prefers-reduced
 | 0.24–0.4 | Takeoff | Desk drops away, dawn sky, torn-paper sun, paper-cut skyline with lit windows, "Concord" title card |
 | 0.34–0.76 | Clouds | Torn-paper clouds at two depths, ink birds; product cards: Firm intel (manila heat map), graded answer (index card + red-pen stamp), drill set (ledger) |
 | 0.7–0.88 | Cruise | Night: stars, cratered paper moon, pencil constellations (the bull, the bear), shooting star, moonlit torn-paper cloud deck, Earth curve with city lights, distant paper planes, contrail, "Today's set" luggage tag (8 cards ≈ 12 min, matching `DEFAULT_SET_SIZE` × `MINUTES_PER_CARD`), tally scrap |
-| 0.88–1 | Land | Dusk, the skyline comes back up; boarding pass section is the sign-up (stub tears, then `/sign-up`) |
+| 0.88–1 | Land | Dusk, the skyline comes back up; then the boarding pass section |
 
 - **Copy** follows the owner's voice: plain statements, no slogans or em-dashes. Hero: "CS has LeetCode. You have Concord." + "Interview prep for investment banking and private equity."
 - **CTA**: "Start prepping" → `/sign-up` in the fixed header (always visible), the hero, and the boarding-pass stub. "Sign in" in the header and under the pass.
+- **Boarding pass** (the sign-up) is modelled on a 1990s Concorde pass, branded Concord only (no airline names or marks): charcoal coupon with a swoosh-over-small-caps CONCORD wordmark, white printed boxes (GATE blank, GATE CLOSES 0730, SEAT 01A) in grey dot-matrix mono, a NO CRAMMING strip with a green FAST TRACK sticker, passenger strip, fine print in the owner's voice, BOARDING PASS footer; a light stub ("Concord Air") with passenger / from-to / flight boxes, seat, baggage row, barcode and the CTA. Clicking the stub tears it off, then opens `/sign-up`. Clear mounting tabs top and bottom. Stacks vertically on phones.
 - **Reduced motion**: same scenes as still frames, no stage.
 - **Phones**: the plane flies higher during the product cards, which sit at the bottom.
 - e2e: `apps/web/e2e/landing.spec.ts`.

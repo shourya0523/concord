@@ -99,3 +99,18 @@ export function skyAt(p: number): { top: string; bottom: string } {
   const last = stops[stops.length - 1]!
   return { top: last.top, bottom: last.bottom }
 }
+
+/**
+ * The sky as a crossfade between fixed gradient layers (one per stop), so the
+ * page animates opacity instead of repainting a gradient every frame: the
+ * `lower` layer is fully on and the `upper` layer sits on it at opacity `t`.
+ */
+export function skyBlend(p: number): { lower: number; upper: number; t: number } {
+  const stops = SKY_STOPS
+  if (p <= stops[0]!.at) return { lower: 0, upper: 0, t: 0 }
+  for (let i = 1; i < stops.length; i += 1) {
+    if (p <= stops[i]!.at) return { lower: i - 1, upper: i, t: segment(p, stops[i - 1]!.at, stops[i]!.at) }
+  }
+  const last = stops.length - 1
+  return { lower: last, upper: last, t: 0 }
+}

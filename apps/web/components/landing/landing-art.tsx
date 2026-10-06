@@ -8,6 +8,7 @@ import * as React from "react"
 import { Caveat } from "next/font/google"
 
 import { Paperclip } from "@/components/paper"
+import { DESK_ITEMS, deskTransform, type DeskItem } from "@/lib/landing/scroll-frame"
 
 export const hand = Caveat({ subsets: ["latin"], weight: ["500", "700"] })
 
@@ -33,9 +34,11 @@ export function TornEdgeFilter() {
 /* ------------------------------------------------------------------ desk */
 
 /** A loose index card on the desk with a handwritten question. */
-function LooseCard({ question, className, style }: { question: string; className?: string; style?: React.CSSProperties }) {
+type ItemProps<E extends Element> = { className?: string; style?: React.CSSProperties; ref?: React.Ref<E> }
+
+function LooseCard({ question, className, style, ref }: { question: string } & ItemProps<HTMLDivElement>) {
   return (
-    <div className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+    <div ref={ref} className={`absolute ${className ?? ""}`} style={style} aria-hidden>
       <div className="stock-index h-full w-full px-4 pt-3 [filter:drop-shadow(0_6px_10px_rgb(60_45_20/0.14))]">
         <p className="font-mono text-[9px] tracking-[0.18em] text-[#777] uppercase">Question</p>
         <p className={`${hand.className} pt-5 text-[1.5rem] leading-tight`} style={{ color: INK_BLUE }}>
@@ -46,9 +49,9 @@ function LooseCard({ question, className, style }: { question: string; className
   )
 }
 
-function Pencil({ className, style }: { className?: string; style?: React.CSSProperties }) {
+function Pencil({ className, style, ref }: ItemProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 320 28" className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+    <svg ref={ref} viewBox="0 0 320 28" className={`absolute ${className ?? ""}`} style={style} aria-hidden>
       <defs>
         <linearGradient id="pencil-body" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#f6c94a" />
@@ -83,9 +86,9 @@ function Pencil({ className, style }: { className?: string; style?: React.CSSPro
 }
 
 /** Coffee ring left by a mug: two broken, uneven brown circles. */
-function CoffeeRing({ className, style }: { className?: string; style?: React.CSSProperties }) {
+function CoffeeRing({ className, style, ref }: ItemProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 200 200" className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+    <svg ref={ref} viewBox="0 0 200 200" className={`absolute ${className ?? ""}`} style={style} aria-hidden>
       <g fill="none" stroke="#8a5a2b" strokeLinecap="round" filter="url(#landing-torn)">
         <path d="M100 18 A 82 80 0 1 1 30 64" strokeWidth="5" opacity="0.22" />
         <path d="M100 26 A 74 73 0 0 1 172 112" strokeWidth="2.5" opacity="0.16" />
@@ -96,9 +99,9 @@ function CoffeeRing({ className, style }: { className?: string; style?: React.CS
   )
 }
 
-function StickyNote({ className, style }: { className?: string; style?: React.CSSProperties }) {
+function StickyNote({ className, style, ref }: ItemProps<HTMLDivElement>) {
   return (
-    <div className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+    <div ref={ref} className={`absolute ${className ?? ""}`} style={style} aria-hidden>
       <div className="relative h-full w-full bg-[#f8e58c] bg-[image:var(--paper-grain)] p-4 [filter:drop-shadow(0_8px_8px_rgb(60_45_20/0.18))] [clip-path:polygon(0_0,100%_0,100%_88%,90%_100%,0_100%)]">
         <div className="absolute inset-x-0 top-0 h-5 bg-[#efd876]" />
         <p className={`${hand.className} relative pt-4 text-[1.55rem] leading-[1.05]`} style={{ color: INK_BLUE }}>
@@ -115,9 +118,9 @@ function StickyNote({ className, style }: { className?: string; style?: React.CS
 }
 
 /** Corner of a ledger pad with a few worked numbers. */
-function LedgerCorner({ className, style }: { className?: string; style?: React.CSSProperties }) {
+function LedgerCorner({ className, style, ref }: ItemProps<HTMLDivElement>) {
   return (
-    <div className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+    <div ref={ref} className={`absolute ${className ?? ""}`} style={style} aria-hidden>
       <div className="stock-ledger h-full w-full px-6 pt-6 [filter:drop-shadow(0_8px_12px_rgb(60_45_20/0.16))]">
         <div className={`${hand.className} space-y-1 text-right text-[1.35rem] leading-7`} style={{ color: INK_BLUE }}>
           <p>EBITDA 120</p>
@@ -131,45 +134,47 @@ function LedgerCorner({ className, style }: { className?: string; style?: React.
   )
 }
 
+type Bind = (key: string) => (el: HTMLElement | SVGElement | null) => void
+
 /**
- * Everything else on the desk. Each item slides off at its own speed when the
- * plane takes off (`--takeoff`) and drifts a little while the card folds.
+ * Everything else on the desk. The stage moves each item (and fades the
+ * group) by writing transforms through `bind`; nothing here re-renders.
  */
-export function DeskClutter() {
-  const drift = (speed: number, rotate: number): React.CSSProperties => ({
-    transform: `translate3d(calc(var(--fold, 0) * ${speed * 0.6}vw), calc(var(--takeoff, 0) * ${70 + speed * 20}vh), 0) rotate(${rotate}deg)`,
-    willChange: "transform",
-  })
+export function DeskClutter({ bind }: { bind: Bind }) {
+  const item = (key: DeskItem["key"]) => {
+    const spec = DESK_ITEMS.find((d) => d.key === key)!
+    return {
+      ref: bind(key),
+      style: { transform: deskTransform(spec, 0, 0), willChange: "transform" } as React.CSSProperties,
+    }
+  }
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0" style={{ opacity: "calc(1 - var(--takeoff, 0) * 2.5)" }}>
-      <CoffeeRing className="top-[6vh] left-[4vw] w-[22vw] max-w-72 min-w-40" style={drift(-2, 0)} />
-      <LedgerCorner
-        className="top-[54vh] -left-[3vw] hidden h-[18rem] w-[17rem] md:block"
-        style={drift(-4, -7)}
-      />
+    <div ref={bind("desk")} aria-hidden className="pointer-events-none absolute inset-0 will-change-[opacity]">
+      <CoffeeRing className="top-[6vh] left-[4vw] w-[22vw] max-w-72 min-w-40" {...item("desk-ring")} />
+      <LedgerCorner className="top-[54vh] -left-[3vw] hidden h-[18rem] w-[17rem] md:block" {...item("desk-ledger")} />
       <LooseCard
         question="Why private equity?"
         className="top-[12vh] right-[5vw] hidden h-[10.5rem] w-[17rem] lg:block"
-        style={drift(5, 8)}
+        {...item("desk-card-pe")}
       />
       <LooseCard
         question="What's EBITDA?"
         className="top-[58vh] right-[9vw] hidden h-[10rem] w-[16rem] md:block"
-        style={drift(3, -5)}
+        {...item("desk-card-ebitda")}
       />
-      <StickyNote className="top-[18vh] left-[10vw] hidden h-40 w-40 lg:block" style={drift(-3, -4)} />
+      <StickyNote className="top-[18vh] left-[10vw] hidden h-40 w-40 lg:block" {...item("desk-sticky")} />
       <Pencil
         className="right-[-4vw] bottom-[12vh] w-[min(62vw,22rem)] md:right-[18vw] md:bottom-[9vh]"
-        style={drift(6, -16)}
+        {...item("desk-pencil")}
       />
     </div>
   )
 }
 
 /** The paperclip and the stack under the hero card; gone once folding starts. */
-export function CardStack() {
+export function CardStack({ ref }: { ref?: React.Ref<HTMLDivElement> }) {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0" style={{ opacity: "calc(1 - var(--fold, 0) * 5)" }}>
+    <div ref={ref} aria-hidden className="pointer-events-none absolute inset-0">
       <div className="absolute inset-[7%_4.5%] translate-x-[2%] translate-y-[4%] rotate-[3deg] rounded-[4px] bg-[#f3efe6] [filter:drop-shadow(0_4px_6px_rgb(60_45_20/0.12))]" />
       <div className="absolute inset-[7%_4.5%] -translate-x-[1.5%] translate-y-[2%] -rotate-[2deg] rounded-[4px] bg-[#f8f5ee] [filter:drop-shadow(0_4px_6px_rgb(60_45_20/0.12))]" />
       <Paperclip className="absolute top-[1%] left-[12%] z-10 h-[52px] w-[19px] rotate-[4deg]" />
@@ -179,49 +184,66 @@ export function CardStack() {
 
 /* ------------------------------------------------------------------- sky */
 
-/** Two layers of paper-cut towers with lit windows. */
-export function Skyline({ style }: { style?: React.CSSProperties }) {
-  const far = [
-    [0, 70], [40, 120], [70, 96], [104, 150], [140, 110], [176, 180], [214, 128], [250, 160], [292, 104],
-    [330, 140], [368, 210], [404, 130], [446, 170], [486, 118], [520, 196], [560, 140], [600, 160],
-    [640, 112], [680, 176], [720, 128], [760, 150], [800, 100],
-  ] as const
-  const near = [
-    { x: 20, w: 60, h: 150 }, { x: 86, w: 44, h: 220, spire: true }, { x: 136, w: 70, h: 120 },
-    { x: 214, w: 52, h: 270 }, { x: 272, w: 80, h: 170 }, { x: 360, w: 46, h: 320, spire: true },
-    { x: 412, w: 74, h: 210 }, { x: 494, w: 58, h: 250 }, { x: 560, w: 86, h: 140 },
-    { x: 654, w: 48, h: 230, spire: true }, { x: 710, w: 70, h: 180 }, { x: 786, w: 40, h: 120 },
-  ]
+const SKYLINE_FAR = [
+  [0, 70], [40, 120], [70, 96], [104, 150], [140, 110], [176, 180], [214, 128], [250, 160], [292, 104],
+  [330, 140], [368, 210], [404, 130], [446, 170], [486, 118], [520, 196], [560, 140], [600, 160],
+  [640, 112], [680, 176], [720, 128], [760, 150], [800, 100],
+] as const
+const SKYLINE_NEAR = [
+  { x: 20, w: 60, h: 150 }, { x: 86, w: 44, h: 220, spire: true }, { x: 136, w: 70, h: 120 },
+  { x: 214, w: 52, h: 270 }, { x: 272, w: 80, h: 170 }, { x: 360, w: 46, h: 320, spire: true },
+  { x: 412, w: 74, h: 210 }, { x: 494, w: 58, h: 250 }, { x: 560, w: 86, h: 140 },
+  { x: 654, w: 48, h: 230, spire: true }, { x: 710, w: 70, h: 180 }, { x: 786, w: 40, h: 120 },
+]
+
+/**
+ * Two layers of paper-cut towers. Windows are SVG patterns (one dim grid and
+ * one sparse lit grid per tower) rather than a rect per window.
+ */
+export function Skyline({ ref, style }: { ref?: React.Ref<HTMLDivElement>; style?: React.CSSProperties }) {
+  const uid = React.useId().replace(/:/g, "")
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0" style={style}>
+    <div ref={ref} aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 will-change-transform" style={style}>
       <svg viewBox="0 0 840 360" preserveAspectRatio="xMidYMax slice" className="block h-[46vh] w-full">
+        <defs>
+          {SKYLINE_NEAR.map((b, i) => {
+            const x = b.x + 7
+            const y = 360 - b.h + 12
+            const litCol = (i * 2) % 3
+            const litRow = (i * 5) % 4
+            return (
+              <React.Fragment key={b.x}>
+                <pattern id={`${uid}-dim-${i}`} x={x} y={y} width="12" height="18" patternUnits="userSpaceOnUse">
+                  <rect width="5" height="8" fill="rgb(70 52 30 / 0.28)" />
+                </pattern>
+                <pattern id={`${uid}-lit-${i}`} x={x} y={y} width="36" height="72" patternUnits="userSpaceOnUse">
+                  <rect x={litCol * 12} y={litRow * 18} width="5" height="8" fill="#ffd98a" />
+                  <rect x={((litCol + 1) % 3) * 12} y={((litRow + 2) % 4) * 18} width="5" height="8" fill="#ffd98a" />
+                </pattern>
+              </React.Fragment>
+            )
+          })}
+        </defs>
         <path
           filter="url(#landing-torn)"
           fill="#d9c7a6"
-          d={`M0 360 ${far.map(([x, h], i) => `L${x} ${360 - h} L${(far[i + 1]?.[0] ?? 840) - 4} ${360 - h}`).join(" ")} L840 360 Z`}
+          d={`M0 360 ${SKYLINE_FAR.map(([x, h], i) => `L${x} ${360 - h} L${(SKYLINE_FAR[i + 1]?.[0] ?? 840) - 4} ${360 - h}`).join(" ")} L840 360 Z`}
         />
-        {near.map((b, i) => (
-          <g key={b.x} style={{ filter: "drop-shadow(0 -2px 3px rgb(60 45 20 / 0.18))" }}>
-            {b.spire ? <rect x={b.x + b.w / 2 - 1.5} y={360 - b.h - 34} width="3" height="34" fill="#a88c62" /> : null}
-            <rect x={b.x} y={360 - b.h} width={b.w} height={b.h} fill={i % 2 ? "#c2a77d" : "#b89a6c"} />
-            <rect x={b.x} y={360 - b.h} width={b.w * 0.22} height={b.h} fill="rgb(255 255 255 / 0.12)" />
-            {Array.from({ length: Math.floor((b.h - 20) / 18) }, (_, row) =>
-              Array.from({ length: Math.floor((b.w - 10) / 12) }, (_, col) => {
-                const lit = (row * 7 + col * 3 + i) % 5 === 0
-                return (
-                  <rect
-                    key={`${row}-${col}`}
-                    x={b.x + 7 + col * 12}
-                    y={360 - b.h + 12 + row * 18}
-                    width="5"
-                    height="8"
-                    fill={lit ? "#ffd98a" : "rgb(70 52 30 / 0.28)"}
-                  />
-                )
-              })
-            )}
-          </g>
-        ))}
+        {SKYLINE_NEAR.map((b, i) => {
+          const cols = Math.floor((b.w - 10) / 12)
+          const rows = Math.floor((b.h - 20) / 18)
+          const win = { x: b.x + 7, y: 360 - b.h + 12, width: cols * 12 - 7, height: rows * 18 - 10 }
+          return (
+            <g key={b.x}>
+              {b.spire ? <rect x={b.x + b.w / 2 - 1.5} y={360 - b.h - 34} width="3" height="34" fill="#a88c62" /> : null}
+              <rect x={b.x - 2} y={360 - b.h + 2} width={b.w} height={b.h} fill="rgb(60 45 20 / 0.14)" />
+              <rect x={b.x} y={360 - b.h} width={b.w} height={b.h} fill={i % 2 ? "#c2a77d" : "#b89a6c"} />
+              <rect x={b.x} y={360 - b.h} width={b.w * 0.22} height={b.h} fill="rgb(255 255 255 / 0.12)" />
+              <rect {...win} fill={`url(#${uid}-dim-${i})`} />
+              <rect {...win} fill={`url(#${uid}-lit-${i})`} />
+            </g>
+          )
+        })}
         <rect x="0" y="352" width="840" height="8" fill="#9c8058" />
       </svg>
     </div>
@@ -229,9 +251,9 @@ export function Skyline({ style }: { style?: React.CSSProperties }) {
 }
 
 /** A sun torn out of orange paper, with a paler rim. */
-export function PaperSun({ className, style }: { className?: string; style?: React.CSSProperties }) {
+export function PaperSun({ className, style, ref }: ItemProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 120 120" className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+    <svg ref={ref} viewBox="0 0 120 120" className={`absolute ${className ?? ""}`} style={style} aria-hidden>
       <g filter="url(#landing-torn)">
         <circle cx="60" cy="60" r="52" fill="#fbe2c4" />
         <circle cx="60" cy="60" r="47" fill="#f1a35f" />
@@ -277,12 +299,12 @@ export function PaperMoon({ className, style }: { className?: string; style?: Re
 }
 
 /** A few ink birds, drawn with a pen. */
-export function Birds({ className, style }: { className?: string; style?: React.CSSProperties }) {
+export function Birds({ className, style, ref }: ItemProps<SVGSVGElement>) {
   const birds = [
     [10, 30, 1], [34, 18, 0.8], [52, 34, 0.7], [70, 12, 0.6], [86, 26, 0.5],
   ] as const
   return (
-    <svg viewBox="0 0 100 50" className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+    <svg ref={ref} viewBox="0 0 100 50" className={`absolute ${className ?? ""}`} style={style} aria-hidden>
       {birds.map(([x, y, s]) => (
         <path
           key={`${x}-${y}`}
@@ -320,12 +342,14 @@ function CloudShape({ shape }: { shape: number }) {
 
 /** A cloud torn out of paper: a white fibre rim, the tinted sheet, a shaded underside. */
 export function TornCloud({
+  ref,
   tone,
   rim = "#fffefb",
   shape,
   className,
   style,
 }: {
+  ref?: React.Ref<HTMLDivElement>
   tone: string
   rim?: string
   shape: number
@@ -334,7 +358,7 @@ export function TornCloud({
 }) {
   const id = `cloud-shade-${shape}`
   return (
-    <div className={className} style={style} aria-hidden>
+    <div ref={ref} className={className} style={style} aria-hidden>
       <svg
         viewBox="0 0 200 90"
         className="block h-auto w-full overflow-visible [filter:drop-shadow(0_10px_14px_rgb(30_40_70/0.16))]"
@@ -475,10 +499,10 @@ export function DrillCard() {
 }
 
 /** Streak tallies on a torn scrap, in pen. */
-export function TallyScrap({ className, style }: { className?: string; style?: React.CSSProperties }) {
+export function TallyScrap({ className, style, ref }: ItemProps<HTMLDivElement>) {
   const groups = 4
   return (
-    <div className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+    <div ref={ref} className={`absolute ${className ?? ""}`} style={style} aria-hidden>
       <div className="paper-torn bg-[#f7f1e4] bg-[image:var(--paper-grain)] px-5 py-5 [--torn-h:8px] [filter:drop-shadow(0_8px_14px_rgb(0_0_0/0.3))]">
         <svg viewBox="0 0 200 44" className="block w-full">
           {Array.from({ length: groups }, (_, g) => (
@@ -574,9 +598,9 @@ export function NightSky() {
 }
 
 /** A pencil streak that crosses the sky once. */
-export function ShootingStar({ style }: { style?: React.CSSProperties }) {
+export function ShootingStar({ style, ref }: Omit<ItemProps<SVGSVGElement>, "className">) {
   return (
-    <svg viewBox="0 0 160 60" className="absolute top-[6vh] right-[24vw] w-40" style={style} aria-hidden>
+    <svg ref={ref} viewBox="0 0 160 60" className="absolute top-[6vh] right-[24vw] w-40" style={style} aria-hidden>
       <defs>
         <linearGradient id="shoot-tail" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stopColor="#fff6dc" stopOpacity="0" />
@@ -590,9 +614,9 @@ export function ShootingStar({ style }: { style?: React.CSSProperties }) {
 }
 
 /** A far-off paper plane with a blinking wingtip light: other candidates, also prepping. */
-export function DistantPlane({ className, style }: { className?: string; style?: React.CSSProperties }) {
+export function DistantPlane({ className, style, ref }: ItemProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 60 26" className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+    <svg ref={ref} viewBox="0 0 60 26" className={`absolute ${className ?? ""}`} style={style} aria-hidden>
       <path d="M2 4 L58 13 L18 13 Z" fill="#e9e1cf" />
       <path d="M2 22 L58 13 L18 13 Z" fill="#cfc6b2" />
       <path d="M8 13 L58 13 L18 16 Z" fill="#bdb39d" />
@@ -601,41 +625,58 @@ export function DistantPlane({ className, style }: { className?: string; style?:
   )
 }
 
-/** Warm city lights along the top of the Earth, sized in vw to follow its curve. */
-export function CityLights() {
-  // [centre x (vw), lights in the cluster]
+/**
+ * The curve of the Earth at cruise, with warm city lights along the horizon.
+ * A short SVG band (not a giant disc) so it stays cheap to composite.
+ */
+export function Earth({ ref, style }: { ref?: React.Ref<HTMLDivElement>; style?: React.CSSProperties }) {
+  const uid = React.useId().replace(/:/g, "")
+  // Horizon: a circle of radius R centred far below; top of the arc at y = 60.
+  const R = 3000
+  const cy = 60 + R
+  const horizon = (x: number) => cy - Math.sqrt(R * R - (x - 500) ** 2)
   const cities = [
-    [8, 4], [17, 7], [26, 3], [33, 9], [41, 5], [47, 12], [55, 6], [62, 10], [70, 4], [77, 8], [86, 5], [93, 3],
+    [80, 4], [170, 7], [260, 3], [330, 9], [410, 5], [470, 12], [550, 6], [620, 10], [700, 4], [770, 8],
+    [860, 5], [930, 3],
   ] as const
-  const curve = (x: number) => ((x - 50) ** 2) / 240
   return (
-    <svg
-      viewBox="0 0 100 20"
-      className="absolute top-0 left-[calc(50%-50vw)] h-[20vw] w-[100vw] overflow-visible"
-      aria-hidden
-    >
-      {cities.flatMap(([cx, n], c) =>
-        Array.from({ length: n }, (_, i) => {
-          const x = cx + ((i * 37 + c * 11) % 17) / 6 - 1.4
-          const y = curve(x) + 0.7 + ((i * 53 + c * 7) % 13) / 9
-          return (
-            <circle
-              key={`${c}-${i}`}
-              cx={x}
-              cy={y}
-              r={i % 4 === 0 ? 0.22 : 0.14}
-              fill="#ffd98a"
-              opacity={0.45 + ((i * 7 + c) % 5) / 10}
-            />
-          )
-        })
-      )}
-    </svg>
+    <div ref={ref} aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 will-change-[transform,opacity]" style={style}>
+      <svg viewBox="0 0 1000 300" preserveAspectRatio="xMidYMin slice" className="block h-[34vh] w-full">
+        <defs>
+          <radialGradient id={`${uid}-ground`} cx="500" cy="60" r="900" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stopColor="#3d6a9c" />
+            <stop offset="0.12" stopColor="#1e3a63" />
+            <stop offset="0.6" stopColor="#0d1a33" />
+          </radialGradient>
+          <filter id={`${uid}-glow`} x="-10%" y="-50%" width="120%" height="200%">
+            <feGaussianBlur stdDeviation="10" />
+          </filter>
+        </defs>
+        <circle cx="500" cy={cy} r={R} fill="none" stroke="rgb(150 200 255 / 0.45)" strokeWidth="18" filter={`url(#${uid}-glow)`} />
+        <circle cx="500" cy={cy} r={R} fill={`url(#${uid}-ground)`} />
+        {cities.flatMap(([cx, n], c) =>
+          Array.from({ length: n }, (_, i) => {
+            const x = cx + ((i * 37 + c * 11) % 17) * 1.6 - 14
+            const y = horizon(x) + 7 + ((i * 53 + c * 7) % 13) * 1.1
+            return (
+              <circle
+                key={`${c}-${i}`}
+                cx={x}
+                cy={y}
+                r={i % 4 === 0 ? 2.2 : 1.4}
+                fill="#ffd98a"
+                opacity={0.45 + ((i * 7 + c) % 5) / 10}
+              />
+            )
+          })
+        )}
+      </svg>
+    </div>
   )
 }
 
 /** Today's set as a luggage tag: what the 12 minutes is made of. */
-export function DailySetTag({ className, style }: { className?: string; style?: React.CSSProperties }) {
+export function DailySetTag({ className, style, ref }: ItemProps<HTMLDivElement>) {
   const rows = [
     ["Reviews due", "4"],
     ["New questions", "2"],
@@ -643,7 +684,7 @@ export function DailySetTag({ className, style }: { className?: string; style?: 
     ["Math drill", "1"],
   ] as const
   return (
-    <div className={`absolute ${className ?? ""}`} style={style} aria-hidden>
+    <div ref={ref} className={`absolute ${className ?? ""}`} style={style} aria-hidden>
       <div className="relative bg-[#f1e3c2] bg-[image:var(--paper-grain)] px-5 pt-7 pb-4 [clip-path:polygon(14%_0,86%_0,100%_9%,100%_100%,0_100%,0_9%)] [filter:drop-shadow(0_10px_16px_rgb(0_0_0/0.35))]">
         <span className="absolute top-2 left-1/2 size-3 -translate-x-1/2 rounded-full bg-[#1b2440] ring-2 ring-[#d9c79e]" />
         <p className="text-center font-mono text-[9px] tracking-[0.2em] text-[#6b5a35] uppercase">Today&apos;s set</p>
