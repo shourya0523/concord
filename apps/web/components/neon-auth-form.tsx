@@ -9,6 +9,7 @@ import { Input } from "@ibpe/ui/components/input"
 import { Label } from "@ibpe/ui/components/label"
 
 import { authClient } from "@/lib/auth/client"
+import { SIGN_IN_PATH, SIGN_UP_PATH, withNext } from "@/lib/auth/gate"
 import { POST_AUTH_HOME, resolvePostAuthPath } from "@/lib/auth/post-auth"
 
 type Mode = "sign-in" | "sign-up"
@@ -16,9 +17,11 @@ type Mode = "sign-in" | "sign-up"
 type Props = {
   mode: Mode
   configured: boolean
+  /** Where the visitor was headed before the login gate (already validated). */
+  next?: string | null
 }
 
-export function NeonAuthForm({ mode, configured }: Props) {
+export function NeonAuthForm({ mode, configured, next = null }: Props) {
   const router = useRouter()
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -27,9 +30,10 @@ export function NeonAuthForm({ mode, configured }: Props) {
   const [pending, setPending] = React.useState(false)
 
   async function finishAuth(preferOnboarding: boolean) {
+    // New accounts still onboard first; returning users go back where they were headed.
     const path = await resolvePostAuthPath(preferOnboarding)
     router.refresh()
-    router.push(path)
+    router.push(path === "/onboarding" ? path : (next ?? path))
   }
 
   async function onSubmit(event: React.FormEvent) {
@@ -80,9 +84,9 @@ export function NeonAuthForm({ mode, configured }: Props) {
     try {
       const result = await authClient.signIn.social({
         provider: "google",
-        callbackURL: POST_AUTH_HOME,
+        callbackURL: next ?? POST_AUTH_HOME,
         newUserCallbackURL: "/onboarding",
-        errorCallbackURL: mode === "sign-up" ? "/sign-up" : "/sign-in",
+        errorCallbackURL: withNext(mode === "sign-up" ? SIGN_UP_PATH : SIGN_IN_PATH, next),
       })
       if (result.error) {
         setError(result.error.message ?? "Google sign-in failed")
@@ -193,7 +197,7 @@ export function NeonAuthForm({ mode, configured }: Props) {
           <>
             New here?{" "}
             <Link
-              href="/sign-up"
+              href={withNext(SIGN_UP_PATH, next)}
               className="text-foreground underline-offset-4 hover:underline"
             >
               Create an account
@@ -203,7 +207,7 @@ export function NeonAuthForm({ mode, configured }: Props) {
           <>
             Already have an account?{" "}
             <Link
-              href="/sign-in"
+              href={withNext(SIGN_IN_PATH, next)}
               className="text-foreground underline-offset-4 hover:underline"
             >
               Sign in

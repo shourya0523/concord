@@ -17,10 +17,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             <ConcordLogo size="md" priority />
           </Link>
           <Link
-            href="/today"
+            href="/"
             className="text-xs text-chrome-muted underline-offset-4 hover:text-chrome-text hover:underline"
           >
-            Continue without account
+            Back to home
           </Link>
         </header>
         <main className="flex flex-1 flex-col justify-center">

@@ -1,6 +1,11 @@
 /**
- * Next.js 16 proxy — Neon Auth route protection when configured; passthrough otherwise.
- * Frontend owns /auth UI pages; this only gates protected paths.
+ * Next.js 16 proxy — the login gate (lib/auth/gate*.ts, DESIGN.md §17).
+ *
+ * Every page and API needs a Neon Auth session except the landing page, the
+ * auth flow, /api/health, /api/cron/* (CRON_SECRET) and email unsubscribe
+ * links. Signed-out page visits redirect to /sign-in?next=…; signed-out API
+ * calls get a JSON 401. Without Neon Auth (local dev / e2e stub mode) the
+ * gate is a passthrough and the app runs as `dev_stub_user`.
  *
  * Admin (/admin, /api/admin): Neon Auth sign-in is required when configured;
  * the ADMIN_EMAILS allow-list is enforced by the admin page and route handlers
@@ -10,6 +15,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { adminProxyBlocked, isAdminPath } from "@/lib/admin/access";
+import { gateRequest } from "@/lib/auth/gate-proxy";
 import { createAuthProxy, isNeonAuthConfigured } from "@/lib/auth/server";
 
 const protect = createAuthProxy({ loginUrl: "/sign-in" });
@@ -33,23 +39,13 @@ export default async function proxy(request: NextRequest) {
       headers: { "content-type": "text/plain; charset=utf-8" },
     });
   }
-  return protect(request);
+  return gateRequest(request, protect);
 }
 
 export const config = {
-  // Mode A prep pages (/prep/heat, /prep/rag) are public-read — heat/RAG APIs
-  // are already anonymous. Auth still gates practice persistence + account.
-  matcher: [
-    "/practice/:path*",
-    "/account/:path*",
-    "/api/practice/:path*",
-    "/api/transcribe",
-    "/api/notes/:path*",
-    "/api/mastery/:path*",
-    "/api/drills/:path*",
-    "/api/admin/:path*",
-    "/admin/:path*",
-  ],
+  // Everything except Next's build output and files with an extension
+  // (public assets); lib/auth/gate.ts decides what stays public.
+  matcher: ["/((?!_next/static|_next/image|.*\\.[a-zA-Z0-9]+$).*)"],
 };
 
 // Re-export for diagnostics / tests

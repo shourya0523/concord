@@ -1590,3 +1590,18 @@ Nothing animates on page load except state-confirmed reactions. `prefers-reduced
 - **Reduced motion**: same scenes as still frames, no stage.
 - **Phones**: the plane flies higher during the product cards, which sit at the bottom.
 - e2e: `apps/web/e2e/landing.spec.ts`.
+
+### 17.1 Login gate
+
+The whole app sits behind Neon Auth sign-in; only the landing page is public.
+
+- **Policy** (`apps/web/lib/auth/gate.ts`, unit tested):
+  - Public paths: `/`, `/sign-in`, `/sign-up`, Neon Auth's `/api/auth/*` and `/auth/*`, `/api/health`, `/api/cron/*` (CRON_SECRET), `/api/notifications/unsubscribe` (signed email links), and static files.
+  - Everything else needs a session.
+- **Proxy** (`apps/web/proxy.ts` → `lib/auth/gate-proxy.ts`) matches every route except Next build output and files with an extension. It runs the Neon Auth middleware and rewrites its sign-in redirect:
+  - Pages go to `/sign-in?next=<path + query>`.
+  - APIs get `401 {"error":{"code":"unauthorized"}}` instead of an HTML redirect.
+  - Stale-session `Set-Cookie` headers are kept.
+- **Return path**: the sign-in/up pages validate `next` with `safeNextPath`. It accepts same-site paths only, never `//host`, absolute URLs, APIs or the auth pages. Returning users land back where they were headed; new accounts still go to onboarding first. Google sign-in uses `next` as its `callbackURL`, and switching between sign-in and sign-up keeps it.
+- **Without Neon Auth** (local dev, e2e stub mode) the gate is a passthrough and the app runs as `dev_stub_user`, matching the API layer.
+- **e2e**: the `gate` Playwright project starts a second server with Neon Auth configured against an unreachable URL. Signed-out requests never call the auth server, so `e2e/gate.spec.ts` exercises the real gate without credentials.
