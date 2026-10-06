@@ -43,6 +43,19 @@ export function MockupSvgFilters() {
             yChannelSelector="G"
           />
         </filter>
+        {/* Rubber-stamp ink: speckled coverage + a slight edge wobble. */}
+        <filter id="stamp-ink" x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="11" result="speckle" />
+          <feColorMatrix
+            in="speckle"
+            type="matrix"
+            values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.4 1.7"
+            result="holes"
+          />
+          <feComposite in="SourceGraphic" in2="holes" operator="in" result="inked" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="2" result="wobble" />
+          <feDisplacementMap in="inked" in2="wobble" scale="2.2" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
       </defs>
     </svg>
   )

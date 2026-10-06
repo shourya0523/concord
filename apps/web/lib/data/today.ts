@@ -9,7 +9,8 @@ import { satisfiedAchievements } from "@/lib/achievements"
 import { isFlagOn } from "@/lib/flags"
 import { addDays, daysBetween, daysUntil, localHour } from "@/lib/local-day"
 import { warrenMoodFor } from "@/lib/warren-mood"
-import { awardAchievements, getRetentionState } from "./activity"
+import { careerCard, careerTrack } from "@/lib/career"
+import { awardAchievements, getRetentionState, getStreakRun } from "./activity"
 import { dailySetSize, getOrCreateDailySet, readDailySet, safeTargetFirms } from "./daily-set"
 import { getPrepProfile } from "./profile"
 import { conceptStatsFrom, getFirmReadiness, loadConceptMastery } from "./readiness"
@@ -68,6 +69,8 @@ export async function getToday(options: {
   const completed = set?.completed_count ?? 0
   const hour = localHour(now, timezone)
   const level = levelForXp(state.streak.xp_total)
+  const card = careerCard(state.streak.xp_total, careerTrack(profile.track))
+  const run = flags.gamification ? await getStreakRun(userId, today) : []
 
   return {
     local_date: today,
@@ -82,6 +85,7 @@ export async function getToday(options: {
       goal_met_today: streak.goal_met_today,
       at_risk: streak.at_risk,
       freeze_used_yesterday: state.rollover.freeze_dates.includes(addDays(today, -1)),
+      run,
     },
     xp: {
       total: state.streak.xp_total,
@@ -89,6 +93,9 @@ export async function getToday(options: {
       level: level.level,
       level_floor: level.floor,
       next_level_at: level.next,
+      title: card.title,
+      next_title: card.next_title,
+      track: card.track,
     },
     daily_set: {
       goal,

@@ -3,7 +3,7 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
-@source "../../../apps/**/*.{ts,tsx}";
+@source "../../../../apps/**/*.{ts,tsx}";
 @source "../../../components/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
@@ -54,6 +54,7 @@
 
   --color-paper: var(--paper);
   --color-sheet: var(--sheet);
+  --color-pencil: var(--pencil);
   --color-ink: var(--ink);
   --color-graphite: var(--graphite);
   --color-stone: var(--stone);
@@ -168,10 +169,20 @@
 
   /* Paper sheets sit one step lighter than the cream shell so torn edges read. */
   --sheet: #fcf9f1;
+  /* Paper stocks (DESIGN.md §7 material map). */
+  --index-card: #fdfbf6;
+  --index-rule: rgb(157 180 207 / 0.38);
+  --index-margin: rgb(215 162 162 / 0.85);
+  --ledger: #eef3e6;
+  --ledger-line: rgb(84 128 84 / 0.14);
+  --ledger-major: rgb(84 128 84 / 0.24);
+  --manila: #ead8ab;
+  --pencil: #8a8478;
+  --clip-metal: oklch(0.42 0.02 75);
   --sheet-shadow: rgb(60 45 20 / 0.16);
   /* Baked textures (DESIGN.md §7: static assets for routine cards). */
   --paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.28 0 0 0 0 0.18 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
-  --paper-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.09' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.34 0 0 0 0 0.22 0 0 0 0.28 -0.1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --paper-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='480'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.09' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.34 0 0 0 0 0.22 0 0 0 0.2 -0.075'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
   --torn-top: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 12' preserveAspectRatio='none'%3E%3Cpath d='M0 12 L0 6.0 L3.1 4.0 L5.4 6.0 L7.6 9.6 L9.8 3.7 L14.7 3.9 L18.9 8.2 L22.3 10.6 L25.3 9.3 L30.2 4.2 L34.4 5.2 L36.6 3.5 L41.0 5.5 L45.1 5.6 L49.9 6.9 L53.9 6.0 L58.4 4.7 L60.8 5.4 L63.4 10.2 L68.0 6.2 L71.1 6.9 L75.2 5.6 L80.5 5.7 L82.7 6.9 L88.2 7.6 L91.5 9.7 L94.1 10.4 L96.5 4.5 L101.6 3.6 L105.5 7.9 L110.5 4.7 L113.8 7.9 L116.3 4.1 L119.1 5.8 L122.1 3.2 L125.4 6.2 L129.8 5.9 L134.1 3.5 L138.9 7.8 L142.2 10.1 L144.5 3.6 L147.0 8.5 L149.6 3.7 L151.6 7.8 L154.2 4.5 L157.4 3.9 L162.9 5.7 L165.2 3.7 L168.1 7.6 L170.2 8.2 L172.7 9.8 L180 6.0 L180 12 Z'/%3E%3C/svg%3E");
   --torn-bottom: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 12' preserveAspectRatio='none'%3E%3Cpath d='M0 0 L0 6.0 L5.0 5.1 L8.3 7.9 L12.2 4.7 L14.9 4.5 L19.9 4.5 L24.5 7.6 L27.8 2.8 L30.7 5.1 L34.2 3.8 L39.6 6.9 L42.4 7.8 L46.6 4.0 L50.2 5.3 L52.5 5.3 L57.3 4.8 L59.9 4.6 L64.7 3.7 L68.1 3.8 L70.7 8.1 L75.9 4.5 L80.8 3.6 L84.0 5.9 L86.0 3.7 L89.9 3.9 L94.9 4.4 L97.8 7.2 L101.9 7.4 L104.3 4.0 L107.9 5.7 L111.4 3.9 L115.3 2.4 L117.9 8.8 L120.5 6.3 L124.5 7.1 L128.4 2.1 L131.3 7.3 L135.0 5.8 L140.2 6.5 L144.0 6.1 L147.6 6.0 L152.9 5.1 L158.2 7.4 L163.5 4.3 L165.9 2.9 L168.2 5.3 L173.3 8.0 L180 6.0 L180 0 Z'/%3E%3C/svg%3E");
 }
@@ -256,8 +267,11 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     /* Faint shell grain — the whole app reads as paper, not flat fill. */
-    background-image: var(--paper-grain);
-    background-size: 220px 220px;
+    /* Laid cream: faint chain lines + grain — the desk everything sits on. */
+    background-image:
+      repeating-linear-gradient(90deg, transparent 0 46px, rgb(90 70 40 / 0.03) 46px 47px),
+      var(--paper-grain);
+    background-size: auto, 220px 220px;
   }
 
   h1,
@@ -295,7 +309,7 @@
   .paper-sheet-surface {
     background-color: var(--sheet);
     background-image: var(--paper-fibre), var(--paper-grain);
-    background-size: 320px 320px, 220px 220px;
+    background-size: 480px 480px, 220px 220px;
   }
 
   .paper-torn {
@@ -310,10 +324,132 @@
       var(--torn-bottom) bottom left / 180px var(--torn-h) repeat-x;
   }
 
+  /* Index card — "recall this". Clean cut, red header rule, faint blue lines. */
+  .stock-index {
+    border-radius: 4px;
+    background-color: var(--index-card);
+    background-image:
+      linear-gradient(transparent 44px, var(--index-margin) 44px 45.5px, transparent 45.5px),
+      repeating-linear-gradient(to bottom, transparent 0 23px, var(--index-rule) 23px 24px),
+      var(--paper-grain);
+    background-size: 100% 100%, 100% 24px, 220px 220px;
+    background-position: 0 0, 0 68px, 0 0;
+    background-repeat: no-repeat, repeat-y, repeat;
+  }
+
+  /* Ledger pad — "work the numbers". Green engineering grid. */
+  .stock-ledger {
+    border-radius: 2px;
+    background-color: var(--ledger);
+    background-image:
+      linear-gradient(var(--ledger-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ledger-line) 1px, transparent 1px),
+      linear-gradient(var(--ledger-major) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ledger-major) 1px, transparent 1px),
+      var(--paper-grain);
+    background-size: 12px 12px, 12px 12px, 60px 60px, 60px 60px, 220px 220px;
+  }
+
+  /* Manila folder — "a container". Tab cut into the top edge. */
+  .stock-manila {
+    background-color: var(--manila);
+    background-image: var(--paper-fibre), var(--paper-grain);
+    background-size: 480px 480px, 220px 220px;
+    clip-path: polygon(0 18px, 0 100%, 100% 100%, 100% 18px, 46% 18px, 42% 0, 4% 0, 0 18px);
+  }
+
+  /* Onionskin — Warren's aside, translucent over your work. */
+  .paper-onionskin {
+    background-color: rgb(252 250 244 / 0.66);
+    background-image: var(--paper-grain);
+    background-size: 220px 220px;
+    border: 1px solid rgb(120 110 90 / 0.18);
+    box-shadow: 0 1px 0 rgb(60 45 20 / 0.06), 0 6px 14px -8px rgb(60 45 20 / 0.18);
+    backdrop-filter: blur(0.6px);
+  }
+
+  /* Stacked sheets peeking out behind a pack (count = what's left). */
+  .paper-stack-sheet {
+    position: absolute;
+    inset: 0;
+    border-radius: 4px;
+    background-color: var(--index-card);
+    background-image: var(--paper-grain);
+    filter: drop-shadow(0 1px 0.6px var(--sheet-shadow));
+  }
+
+  /* Highlighter sweep (routine correct answer). */
+  .marker-sweep {
+    background-image: linear-gradient(
+      transparent 8%,
+      color-mix(in oklch, var(--success) 85%, transparent) 8% 92%,
+      transparent 92%
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    padding-inline: 2px;
+    animation: marker-sweep 520ms ease-out both;
+  }
+
+  .motion-deal { animation: paper-deal 400ms var(--ease-settle); }
+  /* Next card drawn off the pack. */
+  .motion-draw-card { animation: paper-draw 280ms var(--ease-settle) both; }
+  .motion-place { animation: paper-place 320ms var(--ease-settle) both; }
+  .motion-clip-on { animation: clip-on 320ms var(--ease-settle) both; }
+  .motion-thunk { animation: stamp-thunk 340ms var(--ease-bounce) both; }
+  .motion-fade-late { animation: fade-late 600ms ease-out both; }
+
+  .paper-lift {
+    transition: transform var(--duration-micro) ease-out, filter var(--duration-micro) ease-out;
+  }
+  .paper-lift:hover {
+    transform: translateY(-2px);
+  }
+
   /* Score / milestone only — live turbulence roughens the whole silhouette. */
   .paper-torn-hero {
     filter: url(#torn-paper-hero);
   }
+}
+
+@keyframes marker-sweep {
+  from { background-size: 0% 100%; }
+  to { background-size: 100% 100%; }
+}
+
+@keyframes paper-deal {
+  0% { transform: none; opacity: 1; }
+  42% { transform: translate(-34px, -4px) rotate(-4deg); opacity: 0; }
+  48% { transform: translate(5px, 5px) rotate(-0.8deg); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+
+@keyframes paper-draw {
+  from { transform: translate(6px, 6px) rotate(-0.8deg); opacity: 0.4; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes paper-place {
+  from { transform: translateY(-16px) rotate(-1.5deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes clip-on {
+  from { transform: translateY(-14px) rotate(-8deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes stamp-thunk {
+  0% { opacity: 0; transform: rotate(var(--stamp-tilt, -9deg)) scale(1.22); }
+  55% { opacity: 1; transform: rotate(var(--stamp-tilt, -9deg)) scale(0.98); }
+  100% { opacity: 1; transform: rotate(var(--stamp-tilt, -9deg)) scale(1); }
+}
+
+@keyframes fade-late {
+  0%, 60% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 @keyframes warren-breathe {

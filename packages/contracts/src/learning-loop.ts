@@ -177,5 +177,20 @@ export const ActivityResultSchema = z.object({
     .nullable()
     .optional(),
   achievements_earned: z.array(AchievementEarnedSchema).default([]),
+  /** This event met today's goal (state-confirmed; drives the FILED stamp). */
+  goal_met_now: z.boolean().optional(),
+  /** Meeting the goal banked a streak freeze. */
+  freeze_earned: z.boolean().optional(),
+  /** XP crossed a level threshold with this event. */
+  level_up: z
+    .object({
+      from: z.number().int().positive(),
+      to: z.number().int().positive(),
+      /** Career-ladder titles (track-aware), e.g. "Analyst II" → "Analyst III". */
+      from_title: z.string().optional(),
+      to_title: z.string().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 export type ActivityResult = z.infer<typeof ActivityResultSchema>;

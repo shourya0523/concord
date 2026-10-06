@@ -16,7 +16,6 @@ import {
   HandwritingHeadline,
   InkHoverScope,
   InterviewerAvatar,
-  PaperBurst,
   PaperSheet,
   RoughHover,
   SemanticPill,
@@ -606,11 +605,6 @@ export function SimulatorIsland({ voiceEnabled = false }: { voiceEnabled?: boole
       <div className="space-y-6">
         <PaperSheet seedKey={`sim-reveal-${session?.id ?? "done"}`} hero>
           <div className="relative overflow-hidden">
-            <PaperBurst
-              play
-              seedKey={`sim-reveal-burst-${session?.id ?? "done"}`}
-              className="pointer-events-none absolute top-0 right-0 opacity-80"
-            />
             <HandwritingHeadline
               phrase={
                 overall >= 75 ? "Mock debrief ready" : "Reset the weak reps"

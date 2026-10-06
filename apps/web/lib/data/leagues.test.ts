@@ -1,7 +1,15 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+  clampTier,
   cohortKeyFor,
+  isMissingColumn,
+  LEAGUE_TIERS,
+  lastWeekSummary,
+  nextTierAfter,
+  settleOutcome,
+  tierCohortKey,
+  tierName,
   groupIntoLeagues,
   handleFromSeed,
   HANDLE_PATTERN,
@@ -195,5 +203,64 @@ describe("standings", () => {
       Array.from({ length: 10 }, (_, i) => ({ handle: `h-${i}-100`, xp: 100 - i, isYou: false })),
     )
     assert.match(promotionCopy(ten[4]!, 10, 2), /The top 2 move up next week/)
+  })
+})
+
+describe("league tiers", () => {
+  it("names four tiers and clamps out-of-range values", () => {
+    assert.deepEqual([...LEAGUE_TIERS], ["Boutique", "Middle Market", "Bulge Bracket", "Elite Boutique"])
+    assert.equal(tierName(-1), "Boutique")
+    assert.equal(tierName(9), "Elite Boutique")
+    assert.equal(clampTier(null), 0)
+  })
+
+  it("settles promotion and demotion by zone, clamped at both ends", () => {
+    // 10 members: top 2 promote, bottom 2 demote.
+    assert.deepEqual(settleOutcome(1, 10, 1), { result: "promoted", next_tier: 2 })
+    assert.deepEqual(settleOutcome(5, 10, 1), { result: "held", next_tier: 1 })
+    assert.deepEqual(settleOutcome(10, 10, 1), { result: "demoted", next_tier: 0 })
+    assert.deepEqual(settleOutcome(1, 10, 3), { result: "held", next_tier: 3 }, "top tier can't promote")
+    assert.deepEqual(settleOutcome(10, 10, 0), { result: "held", next_tier: 0 }, "bottom tier can't demote")
+    assert.deepEqual(settleOutcome(1, 1, 0), { result: "held", next_tier: 0 }, "a league of one holds")
+  })
+
+  it("keeps the pre-tier key for tier 0 so running leagues aren't split", () => {
+    assert.equal(tierCohortKey(0, "track-ib"), "track-ib")
+    assert.equal(tierCohortKey(2, "track-ib"), "t2-track-ib")
+    assert.equal(nextTierAfter(2, "demoted"), 1)
+    assert.equal(nextTierAfter(3, "promoted"), 3)
+    assert.equal(nextTierAfter(1, null), 1)
+  })
+
+  it("summarises last week from standings, honouring a stored settlement", () => {
+    const rows = [
+      { handle: "amber-otter-101", xp: 300, isYou: false },
+      { handle: "bold-fox-202", xp: 250, isYou: true },
+      { handle: "calm-owl-303", xp: 100, isYou: false },
+    ]
+    const fresh = lastWeekSummary({ weekStart: "2026-09-28", tier: 1, rows })
+    assert.equal(fresh?.rank, 2)
+    assert.equal(fresh?.result, "held")
+    assert.equal(fresh?.standings.length, 3)
+    const stored = lastWeekSummary({
+      weekStart: "2026-09-28",
+      tier: 1,
+      rows,
+      settled: { rank: 1, size: 3, result: "promoted" },
+    })
+    assert.equal(stored?.rank, 1)
+    assert.equal(stored?.next_tier_name, "Bulge Bracket")
+  })
+
+  it("recognises the missing-column error from Postgres", () => {
+    assert.equal(isMissingColumn({ code: "42703" }), true)
+    assert.equal(isMissingColumn(new Error('column m.tier does not exist')), true)
+    assert.equal(isMissingColumn(new Error("timeout")), false)
+  })
+
+  it("writes tier-aware promotion copy", () => {
+    const you = { rank: 1, handle: "amber-otter-101", xp: 10, is_you: true, zone: "promotion" as const }
+    assert.match(promotionCopy(you, 10, 3, 1), /on track for Bulge Bracket next week/)
+    assert.match(promotionCopy(you, 10, 3, 3), /top table/)
   })
 })

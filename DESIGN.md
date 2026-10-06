@@ -514,7 +514,7 @@ annotate(element, { type: 'circle', animate: !prefersReducedMotion });
 }
 ```
 
-**As implemented (`PaperSheet`, `packages/ui/src/styles/globals.css`):**
+**As implemented (`PaperSheet`, `packages/ui/src/styles/globals.css`; stocks and rewards in §16):**
 - Sheets use `--sheet` (#fcf9f1), one step lighter than the cream shell, so the tear reads against the shell; body carries a faint `--paper-grain`.
 - Layers back → front: `.paper-sheet-shadow` (drop-shadow following the tear) → `.paper-sheet-surface` (sheet fill + `--paper-fibre` + `--paper-grain`) masked by `.paper-torn` (baked seeded `--torn-top` / `--torn-bottom` SVG masks) → rough.js ink frame inset inside the tear → content. Text is never filtered or masked.
 - `hero` adds `.paper-torn-hero` (live `#torn-paper-hero` turbulence); reduced motion falls back to `#torn-paper-static`.
@@ -1477,3 +1477,89 @@ Present each journey. Explain technique used for each hard part. **STOP. Wait fo
 ---
 
 **END OF DESIGN.md — PHASE 0**
+
+---
+
+## 16. Working Papers — Paper Stocks & Career Gamification
+
+**Status:** built (paper stocks, career ladder, tally calendar, ceremony budget, tombstone shelf, league tiers, weekly recap). Pitch: the "Concord Working Papers" artifact.
+
+**Thesis.** Concord's paper is the paper on an analyst's desk. Its rewards are the things a banking career leaves behind: a title on a business card, tally marks on a desk calendar, a stamp on the morning's work, a tombstone on the shelf, a place on the league table. Same XP / streak / achievement / league data as before; only the presentation is finance-native.
+
+### 16.1 Material map (binding — one stock, one meaning)
+
+| Stock | Means | Edge | Where | Never |
+|-------|-------|------|-------|-------|
+| Laid cream (`body`) | The desk | — | Shell, sidebar, canvas | Cards |
+| Pad sheet (`PaperSheet stock="pad"`) | Prepared for you, now | Torn (hero: live tear) + ink frame | Session packs, feedback, score, recap, drill session sheet | Lists, nav, settings |
+| Index card (`stock="index"`, `.stock-index`) | Recall this | Clean cut, red header rule, blue lines | Daily-set question cards, notes | Long reading |
+| Ledger pad (`stock="ledger"`, `.stock-ledger`) | Work the numbers | Clean cut, green grid | Numeric drills | Prose |
+| Manila (`stock="manila"`, `.stock-manila`) | A container | Folder tab | Collections, module covers | A single item |
+| Onionskin (`WarrenCallout`, `.paper-onionskin`) | Warren's aside | Translucent, slight tilt | Warren only | Anything else |
+
+Textures are baked tiles (`--paper-grain`, `--paper-fibre`, torn masks). Body text never sits on anything louder than grain. Stacks peek behind a pack to show what's left; a paperclip holds the morning pack.
+
+### 16.2 Career ladder (levels → titles)
+
+`lib/career.ts`: existing thresholds `[0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 11000]`, then +3,500.
+
+- IB: Intern · Analyst I–III · Associate I–III · Vice President · Director · Managing Director (then "Managing Director, 2nd year"…).
+- PE (`track = "PE"`): Intern · Analyst I–II · Associate I–II · Senior Associate · Vice President · Principal · Director · Partner.
+- Shown on `BusinessCard` (Today) and Progress. Level-ups arrive as `activity.level_up` (with track-aware titles) and render the `PromotionMemo` hero.
+
+### 16.3 Desk objects
+
+| Mechanic | Object | Component |
+|----------|--------|-----------|
+| Streak | Tally marks: four uprights, fifth stroke across (strike-through = completed). Freeze-covered days in pencil, labelled "held". | `TallyCalendar` (`streak.run` from Today) |
+| Freezes in reserve | Paperclips on the calendar's top edge; a new one slides on (`activity.freeze_earned`) | `Paperclip` |
+| Daily goal | Morning pack of index cards, stamped FILED | `FiledStamp`, `DailySetPlayer` |
+| Achievements | Deal tombstones ("This announcement appears as a matter of record only."); locked = pencil outline + distance left | `Tombstone`, `/achievements`, `GET /api/achievements` |
+| Leagues | League tables in four tiers: Boutique → Middle Market → Bulge Bracket → Elite Boutique | `league-island`, migration 063 |
+| Weekly recap | This week vs last week on a pad sheet | `WeeklyRecapCard`, `GET /api/recap/weekly` |
+
+### 16.4 Ceremony budget (binding)
+
+| Moment | Mark | Weight |
+|--------|------|--------|
+| Correct answer | Highlight on the correct part of your answer; "+N XP" in the margin, a beat late | mark |
+| Drill set of five | Session sheet: accuracy, XP, next checkpoint | sheet |
+| Daily goal met | FILED stamp + one tally stroke (`activity.goal_met_now`) | stamp |
+| Freeze earned | Paperclip slides on | object |
+| Streak 3 / 7 / 14 / 30 / 50 / 100 / 200 / 365 | Handwritten headline "N days running" (Vivus) | headline |
+| Achievement | Tombstone placed on the shelf | object |
+| Level up | Promotion memo: live tear, Warren celebrating, paper burst | **hero** |
+| League result | Settled table with your row circled (hero tear first view only) | **hero** |
+
+The paper burst fires **only** on the promotion memo. All rewards render from server-confirmed `ActivityResult`, never on tap.
+
+### 16.5 Motion spec
+
+| Motion | Duration | Voice | Used for |
+|--------|----------|-------|----------|
+| Pen stroke draws on | 320 ms | calm ease-out | Today's tally mark |
+| Marker sweep | 520 ms | calm ease-out | Highlight on a correct answer (`.marker-sweep`) |
+| Number / bar change | 200 ms | calm ease-out | XP, readiness, ranks — numbers swap, never count up |
+| Card drawn off the pack | 280 ms | settle | Morning pack (`.motion-draw-card`) |
+| Object placed | 320 ms | settle | Paperclip, tombstone (`.motion-place`, `.motion-clip-on`) |
+| Hover lift | 140–200 ms | calm ease-out | Tombstones lift 2px; business card straightens (`.paper-lift`) |
+| Stamp | 340 ms | bounce, small (1.22 → 1) | FILED (`.motion-thunk`) |
+| Hand-drawn circle | 600 ms | calm ease-out | Your league row |
+| Handwritten underline | 1.2 s | calm ease-out | Promotion, streak milestones |
+| Live paper tear | 10 s loop | linear | Level-up and league-result sheets only |
+
+Nothing animates on page load except state-confirmed reactions. `prefers-reduced-motion` lands every row on its final frame.
+
+### 16.6 League tiers (migration 063)
+
+- `app.league_memberships` gains `tier`, `final_rank`, `league_size`, `result`, `settled_at`.
+- Top 20% promote, bottom 20% (5+ members) demote; clamped at both ends; a league of one holds.
+- Settlement is idempotent and runs twice over: lazily by the member under RLS on their next `/leagues` visit, and by the daily cron (`settleLeagueWeeks`) for weeks that ended more than a day ago.
+- Tier 0 keeps the pre-tier league key so leagues running when 063 lands aren't split. Without 063 the app runs tierless.
+- Apply with the **DB release** workflow (`league_tiers` input) or `psql -f migrations/063_league_tiers.sql`.
+
+### 16.7 Tests
+
+- Unit: `lib/career.test.ts`, `lib/data/streaks.test.ts` (run), `achievement-shelf.test.ts`, `weekly-recap.test.ts`, `leagues.test.ts` (tiers).
+- Opt-in Postgres: `lib/data/leagues.db.test.ts` (lazy settlement under RLS, via `scripts/dev/neon_http_shim.py`).
+- E2E: `apps/web/e2e/working-papers.spec.ts` (Playwright, stub mode) — `npm run build -w @ibpe/web && npm run e2e -w @ibpe/web`; runs in CI (`e2e` job).

@@ -23,6 +23,10 @@ on:
         description: "Apply migrations 059–061 (diagrams, lessons, interactive diagrams)"
         type: boolean
         default: true
+      league_tiers:
+        description: "Apply migration 063 (league tiers + weekly settlement columns)"
+        type: boolean
+        default: true
       embed_rag:
         description: "npm run embed:rag (needs OPENROUTER_API_KEY secret)"
         type: boolean
@@ -72,6 +76,12 @@ jobs:
             psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
           done
           # 042's guard: fails if any app.* table lacks RLS, FORCE or a policy.
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f migrations/042_app_rls_role.sql
+
+      - name: Apply league tier migration 063
+        if: ${{ inputs.league_tiers }}
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f migrations/063_league_tiers.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f migrations/042_app_rls_role.sql
 
       - name: Embed RAG documents

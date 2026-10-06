@@ -23,19 +23,24 @@ import { describeAchievement, evaluateAchievements, type ConceptStat } from "@/l
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client"
 import { withRlsUserId } from "@/lib/db/rls"
 import { isFlagOn } from "@/lib/flags"
-import { localDate, safeTimeZone } from "@/lib/local-day"
+import { addDays, localDate, safeTimeZone } from "@/lib/local-day"
 import { dailySetSize, getStubDailySet, markStubDailySetItem } from "./daily-set"
 import { memoryStore } from "./memory-store"
 import { getPrepProfile } from "./profile"
 import { conceptStatsFrom, loadConceptMastery } from "./readiness"
 import {
   EMPTY_STREAK,
+  STREAK_RUN_CAP,
   applyGoalMet,
   rolloverStreak,
+  streakRunFrom,
   type RolloverResult,
+  type StreakDay,
+  type StreakMark,
   type StreakState,
 } from "./streaks"
 import { ensureAppUserQuery } from "./users"
+import { careerTrack, levelChange, titleForLevel } from "@/lib/career"
 import { DAILY_GOAL_BONUS, REPEAT_WINDOW_MS, xpForEvent } from "./xp"
 
 export type LearningActivityEvent = {
@@ -83,6 +88,8 @@ export type ActivityPlan = {
   rollover: RolloverResult
   /** Streak if this event is the one that meets today's goal. */
   streak_if_met: StreakState
+  /** Meeting the goal with this event would bank a freeze. */
+  freeze_if_met: boolean
   /** Predicted from the read state (the DB write decides atomically). */
   goal_met_now: boolean
   counts_after: ActivityCounts
@@ -107,6 +114,7 @@ export function planActivity(
   const cardsAfter = (read.today?.cards_done ?? 0) + cardsInc
   const goalMetNow = !read.today?.goal_met && cardsAfter >= goal && cardsInc > 0
   const graded = event.countsTowardGoal && event.score != null
+  const ifMet = applyGoalMet(rollover.state, today)
   return {
     today,
     xp_event: xpForEvent({
@@ -119,7 +127,8 @@ export function planActivity(
     cards_inc: cardsInc,
     goal,
     rollover,
-    streak_if_met: applyGoalMet(rollover.state, today).state,
+    streak_if_met: ifMet.state,
+    freeze_if_met: ifMet.freeze_earned,
     goal_met_now: goalMetNow,
     counts_after: {
       graded_cards:
@@ -245,12 +254,16 @@ async function recordStub(
     freeze_used: prev?.freeze_used ?? false,
   }
   let streak = stubStreakState(userId)
+  const xpBefore = streak.xp_total
   let bonus = 0
+  let freezeEarned = false
   if (!row.goal_met && plan.cards_inc > 0 && row.cards_done >= row.goal) {
     row.goal_met = true
     bonus = DAILY_GOAL_BONUS
     row.xp += bonus
-    streak = applyGoalMet(streak, today).state
+    const met = applyGoalMet(streak, today)
+    streak = met.state
+    freezeEarned = met.freeze_earned
   }
   streak = { ...streak, xp_total: streak.xp_total + plan.xp_event + bonus }
   stubDaily.set(key, row)
@@ -307,6 +320,9 @@ async function recordStub(
       ? { completed: marked.completed_count, goal: marked.goal }
       : { completed: Math.min(row.cards_done, row.goal), goal: row.goal },
     achievements_earned: earned,
+    goal_met_now: bonus > 0,
+    freeze_earned: freezeEarned,
+    level_up: levelChange(xpBefore, streak.xp_total),
   }
 }
 
@@ -593,7 +609,8 @@ async function recordDb(
   const dayRow = ((results[offset + 6] ?? []) as Array<{ cards_done: number; goal: number }>)[0]
 
   const streak = toStreakState(streakRow, plan.rollover.state.last_freeze_date)
-  const bonus = Number(streakRow?.goal_met_now ?? 0) > 0 ? DAILY_GOAL_BONUS : 0
+  const goalMetNow = Number(streakRow?.goal_met_now ?? 0) > 0
+  const bonus = goalMetNow ? DAILY_GOAL_BONUS : 0
 
   const candidates = evaluateAchievements(
     { streak: { current: streak.current, longest: streak.longest }, ...plan.counts_after, concepts },
@@ -617,6 +634,9 @@ async function recordDb(
         ? { completed: Math.min(Number(dayRow.cards_done), Number(dayRow.goal)), goal: Number(dayRow.goal) }
         : null,
     achievements_earned: earned,
+    goal_met_now: goalMetNow,
+    freeze_earned: goalMetNow && plan.freeze_if_met,
+    level_up: levelChange(streak.xp_total - plan.xp_event - bonus, streak.xp_total),
   }
 }
 
@@ -646,10 +666,18 @@ export async function recordLearningActivity(
       event.kind === "attempt" || event.kind === "placement"
         ? conceptStatsFrom(await loadConceptMastery(event.userId))
         : []
-    if (!isDatabaseConfigured()) {
-      return await recordStub(event, today, fallbackGoal, at, concepts)
+    const result = isDatabaseConfigured()
+      ? await recordDb(event, today, fallbackGoal, at, concepts)
+      : await recordStub(event, today, fallbackGoal, at, concepts)
+    if (result.level_up) {
+      const track = careerTrack(profile.track)
+      result.level_up = {
+        ...result.level_up,
+        from_title: titleForLevel(result.level_up.from, track),
+        to_title: titleForLevel(result.level_up.to, track),
+      }
     }
-    return await recordDb(event, today, fallbackGoal, at, concepts)
+    return result
   } catch (err) {
     console.warn("[activity] recordLearningActivity failed; retention skipped", err)
     return null
@@ -819,4 +847,104 @@ export function stubGoalDates(userId: string): string[] {
 /** True once the in-memory engine has recorded anything for the user. */
 export function hasStubActivity(userId: string): boolean {
   return (stubLedger.get(userId) ?? []).length > 0 || stubStreaks.has(userId)
+}
+
+/* ------------------------------------------------------------------ */
+/* Day history (tally calendar + weekly recap)                         */
+/* ------------------------------------------------------------------ */
+
+export type DayHistoryRow = StreakDay & { xp: number; cards_done: number }
+
+/** Daily rows for `from`..`to` (inclusive local dates), oldest first. */
+export async function readDayHistory(userId: string, from: string, to: string): Promise<DayHistoryRow[]> {
+  if (!isDatabaseConfigured()) {
+    const prefix = `${userId}|`
+    return [...stubDaily.entries()]
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, row]) => ({
+        date: key.slice(prefix.length),
+        goal_met: row.goal_met,
+        freeze_used: row.freeze_used,
+        xp: row.xp,
+        cards_done: row.cards_done,
+      }))
+      .filter((row) => row.date >= from && row.date <= to)
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }
+  try {
+    const sql = requireSql()
+    const results = await withRlsUserId(sql, userId, (s) => [
+      s`
+        SELECT da.local_date::text AS date, da.goal_met, da.freeze_used, da.xp, da.cards_done
+        FROM app.daily_activity da
+        JOIN app.users u ON u.id = da.user_id
+        WHERE u.neon_auth_user_id = ${userId}
+          AND da.local_date BETWEEN ${from}::date AND ${to}::date
+        ORDER BY da.local_date
+      `,
+    ])
+    return ((results[0] ?? []) as Array<Record<string, unknown>>).map((row) => ({
+      date: String(row.date),
+      goal_met: Boolean(row.goal_met),
+      freeze_used: Boolean(row.freeze_used),
+      xp: Number(row.xp ?? 0),
+      cards_done: Number(row.cards_done ?? 0),
+    }))
+  } catch (err) {
+    console.warn("[activity] day history read failed", err)
+    return []
+  }
+}
+
+/** Current streak run as tally marks (goal / freeze), oldest first. */
+export async function getStreakRun(userId: string, today: string): Promise<StreakMark[]> {
+  const rows = await readDayHistory(userId, addDays(today, -(STREAK_RUN_CAP * 2)), today)
+  return streakRunFrom(rows, today)
+}
+
+export type WeekCounts = { graded_cards: number; drills: number; mocks: number }
+
+/** Graded cards / drills / mocks recorded between two local dates. */
+export async function readWeekCounts(userId: string, from: string, to: string): Promise<WeekCounts> {
+  if (!isDatabaseConfigured()) {
+    const rows = (stubLedger.get(userId) ?? []).filter((r) => r.local_date >= from && r.local_date <= to)
+    return {
+      graded_cards: rows.filter(
+        (r) => (r.kind === "attempt" || r.kind === "placement") && r.counts_toward_goal && r.score != null,
+      ).length,
+      drills: rows.filter((r) => r.kind === "drill" && r.counts_toward_goal).length,
+      mocks: rows.filter((r) => r.kind === "mock_complete").length,
+    }
+  }
+  try {
+    const sql = requireSql()
+    const results = await withRlsUserId(sql, userId, (s) => [
+      s`
+        SELECT
+          count(*) FILTER (
+            WHERE e.kind IN ('attempt', 'placement') AND e.counts_toward_goal AND e.score IS NOT NULL
+          )::int AS graded_cards,
+          count(*) FILTER (WHERE e.kind = 'drill' AND e.counts_toward_goal)::int AS drills,
+          count(*) FILTER (WHERE e.kind = 'mock_complete')::int AS mocks
+        FROM app.activity_events e
+        JOIN app.users u ON u.id = e.user_id
+        WHERE u.neon_auth_user_id = ${userId}
+          AND e.local_date BETWEEN ${from}::date AND ${to}::date
+      `,
+    ])
+    const row = ((results[0] ?? []) as WeekCounts[])[0]
+    return {
+      graded_cards: Number(row?.graded_cards ?? 0),
+      drills: Number(row?.drills ?? 0),
+      mocks: Number(row?.mocks ?? 0),
+    }
+  } catch (err) {
+    console.warn("[activity] week counts read failed", err)
+    return { graded_cards: 0, drills: 0, mocks: 0 }
+  }
+}
+
+/** Lifetime counts (achievement progress on the shelf). */
+export async function readLifetimeCounts(userId: string): Promise<WeekCounts> {
+  return readWeekCounts(userId, "1970-01-01", "9999-12-31")
 }

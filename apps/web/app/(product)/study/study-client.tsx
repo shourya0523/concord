@@ -18,7 +18,6 @@ import {
   HeatStrip,
   InkHoverScope,
   NotionCallout,
-  PaperBurst,
   PaperSheet,
   ProvenanceChip,
   RoughHover,
@@ -980,7 +979,6 @@ export function StudyClient({ voiceEnabled = false }: { voiceEnabled?: boolean }
         {sessionComplete ? (
           <PaperSheet seedKey={`study-close-${detail?.question.id}`}>
             <div className="flex flex-wrap items-center gap-5">
-              <PaperBurst play seedKey={`burst-${detail?.question.id}`} />
               <div className="min-w-0 flex-1">
                 <p className="font-medium">Session close</p>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">

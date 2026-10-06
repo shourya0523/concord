@@ -12,9 +12,12 @@ import {
   CircledNumber,
   HeatStrip,
   SemanticPill,
+  Tombstone,
   Warren,
   WarrenCallout,
 } from "@/components/paper"
+import { WeeklyRecapCard } from "@/components/weekly-recap-card"
+import { tombstoneFace } from "@/lib/achievements"
 import { intensityBand } from "@/components/paper/heat-strip"
 import { fetchFirmOptions, readStoredTargets } from "@/components/target-select-island"
 import type { AchievementsResponse, TodayResponse } from "@/lib/api/retention-schemas"
@@ -366,6 +369,7 @@ export function ProgressIsland() {
 
   return (
     <div className="space-y-10">
+      {today?.flags.gamification ? <WeeklyRecapCard /> : null}
       <section className="flex flex-wrap items-center gap-x-8 gap-y-3 border-b border-border pb-6">
         <div className="text-sm">
           <p className="text-xs text-muted-foreground">Total attempts</p>
@@ -389,8 +393,12 @@ export function ProgressIsland() {
         </div>
         {today ? (
           <div className="text-sm">
-            <p className="text-xs text-muted-foreground">Level {today.xp.level}</p>
-            <p className="mt-1 font-display text-3xl tracking-tight tabular-nums">{today.xp.total} XP</p>
+            <p className="text-xs text-muted-foreground">
+              Level {today.xp.level} · {today.xp.total} XP
+            </p>
+            <p className="mt-1 font-display text-3xl tracking-tight" data-testid="progress-career-title">
+              {today.xp.title ?? `Level ${today.xp.level}`}
+            </p>
           </div>
         ) : null}
         {weakTopics.length > 0 ? (
@@ -491,20 +499,37 @@ export function ProgressIsland() {
           </WarrenCallout>
         ) : null}
         {achievements && achievements.earned.length + achievements.locked.length > 0 ? (
-          <ul className="flex flex-wrap gap-2">
-            {achievements.earned.map((achievement) => (
-              <li key={achievement.id} title={achievement.description}>
-                <SemanticPill tone="success">{achievement.title}</SemanticPill>
-              </li>
-            ))}
-            {achievements.locked.map((achievement) => (
-              <li key={achievement.id} title={achievement.description}>
-                <SemanticPill tone="neutral" icon={false} className="opacity-60">
-                  {achievement.title}
-                </SemanticPill>
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-3">
+            <ul className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-4">
+              {achievements.earned.slice(0, 5).map((achievement) => {
+                const face = tombstoneFace(achievement)
+                return (
+                  <li key={achievement.id} title={achievement.description}>
+                    <Tombstone id={achievement.id} face={face.face} what={face.what} earnedAt={achievement.earned_at} compact />
+                  </li>
+                )
+              })}
+              {achievements.locked.slice(0, Math.max(1, 5 - achievements.earned.length)).map((achievement) => {
+                const face = tombstoneFace(achievement)
+                return (
+                  <li key={achievement.id} title={achievement.description}>
+                    <Tombstone
+                      id={achievement.id}
+                      face={face.face}
+                      what={face.what}
+                      compact
+                      locked
+                      progress={achievement.progress ?? null}
+                      progressLabel={achievement.progress_label ?? null}
+                    />
+                  </li>
+                )
+              })}
+            </ul>
+            <Link href="/achievements" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
+              The full shelf →
+            </Link>
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">
             Milestones appear as you meet daily goals, clear concepts and raise firm readiness.

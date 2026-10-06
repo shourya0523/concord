@@ -166,3 +166,27 @@ export function describeAchievement(
 export function achievementCatalogue(): AchievementEarned[] {
   return STATIC_ACHIEVEMENTS.map(({ id, title, description }) => ({ id, title, description }))
 }
+
+export type TombstoneFace = { face: string; what: string }
+
+/** The big figure + caption a tombstone shows for an achievement id. */
+export function tombstoneFace(achievement: { id: string; title: string }): TombstoneFace {
+  const { id, title } = achievement
+  const streak = /^streak_(\d+)$/.exec(id)
+  if (streak) return { face: streak[1]!, what: "Consecutive goal days" }
+  const graded = /^graded_(\d+)$/.exec(id)
+  if (graded) return { face: graded[1]!, what: "Answers graded" }
+  if (id === "first_drill") return { face: "1st", what: "Numeric drill" }
+  if (id === "first_mock") return { face: "1st", what: "Mock interview" }
+  const [kind, subject = ""] = id.split(":")
+  if (kind === "concept_cleared") {
+    const name = title.replace(/ cleared$/, "")
+    return { face: name.length <= 14 ? name : prettyId(subject).toUpperCase().slice(0, 14), what: "Concept cleared" }
+  }
+  const readiness = /^readiness_(\d+)$/.exec(kind ?? "")
+  if (readiness) {
+    const firm = title.replace(new RegExp(`\\s*${readiness[1]}% ready$`), "")
+    return { face: `${readiness[1]}%`, what: `${firm} readiness` }
+  }
+  return { face: "✓", what: title }
+}

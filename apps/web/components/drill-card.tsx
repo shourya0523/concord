@@ -12,7 +12,7 @@ import { Button } from "@ibpe/ui/components/button"
 import { MetadataPill } from "@ibpe/ui/components/editorial"
 import { cn } from "@ibpe/ui/lib/utils"
 
-import { PaperBurst, PaperSheet, SemanticPill } from "@/components/paper"
+import { ActivityReward, PaperSheet, SemanticPill } from "@/components/paper"
 import type { DrillAttemptResponse } from "@/lib/api/drill-schemas"
 import { topicLabel } from "@/lib/topics"
 
@@ -127,7 +127,7 @@ export function DrillCard({
 
   return (
     <section aria-label="Numeric drill" className={cn("space-y-4", className)}>
-      <PaperSheet seedKey={`drill-${drill.id}`}>
+      <PaperSheet seedKey={`drill-${drill.id}`} stock="ledger">
         <div className="flex flex-wrap items-center gap-2">
           <MetadataPill>{topicLabel(drill.topic)}</MetadataPill>
           <MetadataPill>{drill.difficulty}</MetadataPill>
@@ -194,11 +194,6 @@ export function DrillCard({
             className="relative space-y-3 rounded-md border border-border bg-card p-4"
             data-testid="drill-result"
           >
-            <PaperBurst
-              play={result.correct}
-              seedKey={`drill-burst-${drill.id}`}
-              className="pointer-events-none absolute -top-6 right-2 h-24 w-48"
-            />
             <div className="flex flex-wrap items-center gap-2">
               <SemanticPill tone={verdict.tone}>{verdict.label}</SemanticPill>
               <span className="text-sm text-muted-foreground">
@@ -215,9 +210,14 @@ export function DrillCard({
               <div>
                 <dt className="text-xs text-muted-foreground">Yours</dt>
                 <dd className="font-medium tabular-nums">
-                  {result.found == null
-                    ? "No number found"
-                    : formatDrillValue(result.found, result.solution.unit)}
+                  {result.found == null ? (
+                    "No number found"
+                  ) : (
+                    // Highlight = the correct part of your own answer (semantic map).
+                    <span className={result.correct ? "marker-sweep" : undefined}>
+                      {formatDrillValue(result.found, result.solution.unit)}
+                    </span>
+                  )}
                 </dd>
               </div>
             </dl>
@@ -229,8 +229,8 @@ export function DrillCard({
                 ))}
               </ol>
             </div>
-            {result.activity?.xp_awarded ? (
-              <p className="text-xs text-muted-foreground">+{result.activity.xp_awarded} XP</p>
+            {result.activity ? (
+              <ActivityReward activity={result.activity} seedKey={`drill-${drill.id}`} />
             ) : null}
             {onNext ? (
               <Button ref={nextRef} type="button" onClick={onNext}>
