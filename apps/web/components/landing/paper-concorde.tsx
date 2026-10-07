@@ -92,10 +92,12 @@ function CtaButton({ className = "" }: { className?: string }) {
   return (
     <Link
       href="/sign-up"
-      className={`inline-flex items-center gap-2 rounded-md bg-ink px-6 py-3 text-base font-medium text-paper shadow-[0_1px_0_rgb(0_0_0/0.2),0_8px_18px_rgb(60_45_20/0.18)] outline-offset-4 transition-colors hover:bg-ink/90 focus-visible:outline-2 focus-visible:outline-ink ${className}`}
+      className={`group inline-flex items-center gap-2 rounded-md bg-ink px-6 py-3 text-base font-medium text-paper shadow-[0_1px_0_rgb(0_0_0/0.2),0_8px_18px_rgb(60_45_20/0.18)] outline-offset-4 transition-colors hover:bg-ink/90 focus-visible:outline-2 focus-visible:outline-ink ${className}`}
     >
       {CTA}
-      <span aria-hidden>→</span>
+      <span aria-hidden className="transition-transform duration-300 ease-out group-hover:translate-x-1 motion-reduce:transition-none">
+        →
+      </span>
     </Link>
   )
 }
@@ -151,7 +153,7 @@ function PaperPlane({ onPart, fold = 0, question = true }: { onPart?: OnPart; fo
   const keelTo = vertexAt("nose", 1)
   const look = planeLook(fold, question)
   return (
-    <svg viewBox={`-20 -20 ${CARD_W + 40} ${CARD_H + 40}`} className="relative block h-auto w-full overflow-visible" aria-hidden>
+    <svg viewBox={`-20 -20 ${CARD_W + 40} ${CARD_H + 40}`} className="hero-sheet relative block h-auto w-full overflow-visible" aria-hidden>
       <defs>
         <linearGradient id="facet-sheen" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#fff" stopOpacity="0.55" />
@@ -716,7 +718,7 @@ export function PaperConcordeLanding() {
 
           {/* The card that becomes the plane. */}
           <div
-            className="absolute top-1/2 left-1/2 w-[min(80vw,30rem)] will-change-transform"
+            className="hero-card absolute top-1/2 left-1/2 w-[min(80vw,30rem)] will-change-transform"
             data-testid="landing-plane"
             {...piece("plane", { filter: "drop-shadow(0 14px 22px rgb(30 40 70 / 0.18))" })}
           >
@@ -731,9 +733,9 @@ export function PaperConcordeLanding() {
           <div className="pointer-events-none absolute inset-x-4 top-[12vh] will-change-[transform,opacity] md:top-[11vh]" {...piece("hero-head")}>
             <Headline />
           </div>
-          <div className="absolute inset-x-4 bottom-[8vh] flex flex-col items-center gap-4 will-change-[opacity]" {...piece("hero-cta")}>
+          <div className="pointer-events-none absolute inset-x-4 bottom-[8vh] flex flex-col items-center gap-4 will-change-[opacity]" {...piece("hero-cta")}>
             <p className="intro-rise max-w-md text-center text-base text-ink [--intro-delay:700ms] md:text-lg">{SUBHEAD}</p>
-            <CtaButton className="intro-rise [--intro-delay:840ms]" />
+            <CtaButton className="intro-rise pointer-events-auto [--intro-delay:840ms]" />
           </div>
           <p
             aria-hidden

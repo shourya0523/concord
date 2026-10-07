@@ -1630,3 +1630,23 @@ The whole app sits behind Neon Auth sign-in; only the landing page is public.
 - `manifest.ts` (start URL `/today`, 192/512 icons in `public/brand/`).
 
 All of these URLs end in a file extension, so the login gate leaves them public for signed-out crawlers; `e2e/gate.spec.ts` checks this.
+
+### 17.3 Desk hovers
+
+The small things on the hero react to the pointer (`landing-intro.css`).
+
+| Item | Effect |
+|---|---|
+| Pencil | wiggles on its centre, as if knocked |
+| Loose index cards | flutter, pinned at the top edge |
+| Sticky note | the bottom peels up and drops back |
+| Ledger | the top sheet lifts and settles |
+| Coffee ring | slides and turns a little |
+| Question card | lifts off the stack, and its paperclip jiggles |
+| CTA arrow | nudges forward |
+
+How they're built:
+- Each effect runs on the item's inner layer, because the item element itself carries the scroll transform and the load intro.
+- Each plays once per hover and fires on tap via `:active`.
+- All of it is skipped for reduced motion.
+- The desk items opt back into pointer events, while the hero copy wrapper passes them through (only the CTA stays clickable).
