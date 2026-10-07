@@ -40,6 +40,7 @@ import {
   TornEdgeFilter,
   hand,
 } from "./landing-art"
+import "./landing-intro.css"
 
 export const HEADLINE = ["CS has LeetCode.", "You have Concord."] as const
 const SUBHEAD = "Interview prep for investment banking and private equity."
@@ -466,9 +467,8 @@ export function BoardingPass({ reduced }: { reduced: boolean }) {
 function Headline() {
   return (
     <h1 className="text-center font-display text-5xl leading-[1.02] tracking-tight text-ink md:text-7xl">
-      {HEADLINE[0]}
-      <br />
-      {HEADLINE[1]}
+      <span className="intro-rise block [--intro-delay:300ms]">{HEADLINE[0]}</span>
+      <span className="intro-rise block [--intro-delay:460ms]">{HEADLINE[1]}</span>
     </h1>
   )
 }
@@ -517,6 +517,8 @@ export function PaperConcordeLanding() {
   const reduced = usePrefersReducedMotion()
   const stageRef = React.useRef<HTMLDivElement>(null)
   const contrailRef = React.useRef<SVGPathElement>(null)
+  const cardIntroRef = React.useRef<HTMLDivElement>(null)
+  const hintRef = React.useRef<HTMLSpanElement>(null)
   const nodes = React.useRef(new Map<string, HTMLElement | SVGElement>())
   const plane = React.useRef<PlaneParts>({ facets: [], sheens: [], sheet: null, face: null, keel: null })
   const initial = React.useMemo(() => frameAt(0, false).pieces, [])
@@ -548,6 +550,7 @@ export function PaperConcordeLanding() {
     let frame = 0
     let lastFold = -1
     let lastContrail = ""
+    let touched = false
     const written = new WeakMap<Element, { o?: string; t?: string }>()
 
     const render = () => {
@@ -556,6 +559,12 @@ export function PaperConcordeLanding() {
       const travel = Math.max(1, rect.height - window.innerHeight)
       const p = Math.min(1, Math.max(0, -rect.top / travel))
       const next = frameAt(p, window.innerWidth < 768)
+      // First scroll: stop the idle float and the scroll nudge (the intro itself keeps going on its own layer).
+      if (!touched && p > 0.001) {
+        touched = true
+        cardIntroRef.current?.setAttribute("data-touched", "")
+        hintRef.current?.setAttribute("data-touched", "")
+      }
 
       for (const [key, style] of Object.entries(next.pieces)) {
         const el = nodes.current.get(key)
@@ -711,8 +720,11 @@ export function PaperConcordeLanding() {
             data-testid="landing-plane"
             {...piece("plane", { filter: "drop-shadow(0 14px 22px rgb(30 40 70 / 0.18))" })}
           >
-            <CardStack {...piece("card-stack")} />
-            <PaperPlane onPart={onPart} />
+            {/* Intro layer: drops the card in, then floats it until the first scroll. */}
+            <div ref={cardIntroRef} className="intro-card relative">
+              <CardStack {...piece("card-stack")} />
+              <PaperPlane onPart={onPart} />
+            </div>
           </div>
 
           {/* Hero copy. */}
@@ -720,15 +732,17 @@ export function PaperConcordeLanding() {
             <Headline />
           </div>
           <div className="absolute inset-x-4 bottom-[8vh] flex flex-col items-center gap-4 will-change-[opacity]" {...piece("hero-cta")}>
-            <p className="max-w-md text-center text-base text-ink md:text-lg">{SUBHEAD}</p>
-            <CtaButton />
+            <p className="intro-rise max-w-md text-center text-base text-ink [--intro-delay:700ms] md:text-lg">{SUBHEAD}</p>
+            <CtaButton className="intro-rise [--intro-delay:840ms]" />
           </div>
           <p
             aria-hidden
             className="absolute inset-x-0 bottom-3 text-center font-mono text-[10px] tracking-[0.2em] text-muted-foreground uppercase"
             {...piece("hint")}
           >
-            Scroll
+            <span ref={hintRef} className="intro-hint inline-block">
+              Scroll
+            </span>
           </p>
 
           <p
@@ -784,7 +798,7 @@ export function PaperConcordeLanding() {
 export function LandingHeader() {
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-30 px-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] md:px-5">
-      <div className="pointer-events-auto mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-lg bg-[#fffdf8] bg-[image:var(--paper-grain)] py-2 pr-2 pl-4 shadow-[0_1px_0_rgb(60_45_20/0.12),0_8px_20px_rgb(30_40_70/0.12)]">
+      <div className="intro-header pointer-events-auto mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-lg bg-[#fffdf8] bg-[image:var(--paper-grain)] py-2 pr-2 pl-4 shadow-[0_1px_0_rgb(60_45_20/0.12),0_8px_20px_rgb(30_40_70/0.12)]">
         <Link href="/" aria-label="Concord home" className="flex items-center gap-2">
           <ConcordLogo size="sm" priority />
           <span className="hidden font-display text-xl tracking-tight text-ink sm:inline">Concord</span>

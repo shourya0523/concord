@@ -4,7 +4,7 @@ import { RagPrepIsland } from "@/components/rag-prep-island"
 import { topicLabel } from "@/lib/topics"
 
 export const metadata = {
-  title: "Pseudo-RAG prep · IBPE",
+  title: "Pseudo-RAG prep",
   description: "Grounded retrieval pack with citation cards for selected firms",
 }
 

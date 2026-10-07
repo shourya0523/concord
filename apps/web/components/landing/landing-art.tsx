@@ -150,21 +150,31 @@ export function DeskClutter({ bind }: { bind: Bind }) {
   }
   return (
     <div ref={bind("desk")} aria-hidden className="pointer-events-none absolute inset-0 will-change-[opacity]">
-      <CoffeeRing className="top-[6vh] left-[4vw] w-[22vw] max-w-72 min-w-40" {...item("desk-ring")} />
-      <LedgerCorner className="top-[54vh] -left-[3vw] hidden h-[18rem] w-[17rem] md:block" {...item("desk-ledger")} />
+      {/* intro-drop: each item is tossed onto the desk from its own side (landing-intro.css). */}
+      <CoffeeRing
+        className="intro-drop top-[6vh] left-[4vw] w-[22vw] max-w-72 min-w-40 [--intro-delay:900ms] [--intro-r:0deg] [--intro-y:0]"
+        {...item("desk-ring")}
+      />
+      <LedgerCorner
+        className="intro-drop top-[54vh] -left-[3vw] hidden h-[18rem] w-[17rem] [--intro-delay:180ms] [--intro-r:-14deg] [--intro-x:-40vw] [--intro-y:8vh] md:block"
+        {...item("desk-ledger")}
+      />
       <LooseCard
         question="Why private equity?"
-        className="top-[12vh] right-[5vw] hidden h-[10.5rem] w-[17rem] lg:block"
+        className="intro-drop top-[12vh] right-[5vw] hidden h-[10.5rem] w-[17rem] [--intro-delay:260ms] [--intro-r:18deg] [--intro-x:36vw] [--intro-y:-20vh] lg:block"
         {...item("desk-card-pe")}
       />
       <LooseCard
         question="What's EBITDA?"
-        className="top-[58vh] right-[9vw] hidden h-[10rem] w-[16rem] md:block"
+        className="intro-drop top-[58vh] right-[9vw] hidden h-[10rem] w-[16rem] [--intro-delay:380ms] [--intro-r:-12deg] [--intro-x:40vw] [--intro-y:12vh] md:block"
         {...item("desk-card-ebitda")}
       />
-      <StickyNote className="top-[18vh] left-[10vw] hidden h-40 w-40 lg:block" {...item("desk-sticky")} />
+      <StickyNote
+        className="intro-drop top-[18vh] left-[10vw] hidden h-40 w-40 [--intro-delay:480ms] [--intro-r:-20deg] [--intro-x:-30vw] [--intro-y:-30vh] lg:block"
+        {...item("desk-sticky")}
+      />
       <Pencil
-        className="right-[-4vw] bottom-[12vh] w-[min(62vw,22rem)] md:right-[18vw] md:bottom-[9vh]"
+        className="intro-drop right-[-4vw] bottom-[12vh] w-[min(62vw,22rem)] [--intro-delay:620ms] [--intro-r:40deg] [--intro-x:60vw] [--intro-y:6vh] md:right-[18vw] md:bottom-[9vh]"
         {...item("desk-pencil")}
       />
     </div>

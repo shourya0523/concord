@@ -1,0 +1,131 @@
+/*
+ * Landing intro (DESIGN.md §17.2): the desk sets itself on first load.
+ *
+ * Every intro animation uses the individual `translate` / `rotate` / `scale`
+ * properties (plus opacity on elements the scroll never fades). The scroll
+ * stage writes `transform`, which composes with those instead of fighting
+ * them, so a scroll or swipe during the intro moves the page immediately
+ * while the intro finishes on top. CSS only: it plays from the first paint,
+ * before hydration, and is skipped entirely for reduced motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  /* Papers tossed onto the desk, landing with a small settle. */
+  .intro-drop {
+    animation: intro-drop 900ms cubic-bezier(0.22, 1.12, 0.36, 1) both;
+    animation-delay: var(--intro-delay, 0ms);
+  }
+
+  /* The question card drops in first, then floats until the first scroll. */
+  .intro-card {
+    animation:
+      intro-card 1000ms cubic-bezier(0.16, 1, 0.3, 1) both,
+      intro-float 5s ease-in-out 1.2s infinite;
+  }
+  .intro-card[data-touched] {
+    animation: intro-card 1000ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Copy rises in line by line. */
+  .intro-rise {
+    animation: intro-rise 800ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: var(--intro-delay, 0ms);
+  }
+
+  .intro-header {
+    animation: intro-header 700ms cubic-bezier(0.2, 0.8, 0.2, 1) 150ms both;
+  }
+
+  /* "Scroll" waits for the intro, then nudges until the first scroll. */
+  .intro-hint {
+    animation:
+      intro-fade 600ms ease-out 1500ms both,
+      intro-bob 1.8s ease-in-out 2.1s infinite;
+  }
+  .intro-hint[data-touched] {
+    animation: intro-fade 600ms ease-out 1500ms both;
+  }
+}
+
+@keyframes intro-drop {
+  from {
+    opacity: 0;
+    translate: var(--intro-x, 0) var(--intro-y, -24vh);
+    rotate: var(--intro-r, 0deg);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    rotate: 0deg;
+  }
+}
+
+@keyframes intro-card {
+  from {
+    opacity: 0;
+    translate: 0 -9vh;
+    rotate: -5deg;
+    scale: 1.08;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    rotate: 0deg;
+    scale: 1;
+  }
+}
+
+@keyframes intro-float {
+  0%,
+  100% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+  50% {
+    translate: 0 -0.6vh;
+    rotate: -0.6deg;
+  }
+}
+
+@keyframes intro-rise {
+  from {
+    opacity: 0;
+    translate: 0 2.4vh;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes intro-header {
+  from {
+    opacity: 0;
+    translate: 0 -120%;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes intro-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes intro-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 6px;
+  }
+}

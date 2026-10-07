@@ -49,6 +49,23 @@ test("scrolling folds the card into a plane and lands on the boarding pass", asy
   expect(errors).toEqual([])
 })
 
+test("the desk animates in on load and the first scroll takes over at once", async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto("/")
+  // The intro is CSS on its own layer: still running right after load.
+  expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length)).toBeGreaterThan(0)
+  const wing = page.getByTestId("landing-plane").locator("polygon").first()
+  const flat = await wing.getAttribute("points")
+  // Scroll straight into the fold mid-intro: the plane responds without waiting.
+  await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>("[data-testid=landing-stage]")!
+    window.scrollTo(0, (el.offsetHeight - window.innerHeight) * 0.16)
+  })
+  await expect.poll(() => wing.getAttribute("points"), { timeout: 400 }).not.toBe(flat)
+  await expect(page.locator(".intro-card[data-touched]")).toHaveCount(1)
+  expect(errors).toEqual([])
+})
+
 test.describe("reduced motion", () => {
   test("shows the same scenes as still frames", async ({ page }) => {
     const errors = watchErrors(page)

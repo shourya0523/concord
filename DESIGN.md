@@ -1605,3 +1605,28 @@ The whole app sits behind Neon Auth sign-in; only the landing page is public.
 - **Return path**: the sign-in/up pages validate `next` with `safeNextPath`. It accepts same-site paths only, never `//host`, absolute URLs, APIs or the auth pages. Returning users land back where they were headed; new accounts still go to onboarding first. Google sign-in uses `next` as its `callbackURL`, and switching between sign-in and sign-up keeps it.
 - **Without Neon Auth** (local dev, e2e stub mode) the gate is a passthrough and the app runs as `dev_stub_user`, matching the API layer.
 - **e2e**: the `gate` Playwright project starts a second server with Neon Auth configured against an unreachable URL. Signed-out requests never call the auth server, so `e2e/gate.spec.ts` exercises the real gate without credentials.
+
+### 17.2 Load intro, metadata and site logo
+
+**Intro** (`components/landing/landing-intro.css`) plays once on load, about 1.5 s, CSS only:
+- the header slides down
+- the question card drops onto the desk and settles
+- the headline rises line by line
+- desk items are tossed in from their own sides with a small settle
+- the subhead and CTA rise in
+- "Scroll" fades in and nudges
+
+**First touch stays live.** Intro keyframes animate only the individual `translate` / `rotate` / `scale` properties, plus opacity on elements whose opacity the scroll never writes; otherwise they go on an inner wrapper. The scroll stage writes `transform`, which composes with these, so a scroll or swipe mid-intro moves the page immediately while the intro finishes on top. The first scroll stops the card's idle float and the scroll nudge (`data-touched`). Reduced motion skips all of it (`prefers-reduced-motion: no-preference` guard).
+
+**Metadata** (`app/layout.tsx`):
+- `metadataBase` comes from `appBaseUrl()`, the same origin email links use.
+- Title template "%s · Concord"; the landing title is "Concord · Interview prep for IB and PE".
+- Description, keywords, Open Graph and a Twitter `summary_large_image` card.
+- Theme colour `#f7f1e4`, plus an apple web-app title.
+
+**Icons and share image** use app/ file conventions:
+- `favicon.ico` (16/32/48), `icon.png` (512) and `apple-icon.png` (180): the Concorde silhouette climbing at -32° on a cream paper tile.
+- `opengraph-image.png` / `twitter-image.png` (1200×630, with alt text): the headline, subhead, the folded paper plane and the "Walk me through a DCF." index card.
+- `manifest.ts` (start URL `/today`, 192/512 icons in `public/brand/`).
+
+All of these URLs end in a file extension, so the login gate leaves them public for signed-out crawlers; `e2e/gate.spec.ts` checks this.

@@ -17,6 +17,11 @@ test("only the landing, auth flow, health, cron, unsubscribe and static files ar
     "/sw.js",
     "/brand/concord-mark.svg",
     "/favicon.ico",
+    "/icon.png",
+    "/apple-icon.png",
+    "/opengraph-image.png",
+    "/twitter-image.png",
+    "/manifest.webmanifest",
   ]) {
     assert.ok(isPublicPath(path), path)
   }
