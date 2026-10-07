@@ -66,6 +66,31 @@ test("the desk animates in on load and the first scroll takes over at once", asy
   expect(errors).toEqual([])
 })
 
+test("the little things on the desk react to the pointer", async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto("/")
+  // Let the intro settle so the hover is the only thing moving.
+  await page.waitForTimeout(1600)
+  const animating = (selector: string) =>
+    page.locator(selector).first().evaluate((el) => el.getAnimations().filter((a) => a.playState === "running").length)
+
+  await page.locator(".desk-pencil").hover()
+  await expect.poll(() => animating(".desk-pencil > g")).toBeGreaterThan(0)
+
+  await page.locator(".desk-flutter").first().hover()
+  await expect.poll(() => animating(".desk-flutter > :first-child")).toBeGreaterThan(0)
+
+  await page.locator(".desk-peel").hover()
+  await expect.poll(() => animating(".desk-peel > :first-child")).toBeGreaterThan(0)
+
+  await page.getByTestId("landing-plane").hover()
+  await expect.poll(() => animating(".hero-clip")).toBeGreaterThan(0)
+  await expect
+    .poll(() => page.locator(".hero-sheet").evaluate((el) => getComputedStyle(el).transform))
+    .not.toBe("none")
+  expect(errors).toEqual([])
+})
+
 test.describe("reduced motion", () => {
   test("shows the same scenes as still frames", async ({ page }) => {
     const errors = watchErrors(page)

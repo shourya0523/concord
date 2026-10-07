@@ -129,3 +129,118 @@
     translate: 0 6px;
   }
 }
+
+/*
+ * Desk hovers (DESIGN.md §17.3): the little things on the hero react to the
+ * pointer. Each runs on the item's inner layer (the item itself carries the
+ * scroll transform and the intro), plays once per hover, and also fires on
+ * tap via :active. Skipped for reduced motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  /* Pencil: wiggles on its centre, like it was just knocked. */
+  .desk-pencil > g {
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+  }
+  .desk-pencil:hover > g,
+  .desk-pencil:active > g {
+    animation: desk-wiggle 700ms ease-out;
+  }
+
+  /* Loose index cards: flutter in a breeze, pinned at the top edge. */
+  .desk-flutter > :first-child {
+    transform-origin: 50% 0%;
+  }
+  .desk-flutter:hover > :first-child,
+  .desk-flutter:active > :first-child {
+    animation: desk-flutter 1100ms cubic-bezier(0.3, 0.7, 0.4, 1);
+  }
+
+  /* Sticky note: the bottom corner peels up and drops back. */
+  .desk-peel > :first-child {
+    transform-origin: 50% 0%;
+  }
+  .desk-peel:hover > :first-child,
+  .desk-peel:active > :first-child {
+    animation: desk-peel 900ms cubic-bezier(0.3, 0.7, 0.4, 1);
+  }
+
+  /* Ledger: the top sheet lifts and settles. */
+  .desk-lift > :first-child {
+    transform-origin: 0% 100%;
+  }
+  .desk-lift:hover > :first-child,
+  .desk-lift:active > :first-child {
+    animation: desk-lift 800ms cubic-bezier(0.3, 0.7, 0.4, 1);
+  }
+
+  /* Coffee ring: slides a little, like the mug was nudged. */
+  .desk-ring > g {
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+  }
+  .desk-ring:hover > g,
+  .desk-ring:active > g {
+    animation: desk-ring 1200ms cubic-bezier(0.3, 0.7, 0.4, 1);
+  }
+
+  /* Question card: lifts off the stack; the paperclip jiggles. */
+  .hero-sheet {
+    transition: transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .hero-card:hover .hero-sheet {
+    transform: translateY(-6px) rotate(-0.8deg);
+  }
+  .hero-card:hover .hero-clip,
+  .hero-card:active .hero-clip {
+    animation: desk-clip 600ms ease-out;
+  }
+}
+
+@keyframes desk-wiggle {
+  0% { transform: rotate(0deg); }
+  15% { transform: rotate(-7deg); }
+  32% { transform: rotate(5deg); }
+  50% { transform: rotate(-3deg); }
+  68% { transform: rotate(1.5deg); }
+  84% { transform: rotate(-0.5deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes desk-flutter {
+  0% { transform: perspective(600px) rotateX(0deg) skewX(0deg); }
+  18% { transform: perspective(600px) rotateX(16deg) skewX(-2deg) translateY(-2px); }
+  38% { transform: perspective(600px) rotateX(-8deg) skewX(1.5deg); }
+  58% { transform: perspective(600px) rotateX(6deg) skewX(-1deg); }
+  78% { transform: perspective(600px) rotateX(-2deg) skewX(0.5deg); }
+  100% { transform: perspective(600px) rotateX(0deg) skewX(0deg); }
+}
+
+@keyframes desk-peel {
+  0% { transform: perspective(500px) rotateX(0deg) rotateZ(0deg); }
+  30% { transform: perspective(500px) rotateX(-28deg) rotateZ(-3deg); }
+  55% { transform: perspective(500px) rotateX(8deg) rotateZ(1deg); }
+  78% { transform: perspective(500px) rotateX(-3deg) rotateZ(0deg); }
+  100% { transform: perspective(500px) rotateX(0deg) rotateZ(0deg); }
+}
+
+@keyframes desk-lift {
+  0% { transform: rotate(0deg) translateY(0); }
+  35% { transform: rotate(-3deg) translateY(-6px); }
+  65% { transform: rotate(1deg) translateY(0); }
+  100% { transform: rotate(0deg) translateY(0); }
+}
+
+@keyframes desk-ring {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  40% { transform: translate(4px, -3px) rotate(14deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+@keyframes desk-clip {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-9deg) translateY(-2px); }
+  55% { transform: rotate(6deg); }
+  80% { transform: rotate(-2deg); }
+  100% { transform: rotate(0deg); }
+}

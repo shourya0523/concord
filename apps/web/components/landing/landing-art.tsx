@@ -152,29 +152,29 @@ export function DeskClutter({ bind }: { bind: Bind }) {
     <div ref={bind("desk")} aria-hidden className="pointer-events-none absolute inset-0 will-change-[opacity]">
       {/* intro-drop: each item is tossed onto the desk from its own side (landing-intro.css). */}
       <CoffeeRing
-        className="intro-drop top-[6vh] left-[4vw] w-[22vw] max-w-72 min-w-40 [--intro-delay:900ms] [--intro-r:0deg] [--intro-y:0]"
+        className="intro-drop desk-ring pointer-events-auto top-[6vh] left-[4vw] w-[22vw] max-w-72 min-w-40 [--intro-delay:900ms] [--intro-r:0deg] [--intro-y:0]"
         {...item("desk-ring")}
       />
       <LedgerCorner
-        className="intro-drop top-[54vh] -left-[3vw] hidden h-[18rem] w-[17rem] [--intro-delay:180ms] [--intro-r:-14deg] [--intro-x:-40vw] [--intro-y:8vh] md:block"
+        className="intro-drop desk-lift pointer-events-auto top-[54vh] -left-[3vw] hidden h-[18rem] w-[17rem] [--intro-delay:180ms] [--intro-r:-14deg] [--intro-x:-40vw] [--intro-y:8vh] md:block"
         {...item("desk-ledger")}
       />
       <LooseCard
         question="Why private equity?"
-        className="intro-drop top-[12vh] right-[5vw] hidden h-[10.5rem] w-[17rem] [--intro-delay:260ms] [--intro-r:18deg] [--intro-x:36vw] [--intro-y:-20vh] lg:block"
+        className="intro-drop desk-flutter pointer-events-auto top-[12vh] right-[5vw] hidden h-[10.5rem] w-[17rem] [--intro-delay:260ms] [--intro-r:18deg] [--intro-x:36vw] [--intro-y:-20vh] lg:block"
         {...item("desk-card-pe")}
       />
       <LooseCard
         question="What's EBITDA?"
-        className="intro-drop top-[58vh] right-[9vw] hidden h-[10rem] w-[16rem] [--intro-delay:380ms] [--intro-r:-12deg] [--intro-x:40vw] [--intro-y:12vh] md:block"
+        className="intro-drop desk-flutter pointer-events-auto top-[58vh] right-[9vw] hidden h-[10rem] w-[16rem] [--intro-delay:380ms] [--intro-r:-12deg] [--intro-x:40vw] [--intro-y:12vh] md:block"
         {...item("desk-card-ebitda")}
       />
       <StickyNote
-        className="intro-drop top-[18vh] left-[10vw] hidden h-40 w-40 [--intro-delay:480ms] [--intro-r:-20deg] [--intro-x:-30vw] [--intro-y:-30vh] lg:block"
+        className="intro-drop desk-peel pointer-events-auto top-[18vh] left-[10vw] hidden h-40 w-40 [--intro-delay:480ms] [--intro-r:-20deg] [--intro-x:-30vw] [--intro-y:-30vh] lg:block"
         {...item("desk-sticky")}
       />
       <Pencil
-        className="intro-drop right-[-4vw] bottom-[12vh] w-[min(62vw,22rem)] [--intro-delay:620ms] [--intro-r:40deg] [--intro-x:60vw] [--intro-y:6vh] md:right-[18vw] md:bottom-[9vh]"
+        className="intro-drop desk-pencil pointer-events-auto right-[-4vw] bottom-[12vh] w-[min(62vw,22rem)] [--intro-delay:620ms] [--intro-r:40deg] [--intro-x:60vw] [--intro-y:6vh] md:right-[18vw] md:bottom-[9vh]"
         {...item("desk-pencil")}
       />
     </div>
@@ -187,7 +187,7 @@ export function CardStack({ ref }: { ref?: React.Ref<HTMLDivElement> }) {
     <div ref={ref} aria-hidden className="pointer-events-none absolute inset-0">
       <div className="absolute inset-[7%_4.5%] translate-x-[2%] translate-y-[4%] rotate-[3deg] rounded-[4px] bg-[#f3efe6] [filter:drop-shadow(0_4px_6px_rgb(60_45_20/0.12))]" />
       <div className="absolute inset-[7%_4.5%] -translate-x-[1.5%] translate-y-[2%] -rotate-[2deg] rounded-[4px] bg-[#f8f5ee] [filter:drop-shadow(0_4px_6px_rgb(60_45_20/0.12))]" />
-      <Paperclip className="absolute top-[1%] left-[12%] z-10 h-[52px] w-[19px] rotate-[4deg]" />
+      <Paperclip className="hero-clip absolute top-[1%] left-[12%] z-10 h-[52px] w-[19px] rotate-[4deg]" />
     </div>
   )
 }
