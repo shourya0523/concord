@@ -33,6 +33,8 @@ data/raw/glassdoor/*.html
 
 # Legacy scraper output (keep committed exports/ and data/question_bank.json)
 *.txt
+# Next.js metadata image alt text (app/*-image.alt.txt) is source.
+!apps/web/app/*.alt.txt
 !requirements.txt
 *.csv
 *.docx
