@@ -1,6 +1,7 @@
 # Pricing and unit economics
 
-Plans live in `apps/web/lib/billing/plans.ts`; the numbers below come from
+Plans live in `apps/web/lib/billing/plans.ts` and are enforced by
+`apps/web/lib/billing/meter.ts` (DESIGN.md §17.4); the numbers below come from
 `scripts/unit_economics.py` (rerun it after any price or usage change).
 Prices checked 2026-10-19. Labour and founder time are not included.
 
@@ -10,7 +11,8 @@ Prices checked 2026-10-19. Labour and founder time are not included.
 |------|-------|--------------|
 | Individual · Free | $0 | Daily limits: 10 graded answers, 1 coaching report, 3 voice answers |
 | Individual · Credits | $10 / month | 1,500 credits a month (grade 1, coaching 2, voice 3) |
-| Team | $5 / seat / month, 3-seat minimum | 1,000 credits per seat, pooled |
+| Your own key | $0 | No caps: AI runs on the user's OpenRouter key |
+| Team | $5 / seat / month, 3-seat minimum | 1,000 credits per seat |
 | Custom | Contact sohumbalsara@gmail.com | Negotiated |
 
 Practice (question bank, firm heat, daily sets, drills, leagues) is never
@@ -36,6 +38,7 @@ The most expensive credit is a voice credit, about $0.001 loaded.
 |---|---|---|---|---|---|
 | Free, typical | $0 | — | $0.02 | $0.05 | −$0.07 |
 | Free, maxes every daily limit | $0 | — | $0.29 | $0.05 | −$0.34 |
+| Your own key, any usage | $0 | — | $0 (they pay OpenRouter) | $0.05 | −$0.05 |
 | Individual, typical | $10 | $0.59 | $0.09 | $0.05 | **$9.27** |
 | Individual, burns all 1,500 credits on voice | $10 | $0.59 | $1.49 | $0.05 | **$7.87** |
 | Team seat, 3 seats, typical | $5 | $0.24 | $0.09 | $0.05 | **$4.61** |
@@ -75,5 +78,11 @@ contribution is **$7.94** per paid Individual.
   Annual billing would cut it further.
 - **Team undercuts Individual.** Two friends could buy a 2-seat team for
   less than two Individuals. The 3-seat minimum ($15) closes most of that gap.
+- **Your own key is cheaper for us than Free.** A key user costs about
+  $0.05 a month (infra only), versus up to $0.34 for a free user who maxes
+  the daily caps. The risk is cannibalising the $10 plan: heavy users can
+  get unlimited AI for cents. Most candidates won't set up an API key, so
+  it mainly serves power users and keeps them off the cost line. Revisit if
+  more than ~20% of active users switch to their own key.
 - **Watch Neon.** Always-on compute (0.5 CU, 100 GB) is ~$73/month on its
   own. Keep autosuspend on until revenue covers it.

@@ -9,15 +9,14 @@ import {
   TEAM_MIN_SEATS,
   contactHref,
   creditsHref,
-  currentPlanId,
   getPlan,
   planCtaHref,
 } from "./plans"
 
-test("three tiers in display order", () => {
+test("four tiers in display order", () => {
   assert.deepEqual(
     PLANS.map((plan) => plan.id),
-    ["individual", "team", "custom"],
+    ["individual", "byok", "team", "custom"],
   )
 })
 
@@ -29,7 +28,6 @@ test("Individual is free with a $10 credit pack; Team is $5 a seat", () => {
   assert.equal(SEAT_PRICE_USD, 5)
   assert.equal(getPlan("team").price, "$5")
   assert.match(getPlan("team").cadence, new RegExp(`${TEAM_MIN_SEATS} seat minimum`))
-  assert.equal(currentPlanId(), "individual")
 })
 
 test("Team, Custom and credits go to the contact email", () => {
@@ -38,6 +36,15 @@ test("Team, Custom and credits go to the contact email", () => {
   assert.equal(creditsHref(), "mailto:sohumbalsara@gmail.com?subject=Concord%20credits%20(%2410%2Fmonth)")
   assert.equal(planCtaHref("team", false), contactHref("team"))
   assert.equal(planCtaHref("custom", true), contactHref("custom"))
+  assert.equal(
+    creditsHref("user_1"),
+    "mailto:sohumbalsara@gmail.com?subject=Concord%20credits%20(%2410%2Fmonth)&body=Account%20ID%3A%20user_1%0A%0A",
+  )
+})
+
+test("own key goes to the key form in Settings", () => {
+  assert.equal(planCtaHref("byok", true), "/settings#byok")
+  assert.equal(planCtaHref("byok", false), "/sign-up?next=%2Fsettings")
 })
 
 test("Individual starts at sign-up, or settings when signed in", () => {

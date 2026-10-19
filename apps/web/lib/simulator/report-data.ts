@@ -142,6 +142,8 @@ export async function buildSessionReport(options: {
     generate?: CoachGenerate;
     verify?: CoachVerify;
     dbAttempts?: ReportAttempt[];
+    /** Metering gate for the AI coaching paragraph. */
+    allowCoaching?: () => Promise<boolean>;
   };
 }): Promise<MockReportPayload> {
   const { sessionId, userId, session, body } = options;
@@ -177,7 +179,12 @@ export async function buildSessionReport(options: {
 
   const coaching = await generateCoaching(
     { report, allowed: allowedCitations({ attempts, heatTopics }), firmName: body.firm_name },
-    { env: options.deps?.env, generate: options.deps?.generate, verify: options.deps?.verify },
+    {
+      env: options.deps?.env,
+      generate: options.deps?.generate,
+      verify: options.deps?.verify,
+      allow: options.deps?.allowCoaching,
+    },
   );
 
   const citations = [...report.citations];

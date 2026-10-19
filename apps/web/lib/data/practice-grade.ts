@@ -6,8 +6,13 @@
  * per-user model budget (Jev calls weigh 1/10 of a chat call), model
  * selection (Jev decisions via LLM_DECISION_MODEL, small-model escalation via
  * LLM_SMALL_MODEL), the grade router (models only when required) and logs.
+ * AI metering (lib/billing/meter.ts): a grade is charged once, only when a
+ * model runs, on the user's own OpenRouter key when they saved one; a failed
+ * model grade is refunded.
  */
 import { GRADER_VERSION } from "@ibpe/contracts";
+import { aiContext, chargeAi, refundAi } from "@/lib/billing/meter";
+import { limitMessage, type Charge } from "@/lib/billing/meter-core";
 import { getAnswerRubric, getQuestion } from "@/lib/data/questions";
 import type { FirmContextSnapshot } from "@/lib/data/practice-packs";
 import { isFlagOn } from "@/lib/flags";
@@ -156,9 +161,10 @@ export async function gradePracticeAttempt(options: {
 
   const numericOnly = Boolean(rubric && isNumericOnlyRubric(rubric));
   const usages: GradeUsage[] = [];
+  const ai = !numericOnly && options.userId ? await aiContext(options.userId) : null;
   const models = numericOnly
     ? null
-    : createGradeModels({ onUsage: (u) => usages.push(u) });
+    : createGradeModels({ onUsage: (u) => usages.push(u), client: ai ? { env: ai.env } : undefined });
 
   const cacheKey = models
     ? gradeCacheKey({
@@ -193,6 +199,8 @@ export async function gradePracticeAttempt(options: {
   // Budget is reserved per model call, only when the router needs one
   // (Jev = 1 unit, small-model escalation = 10 units).
   let rateLimited = false;
+  let creditLimited = false;
+  const metered: { charge: Charge | null } = { charge: null };
   let llmError: string | null = null;
   const graded = await runGradePipeline(input, {
     graderV2,
@@ -202,9 +210,18 @@ export async function gradePracticeAttempt(options: {
     model: models?.chatModel ?? null,
     confidenceFloor: models?.confidenceFloor,
     allowLlm: async (kind) => {
-      const ok = options.userId ? await reserveLlmGrade(options.userId, kind) : true;
-      if (!ok) rateLimited = true;
-      return ok;
+      if (!options.userId) return true;
+      if (!(await reserveLlmGrade(options.userId, kind))) {
+        rateLimited = true;
+        return false;
+      }
+      // One charge per graded answer, however many model calls it takes.
+      metered.charge ??= await chargeAi({ userId: options.userId, action: "grade", byok: ai?.byok ?? false });
+      if (!metered.charge.ok) {
+        creditLimited = true;
+        return false;
+      }
+      return true;
     },
     onLlmError: (err) => {
       llmError = err instanceof Error ? `${err.name}${"code" in err ? `:${String(err.code)}` : ""}` : "error";
@@ -212,9 +229,12 @@ export async function gradePracticeAttempt(options: {
     },
   });
 
-  if (cacheKey && (graded.score_source === "llm" || graded.score_source === "jev")) {
+  const modelGraded = graded.score_source === "llm" || graded.score_source === "jev";
+  if (cacheKey && modelGraded) {
     await setCachedGrade(cacheKey, graded).catch(() => undefined);
   }
+  const { charge } = metered;
+  if (charge && options.userId && !modelGraded) await refundAi(options.userId, charge);
   const sum = (pick: (u: GradeUsage) => number | null | undefined) =>
     usages.length ? usages.reduce((total, u) => total + (pick(u) ?? 0), 0) : null;
   logGradeEvent({
@@ -237,11 +257,14 @@ export async function gradePracticeAttempt(options: {
   });
   return {
     ...graded,
+    feedback: creditLimited ? `${graded.feedback} ${limitMessage("grade")}` : graded.feedback,
     cached: false,
     latency_ms: Date.now() - started,
     rubric_json: {
       ...graded.rubric_json,
       ...(rateLimited ? { rate_limited: true } : {}),
+      ...(creditLimited ? { credit_limited: true } : {}),
+      ...(charge?.ok ? { ai_charge: { source: charge.source, credits: charge.credits } } : {}),
       ...(usages.length ? { usage: usages } : {}),
     },
     topic,

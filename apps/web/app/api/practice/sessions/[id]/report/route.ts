@@ -5,6 +5,8 @@ import {
   respondTyped,
 } from "@/lib/api/http";
 import { getApiUser } from "@/lib/api/auth";
+import { aiContext, chargeAi, refundAi } from "@/lib/billing/meter";
+import type { Charge } from "@/lib/billing/meter-core";
 import {
   MockReportRequestSchema,
   MockReportResponseSchema,
@@ -22,6 +24,10 @@ export const dynamic = "force-dynamic";
  * per-stage scores, strongest / weakest topics and recommended concepts, with
  * a cited AI coaching paragraph (small tier) when OPENROUTER_API_KEY exists (deterministic summary
  * otherwise). Also records the `mock_complete` learning activity.
+ *
+ * Coaching is metered (lib/billing/meter.ts): one "coaching" charge per
+ * session (re-posts are free), on the user's own key when saved, refunded
+ * when no AI paragraph ships.
  */
 export async function POST(
   request: Request,
@@ -38,12 +44,29 @@ export async function POST(
     const session = await getPracticeSession(id, user.userId);
     if (!session) return jsonError(404, "not_found", `Session not found: ${id}`);
 
+    const ai = await aiContext(user.userId);
+    const metered: { charge: Charge | null } = { charge: null };
     const report = await buildSessionReport({
       sessionId: id,
       userId: user.userId,
       session,
       body: parsed.data,
+      deps: {
+        env: ai.env,
+        allowCoaching: async () => {
+          metered.charge = await chargeAi({
+            userId: user.userId,
+            email: user.email,
+            action: "coaching",
+            byok: ai.byok,
+            ref: `coach:${id}`,
+          });
+          return metered.charge.ok;
+        },
+      },
     });
+    const { charge } = metered;
+    if (charge?.ok && report.summary_source !== "llm") await refundAi(user.userId, charge);
 
     let activity = null;
     if (parsed.data.complete) {
@@ -66,7 +89,9 @@ export async function POST(
     return respondTyped(MockReportResponseSchema, {
       report,
       activity,
-      note: `attempts from ${report.attempts_source}; summary ${report.summary_source}`,
+      note: `attempts from ${report.attempts_source}; summary ${report.summary_source}${
+        charge && !charge.ok ? "; daily coaching limit reached" : ""
+      }`,
     });
   } catch (err) {
     return handleRouteError(err);

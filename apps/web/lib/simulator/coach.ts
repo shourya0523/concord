@@ -140,10 +140,18 @@ export function validateCoaching(
 
 export async function generateCoaching(
   input: { report: MockReport; allowed: ReportCitation[]; firmName?: string | null },
-  deps: { env?: NodeJS.ProcessEnv; generate?: CoachGenerate; verify?: CoachVerify; timeoutMs?: number } = {},
+  deps: {
+    env?: NodeJS.ProcessEnv
+    generate?: CoachGenerate
+    verify?: CoachVerify
+    timeoutMs?: number
+    /** Metering gate (lib/billing/meter.ts), asked only when a draft would be generated. */
+    allow?: () => Promise<boolean>
+  } = {},
 ): Promise<{ text: string; citation_ids: string[]; model: string; verified: true } | null> {
   const env = deps.env ?? process.env
   if (!isLlmConfigured(env) || input.allowed.length === 0 || input.report.graded_stages === 0) return null
+  if (deps.allow && !(await deps.allow())) return null
   const modelId = smallModel(env)
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), deps.timeoutMs ?? COACH_TIMEOUT_MS)

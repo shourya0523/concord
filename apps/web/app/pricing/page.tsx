@@ -54,11 +54,11 @@ export default async function PricingPage() {
             Free to prep. Pay when your group does.
           </h1>
           <p className="mt-4 max-w-xl text-[15px] text-muted-foreground">
-            Practice is free. AI grading, coaching and voice answers have daily free limits, and
-            credits lift them.
+            Practice is free. AI grading, coaching and voice answers have daily free limits. Credits
+            or your own OpenRouter key lift them.
           </p>
 
-          <ul className="mt-10 grid gap-4 md:grid-cols-3" aria-label="Plans">
+          <ul className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Plans">
             {PLANS.map((plan) => {
               const href = planCtaHref(plan.id, signedIn)
               const external = href.startsWith("mailto:")

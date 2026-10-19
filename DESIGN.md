@@ -1651,17 +1651,27 @@ How they're built:
 - All of it is skipped for reduced motion.
 - The desk items opt back into pointer events, while the hero copy wrapper passes them through (only the CTA stays clickable).
 
-### 17.4 Pricing
+### 17.4 Pricing and AI metering
 
 `/pricing` is public, on the cream paper of the auth shell. The landing header links to it.
 
 | Tier | Price | AI allowance |
 |---|---|---|
 | Individual | Free, or $10/month for credits | Free daily limits: 10 graded answers, 1 coaching report, 3 voice answers. 1,500 credits a month lift the caps (grade 1, coaching 2, voice 3) |
-| Team | $5 a seat a month, 3-seat minimum | 1,000 credits per seat, pooled |
+| Your own key | Free | No caps: AI runs on the user's OpenRouter key, which they pay for directly |
+| Team | $5 a seat a month, 3-seat minimum | 1,000 credits per seat |
 | Custom | Contact | Email sohumbalsara@gmail.com |
 
-- **Source of truth**: `apps/web/lib/billing/plans.ts` (pure, unit tested). The pricing page, the sign-up plan note and Settings → Plan all read it.
-- **Billing is not wired yet.** Every Neon Auth account is on free Individual. "Get credits", Team and Custom open a `mailto:` until checkout exists, and the limits are not enforced yet.
+- **Plans**: `apps/web/lib/billing/plans.ts` (pure, unit tested) feeds the pricing page, the sign-up note and Settings → Plan.
+- **Metering** (`lib/billing/meter.ts`, migration 064): every model-backed action is charged in order: the user's own key (never limited), then the free daily allowance (UTC day), then credits (refilled on the first charge of a UTC month). When all are spent:
+  - grading falls back to the deterministic grade, with a note in the feedback
+  - coaching keeps the deterministic summary
+  - `/api/transcribe` answers 402 `limit_reached`
+- **What counts**: a grade is charged once, only when a model runs. Cache hits and rule-based grades are free. Coaching is charged once per session. Failed model calls are refunded. Practice and RAG briefs are not metered.
+- **Atomic**: each step is one conditional SQL statement, so concurrent requests can't overspend (`meter.db.test.ts`). Metering fails open on database errors so grading never goes down with billing.
+- **Your own key**: Settings → Plan → "Your own OpenRouter key".
+  - `PUT /api/billing/byok` checks the key with OpenRouter (`GET /key`), then stores it AES-256-GCM encrypted under `BYOK_ENCRYPTION_KEY`.
+  - The browser only ever sees the last four characters, and `DELETE` removes the key.
+  - Without `BYOK_ENCRYPTION_KEY`, production turns the feature off.
+- **Granting plans** (until checkout exists): "Get credits" / "Get team access" emails include the user's account ID. An admin (`ADMIN_EMAILS`) calls `POST /api/admin/billing {user_id, plan, monthly_credits?}`.
 - **Why these numbers**: `docs/product/pricing-unit-economics.md` (generated with `scripts/unit_economics.py`). Break-even is about 10 paid Individuals or 17 Team seats against ~$75/month fixed costs.
-- Practice (bank, heat, daily sets, drills, leagues) is never metered; only model calls are.

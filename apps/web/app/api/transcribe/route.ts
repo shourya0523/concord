@@ -1,5 +1,8 @@
 import { handleRouteError, jsonError, respondTyped } from "@/lib/api/http";
+import { isLlmConfigured } from "@ibpe/ai";
 import { getApiUser } from "@/lib/api/auth";
+import { aiContext, chargeAi, refundAi } from "@/lib/billing/meter";
+import { limitMessage } from "@/lib/billing/meter-core";
 import { TranscribeResponseSchema } from "@/lib/api/grading-ui-schemas";
 import {
   MAX_AUDIO_BYTES,
@@ -16,6 +19,10 @@ export const maxDuration = 60;
  * MediaRecorder, ≤ 5 MB). Transcribes via OpenRouter (`LLM_STT_MODEL`) when
  * OPENROUTER_API_KEY is configured; otherwise 501 `transcription_unavailable` so the client keeps
  * the typed answer box. Session-gated like other practice APIs (proxy.ts).
+ *
+ * Metered as one "voice" action (lib/billing/meter.ts): on the user's own
+ * OpenRouter key when saved, else the free daily allowance, then credits;
+ * 402 `limit_reached` when all are spent. Failed transcriptions are refunded.
  */
 export async function POST(request: Request) {
   try {
@@ -44,9 +51,18 @@ export async function POST(request: Request) {
       return jsonError(415, "unsupported_media_type", `Unsupported audio type: ${file.type || "unknown"}.`);
     }
 
+    const ai = await aiContext(user.userId);
+    const charge = isLlmConfigured(ai.env)
+      ? await chargeAi({ userId: user.userId, email: user.email, action: "voice", byok: ai.byok })
+      : null;
+    if (charge && !charge.ok) {
+      return jsonError(402, "limit_reached", limitMessage("voice"));
+    }
+
     const audio = new Uint8Array(await file.arrayBuffer());
-    const result = await transcribeAudio({ audio, mediaType });
+    const result = await transcribeAudio({ audio, mediaType }, { env: ai.env });
     if (!result.ok) {
+      if (charge) await refundAi(user.userId, charge);
       return result.reason === "unconfigured"
         ? jsonError(501, "transcription_unavailable", result.message)
         : jsonError(502, "transcription_failed", result.message);
