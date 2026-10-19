@@ -1,4 +1,9 @@
-"""Enrichment proposal schemas for Gemini batch jobs (Mode A/B graphs)."""
+"""Enrichment proposal schemas for offline LLM batch jobs (Mode A/B graphs).
+
+``EnrichDraft`` is the structured-output contract sent to OpenRouter
+(``response_format.json_schema`` is generated from it); ``EnrichmentProposal``
+is the staged record built from a validated draft.
+"""
 
 from __future__ import annotations
 
@@ -47,7 +52,7 @@ class DiagramDraft(BaseModel):
     format: Literal["mermaid", "interactive-json"] = "mermaid"
     spec: str
     a11y_fallback: str | None = None
-    provenance: EnrichmentProvenance = EnrichmentProvenance.GEMINI_SYNTHESISED
+    provenance: EnrichmentProvenance = EnrichmentProvenance.LLM_SYNTHESISED
 
 
 class ResourceDraft(BaseModel):
@@ -57,7 +62,7 @@ class ResourceDraft(BaseModel):
     kind: Literal["internal", "external"] = "external"
     concept_ids: list[str] = Field(default_factory=list)
     firm_ids: list[str] = Field(default_factory=list)
-    provenance: EnrichmentProvenance = EnrichmentProvenance.GEMINI_SYNTHESISED
+    provenance: EnrichmentProvenance = EnrichmentProvenance.LLM_SYNTHESISED
 
 
 class ModeRouting(BaseModel):
@@ -83,7 +88,7 @@ class ModeRouting(BaseModel):
 
 
 class EnrichmentProposal(BaseModel):
-    """Staged Gemini enrichment for one canonical question / Q–A pair."""
+    """Staged LLM enrichment for one canonical question / Q–A pair."""
 
     id: str = Field(default_factory=lambda: new_id("enr"))
     canonical_question_id: str
@@ -102,7 +107,7 @@ class EnrichmentProposal(BaseModel):
     resource_drafts: list[ResourceDraft] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0, default=0.5)
     status: EnrichmentStatus = EnrichmentStatus.STAGED
-    provenance: EnrichmentProvenance = EnrichmentProvenance.GEMINI_SYNTHESISED
+    provenance: EnrichmentProvenance = EnrichmentProvenance.LLM_SYNTHESISED
     model_version: str
     prompt_version: str
     created_at: datetime = Field(default_factory=utcnow)
@@ -110,10 +115,10 @@ class EnrichmentProposal(BaseModel):
 
     def model_post_init(self, __context: Any) -> None:
         # Hard lock: enrichment is never glassdoor / github teaching source.
-        if self.provenance != EnrichmentProvenance.GEMINI_SYNTHESISED:
+        if self.provenance != EnrichmentProvenance.LLM_SYNTHESISED:
             if self.provenance != EnrichmentProvenance.EDITORIAL:
                 object.__setattr__(
-                    self, "provenance", EnrichmentProvenance.GEMINI_SYNTHESISED
+                    self, "provenance", EnrichmentProvenance.LLM_SYNTHESISED
                 )
 
 
@@ -125,7 +130,7 @@ class CompanyPrepNode(BaseModel):
     canonical_question_id: str
     enrichment_id: str
     soft_relevance: float = 0.5
-    provenance: EnrichmentProvenance = EnrichmentProvenance.GEMINI_SYNTHESISED
+    provenance: EnrichmentProvenance = EnrichmentProvenance.LLM_SYNTHESISED
 
 
 class ConceptLabNode(BaseModel):
@@ -137,7 +142,7 @@ class ConceptLabNode(BaseModel):
     prerequisites: list[str] = Field(default_factory=list)
     diagram_ids: list[str] = Field(default_factory=list)
     resource_ids: list[str] = Field(default_factory=list)
-    provenance: EnrichmentProvenance = EnrichmentProvenance.GEMINI_SYNTHESISED
+    provenance: EnrichmentProvenance = EnrichmentProvenance.LLM_SYNTHESISED
 
 
 class EnrichmentGraphSlice(BaseModel):
@@ -146,3 +151,43 @@ class EnrichmentGraphSlice(BaseModel):
     company_prep: list[CompanyPrepNode] = Field(default_factory=list)
     concept_lab: list[ConceptLabNode] = Field(default_factory=list)
     proposals: list[EnrichmentProposal] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
+# Structured-output contract (enrich-v1 over OpenRouter)                      #
+# --------------------------------------------------------------------------- #
+
+
+class DiagramDraftOut(BaseModel):
+    """Model-side diagram draft (ids / provenance are assigned on staging)."""
+
+    type: str = "generic"
+    format: Literal["mermaid"] = "mermaid"
+    spec: str
+    a11y_fallback: str | None = None
+
+
+class ResourceDraftOut(BaseModel):
+    label: str
+    url: str
+    kind: Literal["internal", "external"] = "external"
+    concept_ids: list[str] = Field(default_factory=list)
+
+
+class EnrichDraft(BaseModel):
+    """What the model returns for prompt ``enrich-v1`` (validated with Pydantic)."""
+
+    track: Literal["IB", "PE", "Both"] | None = None
+    topic: str | None = None
+    subtopic: str | None = None
+    concepts: list[ConceptHint] = Field(default_factory=list)
+    difficulty: Literal["easy", "medium", "hard"] | None = None
+    interview_stage_hints: list[str] = Field(default_factory=list)
+    firm_soft_tags: list[FirmSoftTag] = Field(default_factory=list)
+    mode_routing: ModeRouting = Field(default_factory=ModeRouting)
+    pe_relevance: str | None = None
+    ib_relevance: str | None = None
+    interview_ready_rewrite: str | None = None
+    diagram_drafts: list[DiagramDraftOut] = Field(default_factory=list)
+    resource_drafts: list[ResourceDraftOut] = Field(default_factory=list)
+    confidence: float = Field(ge=0.0, le=1.0, default=0.5)

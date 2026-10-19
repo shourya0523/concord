@@ -1,4 +1,4 @@
-"""Answer acquisition, generation, matching, validation, and Gemini enrichment."""
+"""Answer acquisition, generation, matching, validation, and LLM (OpenRouter) enrichment."""
 
 from ibpe_corpus.answers.classify_response import classify_response
 from ibpe_corpus.answers.editorial import EditorialReviewItem, EditorialReviewQueue

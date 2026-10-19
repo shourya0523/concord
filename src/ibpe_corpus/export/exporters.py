@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
 
+from ibpe_corpus.canonical.taxonomy_rules import infer_topic
+from ibpe_corpus.metrics.completeness import write_reports
 from ibpe_corpus.canonical.publish_gate import (
     filter_publishable_answers,
     filter_publishable_questions,
@@ -55,6 +57,9 @@ def export_all(
     relationships: Sequence[Any] | None = None,
     coverage: Any | None = None,
     alerts: list[str] | None = None,
+    proposals: Sequence[Any] | None = None,
+    signal_join_rows: Sequence[dict[str, Any]] | None = None,
+    enrichment: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     exports_dir = Path(exports_dir)
     reports_dir = Path(reports_dir)
@@ -87,6 +92,11 @@ def export_all(
         in {"core_pe_investing", "adjacent_pe_investing", "portfolio_operations"}
     ]
     signal_rows = [_dump_model(q) for q in signal_questions]
+    # Firm-signal clusters carry a heuristic topic (keyword rules v4) for heat.
+    for row in signal_rows:
+        if not row.get("topic"):
+            tagged = infer_topic(row.get("canonical_wording") or "")
+            row["topic"] = tagged if tagged != "untagged" else None
 
     _write_jsonl(exports_dir / "questions.jsonl", q_rows)
     _write_jsonl(exports_dir / "question_variants.jsonl", v_rows)
@@ -96,6 +106,12 @@ def export_all(
     _write_jsonl(exports_dir / "pe_questions.jsonl", pe_rows)
     _write_jsonl(exports_dir / "firm_signals.jsonl", signal_rows)
     _write_jsonl(exports_dir / "rejected_records.jsonl", list(rejected))
+    # Durable enrichment proposals (P2.1) and signal → teaching joins (P2.7).
+    _write_jsonl(
+        exports_dir / "enrichment_proposals.jsonl",
+        [_dump_model(p) for p in (proposals or [])],
+    )
+    _write_jsonl(exports_dir / "occurrence_joins.jsonl", list(signal_join_rows or []))
 
     csv_path = exports_dir / "questions.csv"
     with csv_path.open("w", encoding="utf-8", newline="") as fh:
@@ -183,34 +199,34 @@ def export_all(
             "Live Glassdoor fetches return Cloudflare/CAPTCHA 403 in this environment.",
             "Glassdoor application DOM/network shapes are validated via synthetic fixtures only.",
             "PE employer crawl counts remain matrix-planned until live access is available.",
-            "Answer synthesis uses deterministic templates, not an external LLM.",
-            "GitHub teaching corpora require license review before production publish "
-            "(see reports/license-review.md).",
+            "Answer synthesis uses deterministic topic templates; OpenRouter LLMs (enrich-v1 / "
+            "rubric-v1) run only with OPENROUTER_API_KEY and only when heuristics fall short.",
+            "Heuristic rubrics and taxonomy auto-approvals are rule-validated, not human-reviewed.",
+            "GitHub teaching corpora are cleared by owner attestation (2026-09-23); "
+            "see reports/license-review.md.",
             "question_bank.json is firm_signal only — never teaching answers.",
         ],
         "publish_policy": {
             "teaching_truth": "github_source + static_seed",
             "firm_signals": "glassdoor_occurrence / question_bank",
-            "reject": ["[Interview process] placeholders"],
-            "license_gate": "reports/license-review.md must be clear before prod",
+            "reject": [
+                "[Interview process] placeholders",
+                "generic synthesis placeholders (needs_generation)",
+                "rejected answers",
+            ],
+            "license_gate": "reports/license-review.md (owner attestation recorded)",
         },
-        "export_files": 9,
+        "enrichment": enrichment or {},
+        "export_files": 11,
         "test_results": "see CI / pytest",
     }
     (reports_dir / "run-summary.json").write_text(
         json.dumps(run_summary, indent=2, default=str) + "\n", encoding="utf-8"
     )
 
-    _write_answer_coverage_report(
-        reports_dir / "answer-coverage-report.md",
-        answers=pub_answers,
-        questions=publishable,
-        source_answers=source_answers,
-        matched=matched,
-        generated=generated,
-        validated=validated,
-        rejected_n=rejected_n,
-    )
+    # Answer coverage, completeness scoreboard and license review are computed
+    # from the exports just written so reports always match what ships.
+    write_reports(exports_dir, reports_dir, enrichment=enrichment)
     _write_data_quality_report(
         reports_dir / "data-quality-report.md",
         questions=questions,
@@ -231,7 +247,6 @@ def export_all(
         publishable=publishable,
         dup_rate=dup_rate,
     )
-    _write_license_review(reports_dir / "license-review.md")
 
     frontend = reports_dir / "glassdoor-frontend-report.md"
     if not frontend.exists():
@@ -241,48 +256,6 @@ def export_all(
         )
 
     return run_summary
-
-
-def _write_answer_coverage_report(
-    path: Path,
-    *,
-    answers: Sequence[Answer],
-    questions: Sequence[CanonicalQuestion],
-    source_answers: int,
-    matched: int,
-    generated: int,
-    validated: int,
-    rejected_n: int,
-) -> None:
-    answered = {
-        a.canonical_question_id
-        for a in answers
-        if a.provenance_type != AnswerProvenance.REJECTED
-    }
-    coverage = (len(answered) / len(questions)) if questions else 0.0
-    path.write_text(
-        "\n".join(
-            [
-                "# Answer coverage report",
-                "",
-                f"- Publishable teaching questions: {len(questions)}",
-                f"- Answers (non-rejected): {len(answered)}",
-                f"- Coverage: {coverage:.1%}",
-                f"- Source-provided: {source_answers}",
-                f"- Corpus-matched: {matched}",
-                f"- Generated: {generated}",
-                f"- Validated: {validated}",
-                f"- Rejected: {rejected_n}",
-                "",
-                "## Provenance rule",
-                "",
-                "Synthesised answers are never labelled `source_provided`.",
-                "Glassdoor bank rows never supply teaching answers.",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
 
 
 def _write_data_quality_report(
@@ -362,48 +335,6 @@ def _write_duplicate_report(
                 "`same_answer_would_satisfy` distinctive-concept guard on the teaching corpus.",
                 "Firm-signal topic clusters dedupe by exact hash only at bank scale; joins onto",
                 "teaching Qs use exact-hash + fuzzy (threshold 88) and are reversible.",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
-
-
-def _write_license_review(path: Path) -> None:
-    """Blocking license notes before production publish of GitHub teaching Q/A."""
-    path.write_text(
-        "\n".join(
-            [
-                "# License review — GitHub teaching corpora",
-                "",
-                "**Status: BLOCKING for production publish.** Staging / offline pipeline OK.",
-                "",
-                "GitHub Q/A is the teaching source of truth. Do not ship imported answers to",
-                "production until each high-priority source below has an explicit rights decision.",
-                "",
-                "| Source | Commit | Product role | License / rights note | Decision |",
-                "|--------|--------|--------------|----------------------|----------|",
-                "| `ddeng5/Capital-Markets-Question-Bank-App` | `05dca576…` | `teaching_qa` | No clear SPDX in repo inventory; Firebase export of IB Q/A. Confirm author permission / license before prod. | **Pending review** |",
-                "| `coryjburk/intv-playbook-ib_vc` | `c174e326…` | `teaching_qa` | Single-file HTML playbook; rights unclear. Review README / contact author. | **Pending review** |",
-                "| `coryjburk/intv-playbook-pe_vc` | `ae3b2693…` | `teaching_qa` | Same as IB playbook. | **Pending review** |",
-                "| `HireAbo/awesome-interview-questions-5000-jobs` | `837a40fb…` | `teaching_qa` (questions only) | Broad templated lists; verify LICENSE in repo before prod. | **Pending review** |",
-                "| `offergenieai/Finance-Interview-Questions` | `b651edc0…` | `teaching_qa` (titles) | Titles only; low risk but still attribute. | **Pending review** |",
-                "| Static seed (`fixtures/corpus/seed_ib_pe_questions.json`) | n/a | `teaching_qa` | Synthetic in-repo fixture; OK to publish as synthetic. | **Allowed (synthetic)** |",
-                "| `data/question_bank.json` | n/a | `firm_signal` | GlassCleaner legacy scrape; **not** teaching answers; occurrence heat only. | **Signal-only (no teaching publish)** |",
-                "",
-                "## Gate",
-                "",
-                "- [ ] Legal/product owner signs off high-priority GitHub sources",
-                "- [ ] Attribution strings recorded on published answer provenance",
-                "- [ ] Pattern-only scraper repos remain non-imported",
-                "- [ ] `[Interview process]` placeholders confirmed absent from published exports",
-                "",
-                "## References",
-                "",
-                "- `config/github_sources.yml`",
-                "- `docs/source-registry.md`",
-                "- `docs/research/github-source-inventory.md`",
-                "- `packages/contracts` `ProvenanceEnum` (`github_source` | `glassdoor_occurrence` | …)",
                 "",
             ]
         ),

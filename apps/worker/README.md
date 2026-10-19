@@ -22,9 +22,19 @@ python -c "from pathlib import Path; import ibpe_corpus; assert Path('scrapers')
 
 Schedule success = job exit code 0. See `docs/deployment/workers.md` and `docs/deployment/monitoring.md`.
 
-## Gemini enrichment (Workstream H)
+## LLM enrichment via OpenRouter (Workstream H, ADR 0007)
 
-Runs **offline** (not on browse request path):
+Runs **offline** (not on browse request path). One key, two model roles:
+
+| Role | Env | Default | When |
+|------|-----|---------|------|
+| decision (Jev) | `LLM_DECISION_MODEL` | `typesafe/jev-1.13` | Taxonomy, signal topic tags, concept / mode routing, and verifying every small-model draft (`POST /api/alpha/decisions`, input tokens only) |
+| small | `LLM_SMALL_MODEL` | `deepseek/deepseek-v4-flash` | Only text: thin rubric drafts, generic expansion appendices, `--llm` diagram drafts |
+
+Thresholds: `JEV_AUTO_APPROVE` (0.8; taxonomy auto-approve with rule agreement, 0.9 alone) and
+`JEV_ACCEPT_CONFIDENCE` (0.8; minimum `supported` confidence for a small-model draft).
+Alternatives for the small tier: `z-ai/glm-4.5-air`, `google/gemini-2.5-flash-lite`.
+`LLM_FALLBACK_MODEL` is sent as the second entry of the small tier's OpenRouter `models` list.
 
 ```bash
 source .venv/bin/activate
@@ -32,13 +42,27 @@ source .venv/bin/activate
 python -m ibpe_corpus.answers.enrich_job --dry-run --limit 20
 
 # Live model (Cloud Agents Secrets / .env)
-# GEMINI_API_KEY=...  or AI_GATEWAY_API_KEY=...
-python -m ibpe_corpus.answers.enrich_job --limit 50
+# OPENROUTER_API_KEY=...
+python -m ibpe_corpus.answers.enrich_job --limit 50                 # Jev classification (concept / mode / track / difficulty)
+python -m ibpe_corpus.answers.enrich_job --limit 50 --llm           # + small-model diagram drafts, Jev-verified
+python -m ibpe_corpus.answers.enrich_job --limit 50 --llm --no-escalate   # no retry after a rejected draft
 ```
 
-Report: `reports/answer-enrichment-report.json`
+"Only when required": heuristics run first; a model is called only for items the heuristic
+cannot auto-approve. Report: `reports/answer-enrichment-report.json` — `metrics.llm_routes`
+counts `heuristic` / `jev` / `small` / `failed`, `metrics.diagram_routes` the `--llm` diagram
+drafts, `models_used` lists the model ids actually served, `llm_usage.jev` / `llm_usage.small`
+carry tokens and cost.
 
-Provenance: all Gemini outputs are `gemini_synthesised` — never Glassdoor / GitHub teaching source.
+Durable proposals (plan P2.1): pass `--db data/db/corpus.db` to persist graph-enrichment proposals and the
+editorial queue in SQLite; `ibpe proposals` lists them and `ibpe review-proposal <id> approved --reviewer …`
+records a human decision that survives re-runs. Taxonomy / rubric enrichment also runs inside
+`ibpe run-pipeline` (heuristic without a key; `--llm` enables OpenRouter when `OPENROUTER_API_KEY` is set;
+`--no-escalate` disables the one small-model retry). Route counts land in `reports/run-summary.json` → `enrichment.llm_routes`.
+
+Provenance: all LLM outputs keep the stored label `gemini_synthesised` (frozen by the shared TS
+`ProvenanceEnum`; it means "LLM-synthesised") with the real OpenRouter model id in `model_version` / `model` —
+never Glassdoor / GitHub teaching source.
 
 ## Secrets
 

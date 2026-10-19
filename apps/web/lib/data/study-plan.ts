@@ -8,8 +8,9 @@ import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
 import { listStubLearningModules } from "./learning";
 import { ensureAppUserQuery } from "./users";
+import { memoryStore } from "./memory-store";
 
-const stubPlans = new Map<string, StudyPlan>();
+const stubPlans = memoryStore<string, StudyPlan>("study_plans");
 
 function defaultStudyPlan(userId: string): StudyPlan {
   const now = new Date().toISOString();

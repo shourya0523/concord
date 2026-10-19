@@ -78,6 +78,9 @@ class ValidationStatus(str, Enum):
     NEEDS_CORRECTION = "needs_correction"
     REJECT = "reject"
     NOT_RUN = "not_run"
+    # Placeholder synthesis (no topic handler) — never publishable, queued for
+    # topic-specific / LLM generation (plan P1.3).
+    NEEDS_GENERATION = "needs_generation"
 
 
 class Domain(str, Enum):
@@ -92,8 +95,17 @@ class CorpusProvenance(str, Enum):
     GITHUB_SOURCE = "github_source"
     STATIC_SEED = "static_seed"
     GLASSDOOR_OCCURRENCE = "glassdoor_occurrence"
+    # Value is frozen by the TS contract; means "LLM-synthesised" (any OpenRouter
+    # model — see ADR 0007). LLM_SYNTHESISED is an alias of the same member.
     GEMINI_SYNTHESISED = "gemini_synthesised"
+    LLM_SYNTHESISED = "gemini_synthesised"
     EDITORIAL = "editorial"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "CorpusProvenance | None":
+        if isinstance(value, str) and value.strip().lower() == "llm_synthesised":
+            return cls.GEMINI_SYNTHESISED
+        return None
 
 
 class ProductRole(str, Enum):
@@ -145,6 +157,8 @@ class CanonicalQuestion(BaseModel):
     difficulty: str | None = None
     review_state: str = "accepted"
     normalised_hash: str | None = None
+    # Question-level ProvenanceEnum (github_source | static_seed | …) for publish.
+    provenance: str | None = None
 
 
 class QuestionVariant(BaseModel):
@@ -176,6 +190,12 @@ class InterviewOccurrence(BaseModel):
     source_id: str
     confidence: float = 1.0
     detail_url: str | None = None
+    # Firm-signal enrichment (plan P2.7) — mirrors canonical.question_occurrences
+    # topic / canonical_question_id / join_score / join_method (migration 044).
+    topic: str | None = None
+    canonical_question_id: str | None = None
+    join_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    join_method: Literal["exact", "fuzzy", "embedding", "manual"] | None = None
 
 
 class QuestionResponse(BaseModel):
@@ -192,6 +212,53 @@ class QuestionResponse(BaseModel):
     source_url: str | None = None
     access_state: AccessState = AccessState.PUBLIC
     source_artefact_id: str | None = None
+
+
+RUBRIC_VERSION = "rubric-v1"
+
+
+class RubricKeyPoint(BaseModel):
+    """Mirror of ``RubricKeyPointSchema`` (packages/contracts learning-loop.ts)."""
+
+    id: str
+    text: str = Field(min_length=1)
+    weight: float = Field(ge=0.0, le=1.0)
+    must_have: bool = False
+    cues: list[str] = Field(default_factory=list)
+
+
+class RubricNumericCheck(BaseModel):
+    """Mirror of ``RubricNumericCheckSchema``."""
+
+    id: str
+    label: str
+    calculator: str | None = None
+    inputs: dict[str, Any] | None = None
+    expected: float
+    tolerance: float = Field(default=0.02, ge=0.0)
+    tolerance_kind: Literal["relative", "absolute"] = "relative"
+    unit: str | None = None
+
+
+class AnswerRubric(BaseModel):
+    """Mirror of ``AnswerRubricSchema`` — the grading contract on an answer.
+
+    Rubrics derive from the teaching answer only (ADR 0002): Glassdoor text
+    never becomes a key point, red flag or expected value.
+    """
+
+    version: Literal["rubric-v1"] = RUBRIC_VERSION
+    kind: Literal["technical", "numeric", "star"] = "technical"
+    key_points: list[RubricKeyPoint] = Field(min_length=1, max_length=8)
+    red_flags: list[str] = Field(default_factory=list)
+    common_mistakes: list[str] = Field(default_factory=list)
+    follow_ups: list[str] = Field(default_factory=list)
+    numeric_checks: list[RubricNumericCheck] = Field(default_factory=list)
+    provenance: Literal["llm", "heuristic", "human", "source"]
+    review_status: Literal["pending", "approved", "rejected"] = "pending"
+    model: str | None = None
+    prompt_version: str | None = None
+    generated_at: str | None = None
 
 
 class Answer(BaseModel):
@@ -211,6 +278,36 @@ class Answer(BaseModel):
     confidence: float = 0.5
     difficulty: str | None = None
     references: list[str] = Field(default_factory=list)
+    # Validator tags (e.g. ``needs_expansion``) — informative, not publish gates.
+    quality_tags: list[str] = Field(default_factory=list)
+    # Source coaching notes (coryjburk playbooks) — rubric seed hints only.
+    coaching_notes: list[str] = Field(default_factory=list)
+    # Grading contract (plan P2.3); exported as ``rubric`` on answers.jsonl.
+    rubric: AnswerRubric | None = None
+
+
+class EnrichmentProposalRecord(BaseModel):
+    """Mirror of ``staging.enrichment_proposals`` (migration 044).
+
+    One row per (target_kind, target_id, field, prompt_version). Only
+    ``approved`` rows (human or auto) are applied at publish time.
+    """
+
+    id: str
+    target_kind: Literal["question", "answer", "rubric", "diagram", "lesson", "occurrence"]
+    target_id: str
+    field: str
+    proposal_json: Any
+    current_json: Any | None = None
+    model: str | None = None
+    prompt_version: str | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    status: Literal["pending", "approved", "rejected", "applied"] = "pending"
+    auto_approved: bool = False
+    reviewer: str | None = None
+    review_note: str | None = None
+    decided_at: str | None = None
+    created_at: str = Field(default_factory=lambda: utcnow().isoformat())
 
 
 class JobState(str, Enum):

@@ -6,7 +6,7 @@ Infra owns deploy/schedule hooks. Job implementations belong to:
 |------------|-------|
 | Glassdoor fetch / BFF / session | `ibpe-glassdoor` |
 | GitHub import / transform / publish | `ibpe-data-quality` |
-| Gemini enrich / validators | `ibpe-answers` |
+| LLM enrich (OpenRouter) / validators | `ibpe-answers` |
 
 ## Hook points (Wave 1)
 

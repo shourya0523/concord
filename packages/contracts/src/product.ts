@@ -42,7 +42,8 @@ export type Role = z.infer<typeof RoleSchema>;
 
 export const TargetCompanySetSchema = z.object({
   user_id: z.string(),
-  firm_ids: z.array(z.string()).min(1),
+  /** Empty for new users who have not picked targets yet; PUT requires ≥1. */
+  firm_ids: z.array(z.string()),
   primary_firm_id: z.string().nullable().optional(),
   updated_at: z.string(),
 });
@@ -66,7 +67,7 @@ export const PutTargetCompanySetRequestSchema = TargetCompanySetSchema.pick({
   user_id: true,
   firm_ids: true,
   primary_firm_id: true,
-});
+}).extend({ firm_ids: z.array(z.string()).min(1) });
 export type PutTargetCompanySetRequest = z.infer<
   typeof PutTargetCompanySetRequestSchema
 >;
@@ -410,6 +411,26 @@ export const StudyPlanItemSchema = z.object({
 });
 export type StudyPlanItem = z.infer<typeof StudyPlanItemSchema>;
 
+export const AttemptScoreSourceEnum = z.enum([
+  "self",
+  "llm",
+  /** Typed rubric decisions from Jev (decision model) — no generated text. */
+  "jev",
+  "deterministic",
+  /** Exact numeric check (drills / calc questions) — no LLM. */
+  "numeric",
+  /** Answer copied from the just-revealed gold answer — no mastery credit. */
+  "reveal_copy",
+]);
+export type AttemptScoreSource = z.infer<typeof AttemptScoreSourceEnum>;
+
+export const AttemptGradeCitationSchema = z.object({
+  id: z.string(),
+  kind: z.enum(["teaching_answer", "heat_topic", "occurrence"]),
+  label: z.string().optional(),
+});
+export type AttemptGradeCitation = z.infer<typeof AttemptGradeCitationSchema>;
+
 export const AttemptSchema = z.object({
   id: z.string(),
   user_id: z.string(),
@@ -423,6 +444,10 @@ export const AttemptSchema = z.object({
   correct: z.boolean().nullable().optional(),
   weak_topics: z.array(z.string()).default([]),
   firm_id: z.string().nullable().optional(),
+  score_source: AttemptScoreSourceEnum.optional(),
+  llm_score: z.number().min(0).max(1).nullable().optional(),
+  rubric_json: z.record(z.unknown()).nullable().optional(),
+  grade_citations: z.array(AttemptGradeCitationSchema).default([]),
   created_at: z.string(),
 });
 export type Attempt = z.infer<typeof AttemptSchema>;

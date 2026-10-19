@@ -16,7 +16,9 @@ import {
   WarrenCallout,
 } from "@/components/paper"
 import {
+  curriculumQuestionIdsForConcept,
   getConceptDetail,
+  getQuestionSummaries,
   listConcepts,
   listLearningModules,
   listQuestionsForConcept,
@@ -53,7 +55,12 @@ export default async function ConceptLabPage({ params }: Props) {
   ])
   if (!result) notFound()
   const { concept, topic, diagrams, resources } = result.item
-  const questions = await listQuestionsForConcept(concept.id, 4)
+  const published = await listQuestionsForConcept(concept.id, 4)
+  // No-DB / untagged corpus: fall back to the curriculum's checkpoint questions.
+  const questions =
+    published.length > 0
+      ? published
+      : await getQuestionSummaries(curriculumQuestionIdsForConcept(concept.id, 4))
 
   const parentModule = modules.items.find((module) =>
     module.concept_ids.includes(concept.id)
@@ -74,6 +81,7 @@ export default async function ConceptLabPage({ params }: Props) {
     { concept, current: true, ordinal: prerequisites.length + 1 },
   ]
   const diagram = diagrams[0]
+  const moreDiagrams = diagrams.slice(1, 4)
   const firmEntries = Object.entries(concept.firm_relevance)
     .filter(([, intensity]) => intensity >= 0.5)
     .map(([firmId, intensity]) => ({ firmId, intensity }))
@@ -123,11 +131,34 @@ export default async function ConceptLabPage({ params }: Props) {
           <DiagramIsland
             title={diagram.title}
             source={diagram.body}
+            format={diagram.ref.format}
             a11yFallback={
               diagram.ref.a11y_fallback ?? concept.summary ?? diagram.title
             }
           />
         </PaperSheet>
+      ) : null}
+
+      {moreDiagrams.length > 0 ? (
+        <section className="space-y-3" aria-labelledby="more-diagrams">
+          <h2
+            id="more-diagrams"
+            className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase"
+          >
+            More diagrams
+          </h2>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {moreDiagrams.map((extra) => (
+              <DiagramIsland
+                key={extra.ref.id}
+                title={extra.title}
+                source={extra.body}
+                format={extra.ref.format}
+                a11yFallback={extra.ref.a11y_fallback ?? extra.title}
+              />
+            ))}
+          </div>
+        </section>
       ) : null}
 
       <section className="space-y-6">

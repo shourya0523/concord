@@ -1,0 +1,20 @@
+{
+  "fixture_id": "finance-nwc-change-basic",
+  "topic": "nwc",
+  "ts_only": true,
+  "description": "AR and inventory build faster than payables → NWC up 15, cash −15",
+  "inputs": {
+    "receivables_begin": 100.0,
+    "inventory_begin": 80.0,
+    "payables_begin": 60.0,
+    "receivables_end": 120.0,
+    "inventory_end": 90.0,
+    "payables_end": 75.0
+  },
+  "expected": {
+    "nwc_begin": 120.0,
+    "nwc_end": 135.0,
+    "delta_nwc": 15.0,
+    "cash_impact": -15.0
+  }
+}

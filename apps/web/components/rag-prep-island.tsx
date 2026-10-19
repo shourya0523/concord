@@ -33,7 +33,7 @@ type RagResponse = {
   explanations: Array<{ item_id: string; reasons: string[] }>
   source: string
   brief?: string
-  brief_source?: "gemini" | "template"
+  brief_source?: "llm" | "template"
   brief_citations?: Array<{ item_id: string; label: string }>
   notes: string[]
 }
@@ -284,7 +284,7 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
                     Session brief
                   </span>
                   <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground uppercase">
-                    {result.brief_source === "gemini"
+                    {result.brief_source === "llm"
                       ? "AI rewrite"
                       : "Template"}
                   </span>
@@ -348,7 +348,7 @@ export function RagPrepIsland({ initialFirmIds = [], initialTopic = null }: Prop
                 eyebrow="Company prep · locked pack"
                 initialQuestionIds={result.pack.item_ids}
                 initialFirmIds={targets}
-                sessionMode="pseudo_rag"
+                sessionMode="rag"
                 learningMode="company_prep"
                 ragContext={{
                   packId: result.pack.id,

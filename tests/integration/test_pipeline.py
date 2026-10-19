@@ -88,11 +88,56 @@ def test_exports_include_license_and_firm_signals(tmp_path: Path) -> None:
     )
     assert (reports / "license-review.md").is_file()
     assert (reports / "data-quality-report.md").is_file()
-    assert "BLOCKING" in (reports / "license-review.md").read_text(encoding="utf-8")
+    license_text = (reports / "license-review.md").read_text(encoding="utf-8")
+    assert "Owner attestation" in license_text
+    assert "coryjburk/intv-playbook-pe_vc" in license_text
     assert (exports / "firm_signals.jsonl").is_file()
+    assert (exports / "enrichment_proposals.jsonl").is_file()
+    assert (exports / "occurrence_joins.jsonl").is_file()
+    assert (reports / "pipeline-completeness.md").is_file()
+    assert "C11" in (reports / "pipeline-completeness.md").read_text(encoding="utf-8")
     summary = json.loads((reports / "run-summary.json").read_text(encoding="utf-8"))
     assert summary["publish_policy"]["teaching_truth"].startswith("github_source")
-    # No interview-process placeholders in published teaching export
+    # No interview-process placeholders / numbering prefixes in the teaching export
     for line in (exports / "questions.jsonl").read_text(encoding="utf-8").splitlines():
         row = json.loads(line)
         assert "[Interview process]" not in (row.get("canonical_wording") or "")
+        assert not (row.get("canonical_wording") or "").lower().startswith("question ")
+
+
+def test_pipeline_content_quality_invariants(tmp_path: Path) -> None:
+    """P1.2–P2.11: no placeholders, rubrics attached, behavioural bank imported."""
+    exports = tmp_path / "exports"
+    reports = tmp_path / "reports"
+    run_fixture_pipeline(
+        db_path=tmp_path / "corpus.db",
+        exports_dir=exports,
+        reports_dir=reports,
+        force=True,
+        include_question_bank=False,
+        llm=False,
+    )
+    questions = [json.loads(x) for x in (exports / "questions.jsonl").read_text().splitlines()]
+    answers = [json.loads(x) for x in (exports / "answers.jsonl").read_text().splitlines()]
+    assert not any(
+        a["concise_answer"].startswith("Structure a clear interview answer to:") for a in answers
+    )
+    assert all(a["validation_status"] != "needs_generation" for a in answers)
+    approved = [a for a in answers if (a.get("rubric") or {}).get("review_status") == "approved"]
+    assert len(approved) / len(answers) >= 0.9
+    for a in approved[:50]:
+        weights = sum(kp["weight"] for kp in a["rubric"]["key_points"])
+        assert abs(weights - 1.0) <= 0.01
+        assert any(kp["must_have"] for kp in a["rubric"]["key_points"])
+    behavioural = [q for q in questions if q.get("subtopic") in {"why_ib", "teamwork", "failure"}]
+    assert len(behavioural) >= 10
+    star = [a for a in answers if (a.get("rubric") or {}).get("kind") == "star"]
+    assert len(star) >= 40
+    for a in answers:
+        if a["provenance_type"] == "source_provided":
+            assert not a.get("generator_version")
+    proposals = [
+        json.loads(x) for x in (exports / "enrichment_proposals.jsonl").read_text().splitlines()
+    ]
+    assert proposals and all(p["target_kind"] in {"question", "answer"} for p in proposals)
+    assert any(p["status"] == "approved" and p["auto_approved"] for p in proposals)

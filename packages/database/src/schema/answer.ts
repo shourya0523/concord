@@ -25,6 +25,9 @@ export const answers = canonicalSchema.table("answers", {
   difficulty: text("difficulty"),
   referencesJson: jsonb("references_json").notNull().default([]),
   publishable: boolean("publishable").notNull().default(false),
+  /** AnswerRubricSchema (044) — grading contract. */
+  rubricJson: jsonb("rubric_json"),
+  rubricStatus: text("rubric_status"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

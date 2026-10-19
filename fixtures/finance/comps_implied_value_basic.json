@@ -1,0 +1,25 @@
+{
+  "fixture_id": "finance-comps-implied-value-basic",
+  "topic": "comps",
+  "ts_only": true,
+  "description": "Median EV/EBITDA × EBITDA → EV → equity → per share",
+  "inputs": {
+    "metric": 100.0,
+    "multiples": [
+      8.0,
+      9.0,
+      10.0,
+      11.0,
+      20.0
+    ],
+    "net_debt": 200.0,
+    "shares": 50.0
+  },
+  "expected": {
+    "median_multiple": 10.0,
+    "mean_multiple": 11.6,
+    "implied_ev": 1000.0,
+    "implied_equity": 800.0,
+    "implied_share_price": 16.0
+  }
+}

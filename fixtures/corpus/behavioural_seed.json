@@ -1,0 +1,226 @@
+{
+  "fixture_id": "behavioural_seed_v1",
+  "fixture_origin": "synthetic",
+  "provenance": "synthesised",
+  "generator_version": "behavioural-seed-v1",
+  "not_glassdoor": true,
+  "description": "Curated fit / behavioural question bank (plan P2.11). Question wordings and answer guidance are synthesised coaching content written for Concord, not captured from Glassdoor or any third-party source. Answers teach how to structure a response; rubrics are STAR or motivation templates (kind=star).",
+  "categories": {
+    "why_ib": {
+      "rubric_type": "motivation",
+      "domain": "ib",
+      "guidance": "Structure motivation answers in three beats: (1) two or three specific reasons, (2) evidence for each from your own experience (an internship, a deal you followed, a project), (3) a link to what the role actually involves and where you want to be in a few years. Keep it to 60-90 seconds and sound genuine rather than rehearsed.",
+      "common_mistakes": [
+        "Leading with money, prestige or exit opportunities",
+        "Generic reasons such as 'fast-paced environment' with no evidence",
+        "Showing no understanding of what analysts actually do"
+      ],
+      "follow_ups": [
+        "What would you do if you did not get an offer in banking?",
+        "What part of the analyst job do you expect to find hardest?"
+      ]
+    },
+    "why_pe": {
+      "rubric_type": "motivation",
+      "domain": "pe",
+      "guidance": "For private equity motivation, show you want to be a principal: forming investment views, owning outcomes, and working with management after the deal closes. Back it with deals where you thought like an investor, and show you understand the firm's strategy (buyout vs growth, sector focus, fund size).",
+      "common_mistakes": [
+        "Describing PE as 'banking with better hours'",
+        "No evidence of investment judgement",
+        "Ignoring the firm's specific strategy and portfolio"
+      ],
+      "follow_ups": [
+        "Which of our portfolio companies would you have invested in, and why?",
+        "What is a deal you would have passed on, and why?"
+      ]
+    },
+    "why_firm": {
+      "rubric_type": "motivation",
+      "domain": "both",
+      "guidance": "Firm-specific answers need research you can cite: recent transactions, sector or product strengths, culture, training and the people you have spoken to. Pick two or three points, connect each to your goals, and avoid anything that would apply equally to every competitor.",
+      "common_mistakes": [
+        "Points that apply to any bank or fund",
+        "Name-dropping without saying what you learned from conversations",
+        "Getting basic facts about the firm wrong"
+      ],
+      "follow_ups": [
+        "Who have you spoken to here, and what did you learn?",
+        "Which of our recent deals interested you most?"
+      ]
+    },
+    "resume": {
+      "rubric_type": "motivation",
+      "domain": "both",
+      "guidance": "Resume and background answers are a narrative, not a list: explain the choices you made, what each experience taught you, and how they add up to this role. Quantify achievements where you can and finish on why you are interviewing now.",
+      "common_mistakes": [
+        "Reading the CV line by line",
+        "Running well over two minutes",
+        "No clear link between past experiences and this role"
+      ],
+      "follow_ups": [
+        "Which experience on your resume are you most proud of?",
+        "Why did you make that transition?"
+      ]
+    },
+    "teamwork": {
+      "rubric_type": "star",
+      "domain": "both",
+      "guidance": "Use STAR: set the Situation and your Task briefly, spend most of the answer on the specific Actions you personally took, give a concrete Result, and close with a short Reflection on what you learned. Say 'I' for your actions and 'we' only for the team outcome.",
+      "common_mistakes": [
+        "Describing what the team did without your own role",
+        "Blaming a teammate",
+        "No clear outcome"
+      ],
+      "follow_ups": [
+        "What would you do differently next time?",
+        "How did the other person react?"
+      ]
+    },
+    "failure": {
+      "rubric_type": "star",
+      "domain": "both",
+      "guidance": "Failure and mistake answers test ownership and learning. Pick a real, meaningful example (not a disguised strength), own your part without excuses, explain how you recovered or limited the damage, and show the lasting change in how you work.",
+      "common_mistakes": [
+        "Choosing a trivial or fake failure",
+        "Blaming others or circumstances",
+        "No lesson or behaviour change"
+      ],
+      "follow_ups": [
+        "How would you spot the same problem earlier today?",
+        "What did your manager say at the time?"
+      ]
+    },
+    "leadership": {
+      "rubric_type": "star",
+      "domain": "both",
+      "guidance": "Leadership does not require a title: show a moment where you set direction, won buy-in, made a decision or took initiative, and delivered a result. Use STAR and quantify the outcome where possible.",
+      "common_mistakes": [
+        "Confusing leadership with holding a position",
+        "No evidence others followed or benefited",
+        "Vague outcomes"
+      ],
+      "follow_ups": [
+        "How did you handle people who disagreed with you?",
+        "What would you do differently leading that team again?"
+      ]
+    },
+    "deal": {
+      "rubric_type": "star",
+      "domain": "both",
+      "guidance": "Deal discussions should be structured: parties and rationale, size and structure, your role and the analysis you did, a key issue and how it was resolved, the outcome, and your own view on whether it was a good deal. Only discuss information that is public or that you are allowed to share.",
+      "common_mistakes": [
+        "Not knowing basic facts about the deal (size, multiple, financing)",
+        "No personal view or investment judgement",
+        "Sharing confidential information"
+      ],
+      "follow_ups": [
+        "What was the valuation multiple, and was it justified?",
+        "What were the biggest risks in the deal?"
+      ]
+    },
+    "ethics": {
+      "rubric_type": "star",
+      "domain": "both",
+      "guidance": "Ethics answers should show integrity and good process: clarify the facts, raise concerns early with the right person, never misrepresent numbers or information, and escalate through proper channels if needed. A real example with a clear outcome is stronger than a hypothetical.",
+      "common_mistakes": [
+        "Quietly fixing or hiding the problem",
+        "Going over people's heads without first raising the concern",
+        "Treating ethics as a grey area when it is not"
+      ],
+      "follow_ups": [
+        "What if your manager told you to drop it?",
+        "Who else would you involve, and when?"
+      ]
+    },
+    "pressure": {
+      "rubric_type": "star",
+      "domain": "both",
+      "guidance": "Pressure and prioritisation answers should show calm, structured behaviour: clarify deadlines and importance, communicate early about trade-offs, escalate conflicts to someone who can prioritise, and protect quality with checks. Use a real STAR example with a clear result.",
+      "common_mistakes": [
+        "Claiming you never feel pressure",
+        "Silently missing deadlines instead of flagging trade-offs",
+        "Sacrificing accuracy without telling anyone"
+      ],
+      "follow_ups": [
+        "What would you do if you realised you could not hit the deadline?",
+        "How do you keep error rates low late at night?"
+      ]
+    },
+    "self_awareness": {
+      "rubric_type": "star",
+      "domain": "both",
+      "guidance": "Strength and weakness answers test self-awareness. Choose real traits relevant to the role, prove each with a short example, and for weaknesses show the concrete steps you are taking and the evidence that you are improving.",
+      "common_mistakes": [
+        "Disguised strengths such as 'I work too hard'",
+        "Weaknesses that are core to the job with no plan to fix them",
+        "No examples"
+      ],
+      "follow_ups": [
+        "How would your last manager describe that weakness?",
+        "What have you done in the last six months to improve?"
+      ]
+    }
+  },
+  "questions": [
+    {"id": "beh_001", "category": "why_ib", "difficulty": "easy", "question": "Why investment banking?", "concise": "Give two or three specific reasons, such as the steep learning curve, direct exposure to transactions that reshape companies and working with strong teams, back each with something you have actually done (an internship, a deal you followed, a finance society project), and link them to what analysts do day to day."},
+    {"id": "beh_002", "category": "why_ib", "difficulty": "medium", "question": "Why do you want to be an investment banking analyst rather than work in consulting or corporate finance?", "concise": "Contrast the options honestly: banking offers live transaction execution, deep financial modelling and exposure to senior clients, while consulting is broader but less financial and corporate finance is closer to one company. Show you understand the trade-offs (hours, narrower scope) and why they suit you, with evidence from your experience."},
+    {"id": "beh_003", "category": "why_ib", "difficulty": "easy", "question": "What do you think an investment banking analyst does day to day?", "concise": "Give a realistic picture: building models and valuation analyses, preparing pitch books and marketing materials, managing diligence and data rooms, coordinating with clients and other advisers, and iterating on details late into the night, then explain why that work appeals to you."},
+    {"id": "beh_004", "category": "why_ib", "difficulty": "medium", "question": "Why are you interested in M&A advisory specifically?", "concise": "Point to what distinguishes M&A: advising on strategic, often company-defining decisions, valuation and negotiation, and exposure across industries. Tie it to a transaction you followed closely and what it taught you about why companies buy and sell."},
+    {"id": "beh_005", "category": "why_ib", "difficulty": "medium", "question": "Why capital markets (ECM or DCM) rather than M&A?", "concise": "Explain the appeal of markets-facing work: pricing and investor dynamics, faster deal cycles and market timing. Show you know the product, such as IPOs and follow-ons in ECM or bond and loan issuance in DCM, and connect it to your interest in markets."},
+    {"id": "beh_006", "category": "why_ib", "difficulty": "medium", "question": "What would you do if you did not get a job in investment banking?", "concise": "Show commitment without sounding rigid: banking is your clear first choice for specific reasons, and you would pursue a closely related path that builds the same skills, such as corporate development or transaction services, while continuing to work towards banking."},
+    {"id": "beh_007", "category": "why_pe", "difficulty": "easy", "question": "Why private equity?", "concise": "Explain what draws you to investing rather than advising: making and owning investment decisions, evaluating businesses end to end and working with management on value creation after close. Support it with deal experience and an example of your investment judgement."},
+    {"id": "beh_008", "category": "why_pe", "difficulty": "medium", "question": "Why do you want to move from investment banking to private equity?", "concise": "Frame it as a progression: banking built your modelling, diligence and execution skills, and you now want to apply them as a principal, forming views, taking responsibility for outcomes and staying involved for the whole holding period. Cite a deal where you already thought like an investor."},
+    {"id": "beh_009", "category": "why_pe", "difficulty": "medium", "question": "What makes a good private equity investor?", "concise": "Discuss judgement on businesses and people, disciplined underwriting of price, structure and downside, the ability to find and execute value-creation levers, and building trust with management teams, and give an example of when you showed one of these qualities."},
+    {"id": "beh_010", "category": "why_pe", "difficulty": "medium", "question": "Growth equity or buyouts: which interests you more, and why?", "concise": "Contrast minority stakes in fast-growing companies with little or no leverage (growth equity) with control investments that use leverage and operational levers (buyouts), then pick one and explain why it fits your skills, interests and the firm's strategy."},
+    {"id": "beh_011", "category": "why_pe", "difficulty": "medium", "question": "Where do you see yourself in five years in private equity?", "concise": "Give a credible trajectory: grow from analysing and executing deals to leading workstreams, building relationships with management teams and contributing to sourcing. Show you want to stay on the investing side and build judgement, not just collect a title."},
+    {"id": "beh_012", "category": "why_firm", "difficulty": "easy", "question": "Why our firm?", "concise": "Show you have done your homework: name two or three specific things about this firm, such as recent deals, sector or product strengths, culture and the people you have spoken to, and connect each one to your own goals. Avoid points that would apply to any competitor."},
+    {"id": "beh_013", "category": "why_firm", "difficulty": "medium", "question": "Why a boutique rather than a bulge-bracket bank?", "concise": "Explain the trade-off you value: leaner deal teams with more responsibility and senior exposure, an advisory focus and deal variety, versus the brand and product breadth of a large bank, and back it with evidence of how you work best."},
+    {"id": "beh_014", "category": "why_firm", "difficulty": "medium", "question": "Why a bulge-bracket bank rather than an elite boutique?", "concise": "Explain what breadth offers: large and complex transactions, a full product suite (M&A, ECM, DCM, leveraged finance), global reach and structured training, and why that platform fits the skills you want to build."},
+    {"id": "beh_015", "category": "why_firm", "difficulty": "medium", "question": "What other firms are you interviewing with?", "concise": "Be honest but consistent: name a focused set of comparable firms that fits a coherent story about the role you want, and make clear, for specific reasons, why this firm is at the top of your list."},
+    {"id": "beh_016", "category": "why_firm", "difficulty": "hard", "question": "What do you know about our recent transactions?", "concise": "Discuss one or two recent deals the firm advised on or invested in: the parties, the strategic rationale, the size or structure, and what they say about the firm's strengths, showing that you genuinely follow its work."},
+    {"id": "beh_017", "category": "resume", "difficulty": "easy", "question": "Walk me through your resume.", "concise": "Tell a 90-second story in chronological order: where you started, the two or three experiences that led you to finance and what each taught you, and why this role is the logical next step. Do not list every line on the CV."},
+    {"id": "beh_018", "category": "resume", "difficulty": "easy", "question": "Tell me about yourself.", "concise": "Give a concise, structured narrative: your background, the key experiences and achievements that shaped you, what drew you to finance, and why you are interviewing for this role now, finishing on the role in about 60 to 90 seconds."},
+    {"id": "beh_019", "category": "resume", "difficulty": "medium", "rubric_type": "star", "question": "Which experience on your resume are you most proud of, and why?", "concise": "Pick one experience with a real, ideally quantified result, walk through it with STAR (the situation, what you were responsible for, the actions you personally took and the outcome), and explain why it matters to you and to this role."},
+    {"id": "beh_020", "category": "resume", "difficulty": "easy", "rubric_type": "star", "question": "What did you learn from your last internship?", "concise": "Name one or two concrete lessons, such as a technical skill or how to work with senior people, prove each with a specific situation and what you did, and show how you would apply them in this role from day one."},
+    {"id": "beh_021", "category": "resume", "difficulty": "easy", "question": "Why did you choose your university and your major?", "concise": "Explain the choice briefly and positively, highlighting what you gained, such as analytical skills or specific courses and projects, and how it prepared you for finance. If your path is non-traditional, show what it adds to a deal team."},
+    {"id": "beh_022", "category": "teamwork", "difficulty": "easy", "question": "Tell me about a time you worked in a team to achieve a difficult goal.", "concise": "Use STAR: the team's goal and your role, the specific actions you took to coordinate, contribute and keep others on track, a concrete result, and a short reflection on what you learned about working in teams."},
+    {"id": "beh_023", "category": "teamwork", "difficulty": "medium", "question": "Describe a time you had a conflict with a teammate and how you resolved it.", "concise": "Pick a real disagreement, show you understood the other person's view, explain the steps you took to resolve it constructively (a direct conversation, using data, finding a compromise) and the outcome for both the work and the relationship."},
+    {"id": "beh_024", "category": "teamwork", "difficulty": "medium", "question": "Tell me about a time a team member was not pulling their weight.", "concise": "Explain how you raised it directly and privately, looked for the underlying cause, helped rebalance or support the work, and escalated only if needed, then give the result and what you would repeat next time."},
+    {"id": "beh_025", "category": "teamwork", "difficulty": "medium", "question": "Tell me about a time you had to work closely with someone very different from you.", "concise": "Describe the differences (working style, background or priorities), what you did to understand them and adapt, how you used the difference to improve the result, and what the collaboration achieved."},
+    {"id": "beh_026", "category": "teamwork", "difficulty": "easy", "question": "How do you handle critical feedback from a senior colleague?", "concise": "Show that you listen without being defensive, clarify what good looks like, act on it quickly and follow up to confirm, illustrated with a real example where feedback measurably improved your work."},
+    {"id": "beh_027", "category": "teamwork", "difficulty": "easy", "question": "Describe a time you helped a colleague succeed.", "concise": "Explain the situation and what the colleague needed, the specific help you gave (teaching a skill, sharing a template, taking on part of the load), and the outcome for them and for the team."},
+    {"id": "beh_028", "category": "failure", "difficulty": "medium", "question": "Tell me about a time you failed.", "concise": "Pick a genuine failure you owned: briefly explain what went wrong and your part in it, what you did to recover or limit the damage, and the lasting change in how you work that came out of it."},
+    {"id": "beh_029", "category": "failure", "difficulty": "medium", "question": "Tell me about a mistake you made in your work and how you handled it.", "concise": "Choose a real error, such as a model or spreadsheet mistake, show you owned it quickly, told the right people, fixed it and put a check in place so it does not happen again."},
+    {"id": "beh_030", "category": "failure", "difficulty": "medium", "question": "Describe a time you missed a deadline.", "concise": "Explain the circumstances without excuses, when you realised the deadline was at risk and whether you flagged it early enough, what you did to deliver as soon as possible, and how you now plan and communicate differently."},
+    {"id": "beh_031", "category": "failure", "difficulty": "medium", "question": "Tell me about a time you received negative feedback.", "concise": "Describe the feedback honestly, how you reacted at first and then what you did about it, the concrete improvement that followed, and how you now seek feedback earlier."},
+    {"id": "beh_032", "category": "failure", "difficulty": "hard", "question": "What is a decision you regret, and what did you learn from it?", "concise": "Pick a meaningful decision, explain the reasoning you used at the time, what you missed or underweighted, what the consequences were, and how the lesson changes the way you make similar decisions now."},
+    {"id": "beh_033", "category": "leadership", "difficulty": "easy", "question": "Tell me about a time you led a team.", "concise": "Use STAR: the team and the goal, how you set direction and divided the work, how you kept people motivated and handled problems, and the measurable result, plus one thing you learned about leading."},
+    {"id": "beh_034", "category": "leadership", "difficulty": "medium", "question": "Describe a time you had to persuade others to follow your idea.", "concise": "Explain the idea and why people were sceptical, how you built the case (data, a pilot, addressing concerns one to one), how you won buy-in, and what the idea achieved once adopted."},
+    {"id": "beh_035", "category": "leadership", "difficulty": "easy", "question": "Tell me about a time you took initiative beyond your role.", "concise": "Describe a gap you noticed that nobody owned, what you did about it without being asked, how you kept the right people informed, and the concrete result for the team or client."},
+    {"id": "beh_036", "category": "leadership", "difficulty": "hard", "question": "Describe a situation where you had to make a decision with incomplete information.", "concise": "Explain the decision and the missing information, how you gathered what you could quickly, the assumptions you made and the risks you managed, what you decided, and how it turned out."},
+    {"id": "beh_037", "category": "leadership", "difficulty": "medium", "question": "Tell me about a time you had to motivate a team that was struggling.", "concise": "Describe why the team was struggling, what you did to reset goals, recognise effort and remove blockers, how morale and output changed, and what you learned about motivating people."},
+    {"id": "beh_038", "category": "leadership", "difficulty": "easy", "question": "Give an example of a goal you set and achieved.", "concise": "Pick an ambitious, measurable goal, explain how you broke it into steps, what obstacles you hit and how you handled them, and the result compared with the target."},
+    {"id": "beh_039", "category": "deal", "difficulty": "medium", "question": "Walk me through a deal you worked on.", "concise": "Structure it: the parties and strategic rationale, the size and structure, your role and the analysis you did, a key issue and how the team resolved it, the outcome, and your own view on whether it was a good deal, sharing only what you are allowed to."},
+    {"id": "beh_040", "category": "deal", "difficulty": "medium", "question": "Tell me about a recent M&A deal you have followed.", "concise": "Pick a real, recent deal you understand well: the buyer, target and price or multiple, the strategic rationale and synergies, how it was financed, and your view on whether it creates value and why."},
+    {"id": "beh_041", "category": "deal", "difficulty": "hard", "question": "Pitch me a company you would invest in.", "concise": "Give a crisp thesis: what the company does, two or three reasons it is attractive (market, competitive position, financial profile), the key risks and how you would mitigate them, and a one-line view on valuation or returns."},
+    {"id": "beh_042", "category": "deal", "difficulty": "medium", "question": "What was the most challenging analysis you performed in a previous role?", "concise": "Describe the question the analysis had to answer, why it was hard (data, complexity or time), the specific steps you took and checks you ran, the conclusion, and how it influenced the decision."},
+    {"id": "beh_043", "category": "deal", "difficulty": "hard", "question": "Tell me about an investment you would make today and why.", "concise": "Give a clear thesis in three or four points: the business and why it is attractive now, the main value-creation drivers, the key risks and mitigants, and what price and structure would make the returns work."},
+    {"id": "beh_044", "category": "deal", "difficulty": "hard", "question": "Tell me about a deal that did not close. What happened?", "concise": "Explain the deal and why it fell apart (valuation gap, diligence findings, financing or regulation), what you did in the process, what the team learned, and what you would look for earlier next time."},
+    {"id": "beh_045", "category": "ethics", "difficulty": "medium", "question": "Tell me about a time you faced an ethical dilemma at work.", "concise": "Describe the dilemma factually, the options you considered, how you raised it with the right person and what you decided, the outcome, and the principle you would apply again."},
+    {"id": "beh_046", "category": "ethics", "difficulty": "medium", "question": "What would you do if you found an error in a model that had already been sent to a client?", "concise": "Flag it immediately to your associate or VP, quantify the impact, prepare the corrected output, and let the deal team decide how to communicate it to the client. Never hide the error or quietly fix it."},
+    {"id": "beh_047", "category": "ethics", "difficulty": "hard", "question": "What would you do if a senior banker asked you to change numbers to make a deal look better?", "concise": "Clarify the request and the rationale first. If it would misrepresent the analysis, explain your concern respectfully, offer a defensible alternative such as a clearly labelled sensitivity case, and escalate through proper channels if the pressure continues."},
+    {"id": "beh_048", "category": "ethics", "difficulty": "medium", "question": "How would you handle confidential information you received by mistake?", "concise": "Do not use or share it, stop reading once you realise, notify your manager or compliance promptly, and follow their instructions on deleting or returning it, because protecting client confidentiality is non-negotiable."},
+    {"id": "beh_049", "category": "ethics", "difficulty": "medium", "question": "Tell me about a time you had to deliver bad news.", "concise": "Explain the news and who needed to hear it, how you prepared (facts, impact, options), how you delivered it early and directly, and how the other person reacted and what happened next."},
+    {"id": "beh_050", "category": "pressure", "difficulty": "easy", "question": "Tell me about a time you worked under intense pressure.", "concise": "Use STAR: what created the pressure, how you prioritised and organised the work, how you kept quality high and communicated with others, and the result, plus what you learned about how you work under pressure."},
+    {"id": "beh_051", "category": "pressure", "difficulty": "medium", "question": "How do you prioritise when several senior people give you urgent tasks at once?", "concise": "Clarify each deadline and its importance, tell each requester transparently when they can expect their work, escalate genuine conflicts to someone who can prioritise across deals, and deliver in the agreed order, illustrated with a real example."},
+    {"id": "beh_052", "category": "pressure", "difficulty": "medium", "question": "Describe a time you had to juggle multiple competing deadlines.", "concise": "Describe the competing demands, how you planned and prioritised them, which trade-offs you flagged and to whom, and the outcome for each deadline."},
+    {"id": "beh_053", "category": "pressure", "difficulty": "easy", "question": "How do you handle long hours and stay effective?", "concise": "Acknowledge the reality of the hours, then describe the habits that keep you effective (planning the day, checklists, short breaks, sleep and exercise when possible) and a time you sustained quality through a demanding stretch."},
+    {"id": "beh_054", "category": "pressure", "difficulty": "medium", "question": "Tell me about a time something went wrong at the last minute.", "concise": "Explain what went wrong and how close to the deadline, how you stayed calm, triaged and fixed the most important parts, how you communicated with the people affected, and the outcome."},
+    {"id": "beh_055", "category": "pressure", "difficulty": "easy", "question": "How do you make sure your work is accurate when you are tired?", "concise": "Describe concrete safeguards: checklists, reconciling totals and sanity-checking outputs, stepping away before a final review, and asking for a second pair of eyes on critical numbers, with an example where this caught an error."},
+    {"id": "beh_056", "category": "self_awareness", "difficulty": "medium", "question": "What is your greatest weakness?", "concise": "Pick a real but non-fatal weakness, give a concrete example of how it showed up, then explain the specific steps you are taking to improve and the evidence that it is working."},
+    {"id": "beh_057", "category": "self_awareness", "difficulty": "easy", "question": "What are your greatest strengths?", "concise": "Choose two strengths relevant to the role, prove each with a short example and its result, and tie them to what the job actually requires."},
+    {"id": "beh_058", "category": "self_awareness", "difficulty": "easy", "question": "How would your colleagues describe you?", "concise": "Give two or three adjectives your colleagues would genuinely use, back each with a short example or piece of feedback you received, and include one development area to show self-awareness."},
+    {"id": "beh_059", "category": "self_awareness", "difficulty": "medium", "question": "What is something you would change about how you work?", "concise": "Name a specific habit you want to improve, explain the situation that made you notice it, and the concrete steps you have taken so far and the results."},
+    {"id": "beh_060", "category": "self_awareness", "difficulty": "easy", "rubric_type": "motivation", "question": "What motivates you?", "concise": "Name one or two genuine motivators, such as learning quickly, solving hard problems or delivering for a team, prove each with an example of when it drove your performance, and connect them to why this role will keep you motivated."}
+  ]
+}

@@ -33,6 +33,8 @@ data/raw/glassdoor/*.html
 
 # Legacy scraper output (keep committed exports/ and data/question_bank.json)
 *.txt
+# Next.js metadata image alt text (app/*-image.alt.txt) is source.
+!apps/web/app/*.alt.txt
 !requirements.txt
 *.csv
 *.docx
@@ -74,3 +76,10 @@ pnpm-lock.yaml
 .env.*.local
 # Vercel CLI link metadata (use CI secrets; do not commit tokens)
 .vercel
+
+# Claude Code agent worktrees
+.claude/worktrees/
+
+# Playwright e2e output
+apps/web/test-results/
+apps/web/playwright-report/

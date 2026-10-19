@@ -1,79 +1,61 @@
 /**
- * Embedding + RAG helpers (AI SDK + Gemini).
- * Prefer GOOGLE_GENERATIVE_AI_API_KEY; falls back to GEMINI_API_KEY.
+ * Embedding + RAG helpers on OpenRouter (`LLM_EMBED_MODEL`, 768-d so the
+ * pgvector(768) column from migration 033 is unchanged).
  */
-import { createGoogleGenerativeAI } from "@ai-sdk/google"
-import { cosineSimilarity, embed, embedMany } from "ai"
+import { DEFAULT_EMBED_DIMS, DEFAULT_EMBED_MODEL, embedModel, isLlmConfigured } from "./models.js"
+import { embed, type ClientOptions } from "./openrouter.js"
 
-export const DEFAULT_EMBEDDING_MODEL = "gemini-embedding-001"
-export const DEFAULT_EMBEDDING_DIMS = 768
-/** Flash-class Gemini model for short grounded RAG rewrites. */
-export const DEFAULT_RAG_GENERATE_MODEL = "gemini-3.6-flash"
+export const DEFAULT_EMBEDDING_MODEL = DEFAULT_EMBED_MODEL
+export const DEFAULT_EMBEDDING_DIMS = DEFAULT_EMBED_DIMS
 
-export function googleApiKey(
-  env: NodeJS.ProcessEnv = process.env
-): string | undefined {
-  return (
-    env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
-    env.GEMINI_API_KEY?.trim() ||
-    undefined
+export function isEmbeddingConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+  return isLlmConfigured(env)
+}
+
+/** Embedding model id in use (env override or default). */
+export function embeddingModelId(env: NodeJS.ProcessEnv = process.env): string {
+  return embedModel(env)
+}
+
+type EmbedOptions = ClientOptions & { dimensions?: number; model?: string; signal?: AbortSignal }
+
+export async function embedText(value: string, opts: EmbedOptions = {}): Promise<number[]> {
+  const [vector] = await embedTexts([value], opts)
+  if (!vector) throw new Error("Embedding request returned no vector")
+  return vector
+}
+
+export async function embedTexts(values: string[], opts: EmbedOptions = {}): Promise<number[][]> {
+  if (values.length === 0) return []
+  const { dimensions, model, signal, ...client } = opts
+  return embed(
+    values,
+    {
+      model: model ?? embedModel(client.env ?? process.env),
+      dimensions: dimensions ?? DEFAULT_EMBEDDING_DIMS,
+      signal,
+    },
+    client,
   )
 }
 
-export function isEmbeddingConfigured(
-  env: NodeJS.ProcessEnv = process.env
-): boolean {
-  return Boolean(googleApiKey(env))
-}
-
-function googleProvider(apiKey?: string) {
-  const key = apiKey ?? googleApiKey()
-  if (!key) {
-    throw new Error(
-      "Set GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY for embeddings"
-    )
+/** Cosine similarity of two equal-length vectors (0 when either is all zeros). */
+export function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) {
+    throw new Error(`Vectors must have the same length (${a.length} vs ${b.length})`)
   }
-  return createGoogleGenerativeAI({ apiKey: key })
+  let dot = 0
+  let na = 0
+  let nb = 0
+  for (let i = 0; i < a.length; i += 1) {
+    const x = a[i]!
+    const y = b[i]!
+    dot += x * y
+    na += x * x
+    nb += y * y
+  }
+  return na === 0 || nb === 0 ? 0 : dot / (Math.sqrt(na) * Math.sqrt(nb))
 }
-
-export function embeddingModel(apiKey?: string) {
-  return googleProvider(apiKey).textEmbedding(DEFAULT_EMBEDDING_MODEL)
-}
-
-export async function embedText(
-  value: string,
-  opts?: { apiKey?: string; dimensions?: number }
-): Promise<number[]> {
-  const { embedding } = await embed({
-    model: embeddingModel(opts?.apiKey),
-    value,
-    providerOptions: {
-      google: {
-        outputDimensionality: opts?.dimensions ?? DEFAULT_EMBEDDING_DIMS,
-      },
-    },
-  })
-  return embedding
-}
-
-export async function embedTexts(
-  values: string[],
-  opts?: { apiKey?: string; dimensions?: number }
-): Promise<number[][]> {
-  if (values.length === 0) return []
-  const { embeddings } = await embedMany({
-    model: embeddingModel(opts?.apiKey),
-    values,
-    providerOptions: {
-      google: {
-        outputDimensionality: opts?.dimensions ?? DEFAULT_EMBEDDING_DIMS,
-      },
-    },
-  })
-  return embeddings
-}
-
-export { cosineSimilarity }
 
 /** Format a float vector for Neon `vector` column literal. */
 export function toPgVectorLiteral(values: number[]): string {

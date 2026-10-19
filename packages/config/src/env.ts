@@ -20,6 +20,7 @@ export const ScrapeEnvSchema = z.object({
   HTTPS_PROXY: z.string().optional(),
   CAPSOLVER_API_KEY: z.string().optional(),
   CURL_CFFI_IMPERSONATE: z.string().optional(),
+  // Legacy: no longer read by the TypeScript stack (OpenRouter — see ProductEnvSchema).
   GEMINI_API_KEY: z.string().optional(),
 });
 export type ScrapeEnv = z.infer<typeof ScrapeEnvSchema>;
@@ -42,8 +43,18 @@ export const ProductEnvSchema = z.object({
   // Edge Config feature flags (optional)
   EDGE_CONFIG: z.preprocess(emptyToUndefined, z.string().optional()),
   CRON_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
-  // Prefer AI Gateway on Vercel; GEMINI_API_KEY remains for local enrich jobs
-  AI_GATEWAY_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  // LLM stack via OpenRouter (docs/deployment/llm-stack.md) — server-only
+  OPENROUTER_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  OPENROUTER_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  OPENROUTER_APP_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  OPENROUTER_DECISIONS_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  // Jev (TypeSafe) decision model — grading + draft verification
+  LLM_DECISION_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),
+  JEV_CONFIDENCE_FLOOR: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(1).optional()),
+  JEV_ACCEPT_CONFIDENCE: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(1).optional()),
+  LLM_SMALL_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),
+  LLM_EMBED_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),
+  LLM_STT_MODEL: z.preprocess(emptyToUndefined, z.string().optional()),
 });
 export type ProductEnv = z.infer<typeof ProductEnvSchema>;
 
@@ -82,5 +93,6 @@ export const SERVER_ONLY_ENV_KEYS = [
   "BLOB_READ_WRITE_TOKEN",
   "UPSTASH_REDIS_REST_TOKEN",
   "CRON_SECRET",
+  "OPENROUTER_API_KEY",
   "AI_GATEWAY_API_KEY",
 ] as const;

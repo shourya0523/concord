@@ -3,22 +3,71 @@
   "ui": "tui",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**"
+      ]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": [
+        "^lint"
+      ]
     },
     "format": {
-      "dependsOn": ["^format"]
+      "dependsOn": [
+        "^format"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": [
+        "^typecheck"
+      ]
     },
     "dev": {
       "cache": false,
       "persistent": true
     }
-  }
+  },
+  "globalEnv": [
+    "ADMIN_DATABASE_URL",
+    "ADMIN_EMAILS",
+    "CRON_DATABASE_URL",
+    "CRON_SECRET",
+    "DATABASE_URL",
+    "FLAG_*",
+    "GRADER_ALLOW_PENDING_RUBRICS",
+    "GRADER_MODEL",
+    "JEV_ACCEPT_CONFIDENCE",
+    "JEV_CONFIDENCE_FLOOR",
+    "LLM_DECISION_MODEL",
+    "LLM_EMBED_MODEL",
+    "LLM_SMALL_MODEL",
+    "LLM_STT_MODEL",
+    "NEON_FETCH_ENDPOINT",
+    "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+    "NODE_ENV",
+    "NOTIFY_CADENCE",
+    "NOTIFY_FROM_EMAIL",
+    "NOTIFY_SIGNING_SECRET",
+    "OPENROUTER_API_KEY",
+    "OPENROUTER_APP_URL",
+    "OPENROUTER_BASE_URL",
+    "OPENROUTER_DECISIONS_URL",
+    "QUESTION_BANK_PATH",
+    "QUESTION_EXPORT_PATH",
+    "RESEND_API_KEY",
+    "UPSTASH_REDIS_REST_TOKEN",
+    "UPSTASH_REDIS_REST_URL",
+    "VAPID_PRIVATE_KEY",
+    "VAPID_PUBLIC_KEY",
+    "VAPID_SUBJECT",
+    "VERCEL_ENV"
+  ]
 }

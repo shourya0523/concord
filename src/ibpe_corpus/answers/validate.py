@@ -11,12 +11,14 @@ from dataclasses import dataclass, field
 from ibpe_corpus import VALIDATOR_VERSION
 from ibpe_corpus.answers.calculators import (
     CalculatorError,
+    run_topic,
     ev_bridge as calc_ev_bridge,
     irr_approx as calc_irr_approx,
     lbo_exit_equity as calc_lbo_exit,
     moic as calc_moic,
     wacc as calc_wacc,
 )
+from ibpe_corpus.answers.generate import is_placeholder_answer
 from ibpe_corpus.answers.provenance import enforce_answer_provenance
 from ibpe_corpus.schemas.models import (
     Answer,
@@ -67,6 +69,15 @@ def technical_finance_validator(answer: Answer) -> ValidatorResult:
         "moic_irr": ("moic", "irr"),
         "accretion_dilution": ("eps", "accret"),
         "three_statements": ("income", "cash", "balance"),
+        "comps_precedents": ("multiple", "precedent"),
+        "valuation_multiples": ("multiple", "equity"),
+        "working_capital": ("working capital", "current", "cash"),
+        "debt_credit": ("leverage", "coverage", "covenant"),
+        "pe_fund": ("carried interest", "management fee", "lp"),
+        "valuation_overview": ("comparable", "precedent", "dcf"),
+        "ma_process": ("buyer", "diligence", "purchase agreement"),
+        "restructuring": ("creditor", "priority", "chapter 11"),
+        "behavioural": ("situation", "action", "result"),
     }
 
     keys = required.get(topic)
@@ -113,11 +124,7 @@ def numerical_validator(answer: Answer) -> ValidatorResult:
         "lbo",
         "paper_lbo",
     }:
-        return ValidatorResult(
-            "numerical_validator",
-            ValidationStatus.PASS_WITH_ASSUMPTIONS,
-            notes=["No numerical topic to execute"],
-        )
+        return _generic_numeric_check(topic, inputs, expected)
 
     try:
         if topic == "wacc":
@@ -228,6 +235,83 @@ def numerical_validator(answer: Answer) -> ValidatorResult:
     )
 
 
+def _generic_numeric_check(
+    topic: str, inputs: dict, expected: dict
+) -> ValidatorResult:
+    """Recompute any calculator-backed topic and compare every overlapping key."""
+    if not inputs or not expected:
+        return ValidatorResult(
+            "numerical_validator",
+            ValidationStatus.PASS_WITH_ASSUMPTIONS,
+            notes=["No numerical topic to execute"],
+        )
+    try:
+        got = run_topic(topic, inputs)
+    except CalculatorError as exc:
+        if "Unknown calculator topic" in str(exc):
+            return ValidatorResult(
+                "numerical_validator",
+                ValidationStatus.PASS_WITH_ASSUMPTIONS,
+                notes=["No numerical topic to execute"],
+            )
+        return ValidatorResult(
+            "numerical_validator",
+            ValidationStatus.NEEDS_CORRECTION,
+            notes=[f"Numerical inputs invalid: {exc}"],
+        )
+    except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
+        return ValidatorResult(
+            "numerical_validator",
+            ValidationStatus.NEEDS_CORRECTION,
+            notes=[f"Numerical inputs incomplete: {exc}"],
+        )
+    checked = 0
+    for key, exp in expected.items():
+        if key not in got:
+            continue
+        checked += 1
+        if not _close(float(got[key]), float(exp)):
+            return ValidatorResult(
+                "numerical_validator",
+                ValidationStatus.REJECT,
+                notes=[f"{topic}.{key} mismatch: got {got[key]}, expected {exp}"],
+            )
+    if not checked:
+        return ValidatorResult(
+            "numerical_validator",
+            ValidationStatus.PASS_WITH_ASSUMPTIONS,
+            notes=[f"{topic}: no expected keys produced by calculator"],
+        )
+    return ValidatorResult(
+        "numerical_validator",
+        ValidationStatus.PASS,
+        notes=[f"{topic}: {checked} numeric checks passed"],
+    )
+
+
+NEEDS_EXPANSION_TAG = "needs_expansion"
+PLACEHOLDER_TAG = "placeholder"
+
+
+def expanded_equals_concise(answer: Answer) -> bool:
+    """True when the expanded explanation adds nothing beyond the concise answer."""
+    concise = " ".join((answer.concise_answer or "").split())
+    expanded = " ".join((answer.expanded_explanation or "").split())
+    return not expanded or expanded == concise
+
+
+def depth_validator(answer: Answer) -> ValidatorResult:
+    """Tag shallow answers ``needs_expansion`` (still publishable — plan P1.4)."""
+    if expanded_equals_concise(answer):
+        return ValidatorResult(
+            "depth_validator",
+            ValidationStatus.PASS,
+            notes=["expanded_explanation equals concise_answer"],
+            flags=[NEEDS_EXPANSION_TAG],
+        )
+    return ValidatorResult("depth_validator", ValidationStatus.PASS, notes=["Expanded adds depth"])
+
+
 def assumption_validator(answer: Answer) -> ValidatorResult:
     """Flag tax rate, lease, SBC, and similar modelling dependencies."""
     blob = " ".join(
@@ -309,12 +393,36 @@ def validate_answer(answer: Answer) -> Answer:
     corpus-matched answers are quality-checked but keep their provenance unless
     rejected as empty/garbage.
     """
+    if is_placeholder_answer(answer):
+        # Generic placeholder: never validated, never published (plan P1.3).
+        provenance = answer.provenance_type
+        if provenance in {
+            AnswerProvenance.SYNTHESISED_UNVALIDATED,
+            AnswerProvenance.SYNTHESISED_VALIDATED,
+        }:
+            provenance = AnswerProvenance.NEEDS_REVIEW
+        tags = list(dict.fromkeys([*answer.quality_tags, PLACEHOLDER_TAG]))
+        return enforce_answer_provenance(
+            answer.model_copy(
+                update={
+                    "validation_status": ValidationStatus.NEEDS_GENERATION,
+                    "provenance_type": provenance,
+                    "validator_version": VALIDATOR_VERSION,
+                    "confidence": min(answer.confidence, 0.3),
+                    "quality_tags": tags,
+                }
+            )
+        )
+
     results = [
         technical_finance_validator(answer),
         numerical_validator(answer),
         assumption_validator(answer),
         independent_validator(answer),
     ]
+    depth = depth_validator(answer)
+    quality_tags = [t for t in answer.quality_tags if t != NEEDS_EXPANSION_TAG]
+    quality_tags.extend(depth.flags)
 
     statuses = [r.status for r in results]
     all_flags = [f for r in results for f in r.flags]
@@ -363,6 +471,7 @@ def validate_answer(answer: Answer) -> Answer:
             "validator_version": VALIDATOR_VERSION,
             "assumptions": assumptions,
             "confidence": _adjust_confidence(answer.confidence, final_status),
+            "quality_tags": list(dict.fromkeys(quality_tags)),
         }
     )
     return enforce_answer_provenance(updated)

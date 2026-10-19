@@ -6,8 +6,14 @@ import { cn } from "@ibpe/ui/lib/utils"
 
 export type DiagramCanvasProps = {
   title?: string
-  /** Mermaid or other diagram source — rendered by host when available */
+  /** Mermaid source. Interactive-json bodies are never handed to Mermaid. */
   source?: string
+  /**
+   * Body format. `interactive-json` (or a source that is a JSON object) skips
+   * Mermaid entirely and renders `children` / `fallback` instead — use
+   * DiagramFillBlank for those bodies.
+   */
+  format?: "mermaid" | "interactive-json"
   /** Prefer interactive host when false and motion allowed */
   fallback?: React.ReactNode
   reducedMotionFallback?: React.ReactNode
@@ -16,6 +22,16 @@ export type DiagramCanvasProps = {
 }
 
 let mermaidId = 0
+
+/** True when a body must not be passed to Mermaid (interactive-json diagrams). */
+export function isInteractiveDiagramSource(
+  source: string | undefined,
+  format?: DiagramCanvasProps["format"]
+): boolean {
+  if (format === "interactive-json") return true
+  const trimmed = source?.trimStart() ?? ""
+  return trimmed.startsWith("{") || trimmed.startsWith("[")
+}
 
 /**
  * Host for Mermaid / interactive finance diagrams (DESIGN.md §12 — diagrams
@@ -26,6 +42,7 @@ let mermaidId = 0
 function DiagramCanvas({
   title = "Diagram",
   source,
+  format,
   fallback,
   reducedMotionFallback,
   className,
@@ -34,6 +51,7 @@ function DiagramCanvas({
   const [reduced, setReduced] = React.useState(false)
   const [svg, setSvg] = React.useState<string | null>(null)
   const [failed, setFailed] = React.useState(false)
+  const interactive = isInteractiveDiagramSource(source, format)
 
   React.useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -44,11 +62,19 @@ function DiagramCanvas({
   }, [])
 
   React.useEffect(() => {
-    if (!source || reduced) return
+    if (!source || reduced || interactive) return
     let cancelled = false
+    let settled = false
     const id = `diagram-canvas-${++mermaidId}`
+    const cleanupDom = () => {
+      // mermaid leaves an error element in the DOM on parse failures
+      document.getElementById(`d${id}`)?.remove()
+      document.getElementById(id)?.remove()
+    }
     void import("mermaid")
       .then((module) => {
+        // StrictMode / fast re-renders: skip work for an effect already cleaned up.
+        if (cancelled) return null
         const mermaid = module.default
         const styles = getComputedStyle(document.documentElement)
         const paper = styles.getPropertyValue("--paper").trim() || "#f7f1e4"
@@ -74,19 +100,23 @@ function DiagramCanvas({
         return mermaid.render(id, source)
       })
       .then((result) => {
-        if (!cancelled) setSvg(result.svg)
+        if (result && !cancelled) setSvg(result.svg)
       })
       .catch((error: unknown) => {
         console.warn("[diagram] mermaid render failed", error)
         if (!cancelled) setFailed(true)
       })
+      .finally(() => {
+        settled = true
+        if (cancelled) cleanupDom()
+      })
     return () => {
       cancelled = true
-      // mermaid leaves an error element in the DOM on parse failures
-      document.getElementById(`d${id}`)?.remove()
-      document.getElementById(id)?.remove()
+      // Never pull DOM out from under an in-flight render (it stalls mermaid's
+      // render queue); the finally above cleans up once it settles.
+      if (settled) cleanupDom()
     }
-  }, [source, reduced])
+  }, [source, reduced, interactive])
 
   if (reduced && reducedMotionFallback) {
     return (
@@ -117,7 +147,7 @@ function DiagramCanvas({
               className="[&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
               dangerouslySetInnerHTML={{ __html: svg }}
             />
-          ) : failed ? (
+          ) : failed || interactive ? (
             (fallback ?? null)
           ) : source ? (
             <p className="text-sm text-muted-foreground">Drawing diagram…</p>

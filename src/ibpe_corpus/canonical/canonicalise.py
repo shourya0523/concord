@@ -9,7 +9,13 @@ from typing import Any, Literal
 from rapidfuzz import fuzz
 
 from ibpe_corpus.canonical.embeddings import hashing_embed
-from ibpe_corpus.canonical.normalise import clean_whitespace, normalise_for_hash, normalised_hash
+from ibpe_corpus.canonical.taxonomy_rules import normalise_difficulty
+from ibpe_corpus.canonical.normalise import (
+    clean_whitespace,
+    normalise_for_hash,
+    normalised_hash,
+    strip_question_prefix,
+)
 from ibpe_corpus.schemas.models import (
     CanonicalQuestion,
     Domain,
@@ -148,6 +154,18 @@ def _split_question_followons(text: str) -> list[str]:
     return rebuilt if len(rebuilt) >= 2 else [text]
 
 
+def _is_paired_compound(record: ExtractedRecord) -> bool:
+    """Teaching questions with one paired source answer are never split.
+
+    Sources like ``"… What's the difference? What about the seller?"`` ship a
+    single answer for the whole compound prompt. Splitting orphaned the
+    follow-on fragments (no answer → placeholder synthesis) and broke the
+    pair_id → canonical join for the first segment.
+    """
+    meta = record.extracted_metadata or {}
+    return bool(meta.get("has_source_answer") or meta.get("answer_record_id"))
+
+
 def distinctive_concepts(text: str) -> frozenset[str]:
     """Return distinctive finance concepts present in ``text``."""
     found = {name for name, pattern in _DISTINCTIVE_PATTERNS if pattern.search(text or "")}
@@ -186,6 +204,21 @@ def _meta_domain(meta: dict[str, Any]) -> Domain:
         return Domain(raw)
     except ValueError:
         return Domain.OTHER
+
+
+_QUESTION_PROVENANCE = {
+    "github_source",
+    "static_seed",
+    "glassdoor_occurrence",
+    "gemini_synthesised",
+    "editorial",
+}
+
+
+def _meta_provenance(meta: dict[str, Any]) -> str | None:
+    """Question-level ProvenanceEnum from importer metadata (None when unknown)."""
+    raw = str(meta.get("contract_provenance") or "").strip().lower()
+    return raw if raw in _QUESTION_PROVENANCE else None
 
 
 def _meta_pe_relevance(meta: dict[str, Any]) -> PERelevance | None:
@@ -283,9 +316,13 @@ def canonicalise(
         if kind is None:
             continue
 
-        segments = split_multi_questions(record.exact_source_text)
+        segments = (
+            [(clean_whitespace(record.exact_source_text), {})]
+            if _is_paired_compound(record)
+            else split_multi_questions(record.exact_source_text)
+        )
         for segment, split_meta in segments:
-            cleaned = clean_whitespace(segment)
+            cleaned = strip_question_prefix(clean_whitespace(segment))
             if not cleaned:
                 continue
             n_hash = normalised_hash(cleaned)
@@ -329,9 +366,10 @@ def canonicalise(
                     pe_strategy=meta.get("pe_strategy"),
                     pe_relevance=_meta_pe_relevance(meta),
                     seniority=meta.get("seniority"),
-                    difficulty=meta.get("difficulty"),
+                    difficulty=normalise_difficulty(meta.get("difficulty")),
                     review_state=review_state,
                     normalised_hash=n_hash,
+                    provenance=_meta_provenance(meta),
                 )
                 cluster_idx = len(clusters)
                 clusters.append(_Cluster(canonical=cq, kinds={kind}, wordings=[cleaned]))
@@ -386,7 +424,7 @@ def canonicalise(
                                     else None
                                 ),
                                 "seniority": meta.get("seniority"),
-                                "difficulty": meta.get("difficulty"),
+                                "difficulty": normalise_difficulty(meta.get("difficulty")),
                                 "review_state": (
                                     "topic_signal" if is_topic else "accepted"
                                 ),

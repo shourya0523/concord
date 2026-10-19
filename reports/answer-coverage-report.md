@@ -1,24 +1,38 @@
 # Answer coverage report
 
-- Canonical questions: 3310
-- Answers (non-rejected): 837
-- Coverage: 25.3%
-- Source-provided: 377
-- Corpus-matched: 310
-- Generated: 150
-- Validated: 461
-- Rejected: 0
+_Generated 2026-09-23 from `exports/` by `ibpe_corpus.metrics.completeness` — do not hand-edit._
 
-## Provenance rule
+| Metric | Value |
+|--------|------:|
+| Publishable teaching questions | 666 |
+| Questions with a publishable answer (C1) | 666 (100.0%) |
+| Answers exported | 666 |
+| Validated (pass / pass_with_assumptions) | 666 |
+| Placeholder answers (`Structure a clear interview answer to:`) | 0 |
+| Wordings still prefixed `Question N:` | 0 |
+| `expanded == concise` | 99 (14.9%) |
+| Tagged `needs_expansion` | 99 |
+| With common mistakes or follow-ups | 284 |
+| Approved rubric (C11) | 666 (100.0%) |
 
-Synthesised answers are never labelled `source_provided`.
-Gemini enrichment is always `gemini_synthesised` and never attributed to Glassdoor
-or to a GitHub path that did not contain the text. Corpus / GitHub answers win;
-synthesis fills gaps only.
+## Provenance
 
-## Enrichment (Wave 1 skeleton)
+| Provenance | Answers |
+|------------|--------:|
+| `source_provided` | 573 |
+| `synthesised_validated` | 93 |
 
-- Job: `python -m ibpe_corpus.answers.enrich_job`
-- Calculators + fixtures: `fixtures/finance/*`
-- Editorial queue stub: `ibpe_corpus.answers.editorial`
-- Graph outputs: company_prep + concept_lab nodes in enrichment report
+## Rubrics
+
+- Kinds: `star` 159, `technical` 507
+- Provenance: `heuristic` 666
+- Heuristic rubrics are extractive (key points are verbatim teaching-answer sentences)
+  and auto-approved only when validators pass: weights sum to 1 ± 0.01, ≥ 1 must-have,
+  ≤ 6 key points, numeric checks recompute via `calculators.py`. They are not
+  human-reviewed; LLM `rubric-v1` rubrics replace them when a Gemini key is configured.
+
+## Provenance rules
+
+- Synthesised answers are never labelled `source_provided`.
+- Glassdoor bank rows never supply teaching answers, key points or expected values.
+- Generic placeholders are `needs_generation` and withheld by the publish gate.

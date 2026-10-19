@@ -1,0 +1,19 @@
+{
+  "fixture_id": "finance-irr-cashflows-bond",
+  "topic": "irr_cashflows",
+  "ts_only": true,
+  "description": "Par bond with a 10% coupon has a 10% IRR",
+  "inputs": {
+    "cashflows": [
+      -100.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      110.0
+    ]
+  },
+  "expected": {
+    "irr": 0.1
+  }
+}

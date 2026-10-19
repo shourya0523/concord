@@ -45,8 +45,45 @@ Each generated answer includes:
 No LLM calls. Same `CanonicalQuestion` input yields the same answer content and
 routing decision.
 
+LLMs never write teaching answers directly. Downstream enrichment uses OpenRouter
+(ADR 0007) **only when required**: rubric drafts (`rubric-v1`) when the extractive
+rubric fails validation or is below the 0.8 auto-approve bar, and expansion
+appendices (`expand-v1`) only for short source answers with no topic handler.
+Both are drafted by the small model (`LLM_SMALL_MODEL`, default
+`deepseek/deepseek-v4-flash`) and then **verified by Jev** (`typesafe/jev-1.13`,
+the OpenRouter decision model) against the source teaching answer: a `choice` of
+`supported | unsupported | declined`, accepted only when `supported` at
+≥ `JEV_ACCEPT_CONFIDENCE` (default 0.8). With `--escalate` (default) a draft that
+fails validation or verification gets one more small-model attempt; `declined`
+stops immediately. Rejected drafts keep the heuristic rubric / produce no
+expansion proposal. There is no larger chat tier. Model output is always a
+pending proposal or a validated + verified rubric, with the served OpenRouter
+model id recorded in `model` (and the Jev verdict in `proposal_json.jev_verdict`
+for expansions).
+
 ## Pipeline integration
 
 `fill_answers` invokes generation only after source ingest and corpus match fail.
 Validation (`validate.py`) may promote provenance to `synthesised_validated`,
 `needs_review`, or `rejected`.
+
+## Topic handlers and placeholders (plan P1.3 / P2.4)
+
+`generate.py` routes each question to one of: DCF, WACC, EV bridge, three statements, LBO, paper LBO,
+MOIC/IRR, accretion/dilution, comps/precedents, valuation multiples, working capital, debt/credit,
+PE fund mechanics, valuation overview, M&A process, restructuring, investment thesis, PE overview,
+behavioural (STAR). Handlers carry worked examples whose numbers are recomputed by `calculators.py`;
+`_FACETS` prepend question-specific lead sentences (e.g. negative working capital, incurrence vs
+maintenance covenants). Provenance is always `synthesised_*`.
+
+When nothing matches, `_generic_handler` emits the placeholder `Structure a clear interview answer to: …`
+with `validation_status=needs_generation`; the validator keeps it unvalidated and the publish gate
+withholds it. publish-teaching also retires any previously published placeholder.
+
+Source answers: long single-block answers get an **extractive** concise lead (their own opening
+sentences); playbook answers map model answer → concise, + deep dive → expanded, red flag →
+`common_mistakes`, coaching → `coaching_notes`. Short answers stay as-is, tagged `needs_expansion`,
+with a pending synthesised-appendix proposal (`answers/depth.py`) for an editor to approve.
+
+Behavioural bank: `fixtures/corpus/behavioural_seed.json` (60 synthesised questions + guidance,
+not Glassdoor) → `adapters/static/behavioural_seed.py`.

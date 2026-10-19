@@ -12,18 +12,22 @@ import {
   CircledNumber,
   HeatStrip,
   SemanticPill,
+  Tombstone,
   Warren,
   WarrenCallout,
 } from "@/components/paper"
+import { WeeklyRecapCard } from "@/components/weekly-recap-card"
+import { tombstoneFace } from "@/lib/achievements"
 import { intensityBand } from "@/components/paper/heat-strip"
 import { fetchFirmOptions, readStoredTargets } from "@/components/target-select-island"
-import { conceptIdForTopic, sortTopicSlugs, topicForConceptId, topicLabel } from "@/lib/topics"
+import type { AchievementsResponse, TodayResponse } from "@/lib/api/retention-schemas"
+import { sortTopicSlugs, topicForConceptId, topicLabel } from "@/lib/topics"
 import { WEAK_THRESHOLD, weakTopicsFromMastery } from "@/lib/weak-topics"
 
 /**
- * Progress / analytics (DESIGN.md §10.13). Firm readiness = average mastery
- * of the concepts behind a firm's hot topics (heat intensity ≥ 0.5), mapped
- * through the five concept↔topic pairs in lib/topics. Module bars derive
+ * Progress / analytics (DESIGN.md §10.13). Firm readiness comes from
+ * /api/today (plan 2026-09-23-001 P5.4): heat-weighted concept mastery with a
+ * weekly delta. Achievements (P5.6) list earned + locked milestones. Module bars derive
  * from real completed_checkpoint_ids (the API percent field is 0..1-clamped
  * while the DB stores 0..100). All numbers render statically — calm rule.
  */
@@ -33,6 +37,9 @@ type MasteryItem = { subject_type: string; subject_id: string; score: number }
 type ProgressPayload = {
   activity: Array<{ date: string; attempts: number }>
   streak_days: number
+  streak_longest?: number
+  streak_freezes?: number
+  streak_source?: "goal" | "activity"
   total_attempts: number
   accuracy: Array<{ week: string; accuracy: number | null; attempts: number }>
   module_progress: Array<{
@@ -70,7 +77,6 @@ type ConceptSummary = {
 
 type Phase = "loading" | "ready" | "unauthenticated" | "error"
 
-const HOT_THRESHOLD = 0.5
 const DAY_MS = 86_400_000
 
 const HEAT_CELL_CLASSES = [
@@ -116,6 +122,8 @@ export function ProgressIsland() {
   const [targets, setTargets] = React.useState<string[]>([])
   const [firmNames, setFirmNames] = React.useState<Map<string, string>>(new Map())
   const [concepts, setConcepts] = React.useState<Map<string, ConceptSummary>>(new Map())
+  const [today, setToday] = React.useState<TodayResponse | null>(null)
+  const [achievements, setAchievements] = React.useState<AchievementsResponse | null>(null)
 
   const load = React.useCallback(async (signal: AbortSignal) => {
     setPhase("loading")
@@ -145,6 +153,16 @@ export function ProgressIsland() {
           })
         : { items: [] }
       const storedTargets = readStoredTargets()
+
+      const todayParams = storedTargets.map((id) => `firm_id=${encodeURIComponent(id)}`).join("&")
+      const [todayRes, achievementRes] = await Promise.all([
+        fetch(`/api/today${todayParams ? `?${todayParams}` : ""}`, { signal, cache: "no-store" }).catch(
+          () => null,
+        ),
+        fetch("/api/achievements", { signal, cache: "no-store" }).catch(() => null),
+      ])
+      setToday(todayRes?.ok ? ((await todayRes.json()) as TodayResponse) : null)
+      setAchievements(achievementRes?.ok ? ((await achievementRes.json()) as AchievementsResponse) : null)
 
       let heatTopics: HeatPayload["topics"] = []
       if (storedTargets.length > 0) {
@@ -179,11 +197,6 @@ export function ProgressIsland() {
     return () => controller.abort()
   }, [load])
 
-  const masteryByConcept = new Map(
-    mastery
-      .filter((item) => item.subject_type === "concept")
-      .map((item) => [item.subject_id, item.score]),
-  )
   const weakTopics = weakTopicsFromMastery(
     mastery.map((item) => ({
       subject_type: item.subject_type as "concept",
@@ -227,27 +240,15 @@ export function ProgressIsland() {
     .sort((a, b) => a.score - b.score || a.title.localeCompare(b.title))
   const diagramCompletionRows = progress?.diagram_completion ?? []
 
-  const readinessRows = targets.map((firmId) => {
-    const hotTopics = heat.filter(
-      (row) => row.firm_id === firmId && row.intensity >= HOT_THRESHOLD && row.topic_id !== "untagged",
-    )
-    const conceptIds = [
-      ...new Set(
-        hotTopics
-          .map((row) => conceptIdForTopic(row.topic_id))
-          .filter((id): id is string => id !== null),
-      ),
-    ]
-    const percent =
-      conceptIds.length === 0
-        ? null
-        : Math.round(
-            (conceptIds.reduce((sum, id) => sum + (masteryByConcept.get(id) ?? 0), 0) /
-              conceptIds.length) *
-              100,
-          )
-    return { firmId, label: firmLabel(firmId), hotTopics, conceptIds, percent }
-  })
+  const readinessRows = (today?.readiness ?? [])
+    .filter((row) => targets.length === 0 || targets.includes(row.firm_id))
+    .map((row) => ({
+      firmId: row.firm_id,
+      label: firmNames.get(row.firm_id) ?? row.firm_name,
+      topics: row.topics,
+      weeklyDelta: row.weekly_delta,
+      percent: row.readiness === null ? null : Math.round(row.readiness * 100),
+    }))
 
   const progressByModule = new Map(
     (progress?.module_progress ?? []).map((row) => [row.module_id, row]),
@@ -280,7 +281,8 @@ export function ProgressIsland() {
     (progress?.module_progress ?? []).length === 0 &&
     (progress?.sessions ?? []).length === 0 &&
     mastery.length === 0 &&
-    targets.length === 0
+    targets.length === 0 &&
+    (achievements?.earned.length ?? 0) === 0
 
   if (phase === "loading") {
     return (
@@ -367,6 +369,7 @@ export function ProgressIsland() {
 
   return (
     <div className="space-y-10">
+      {today?.flags.gamification ? <WeeklyRecapCard /> : null}
       <section className="flex flex-wrap items-center gap-x-8 gap-y-3 border-b border-border pb-6">
         <div className="text-sm">
           <p className="text-xs text-muted-foreground">Total attempts</p>
@@ -381,7 +384,23 @@ export function ProgressIsland() {
               <span className="font-display text-3xl tracking-tight">—</span>
             )}
           </p>
+          {progress?.streak_source === "goal" ? (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Daily goals met · best {progress.streak_longest ?? 0} ·{" "}
+              {progress.streak_freezes ?? 0} freeze{progress.streak_freezes === 1 ? "" : "s"}
+            </p>
+          ) : null}
         </div>
+        {today ? (
+          <div className="text-sm">
+            <p className="text-xs text-muted-foreground">
+              Level {today.xp.level} · {today.xp.total} XP
+            </p>
+            <p className="mt-1 font-display text-3xl tracking-tight" data-testid="progress-career-title">
+              {today.xp.title ?? `Level ${today.xp.level}`}
+            </p>
+          </div>
+        ) : null}
         {weakTopics.length > 0 ? (
           <div className="text-sm">
             <p className="text-xs text-muted-foreground">Weak topics</p>
@@ -426,35 +445,95 @@ export function ProgressIsland() {
                       <SemanticPill tone={readinessTier(row.percent).tone}>
                         {readinessTier(row.percent).label}
                       </SemanticPill>
+                      {row.weeklyDelta !== null && Math.round(row.weeklyDelta * 100) !== 0 ? (
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {row.weeklyDelta > 0 ? "+" : "−"}
+                          {Math.abs(Math.round(row.weeklyDelta * 100))} this week
+                        </span>
+                      ) : null}
                     </>
                   )}
                 </div>
-                {row.hotTopics.length > 0 ? (
+                {row.topics.length > 0 ? (
                   <HeatStrip
                     compact
                     className="mt-3"
-                    entries={row.hotTopics.slice(0, 6).map((topic) => ({
-                      topic: topic.topic_id,
-                      intensity: topic.intensity,
+                    entries={row.topics.slice(0, 6).map((topic) => ({
+                      topic: topic.topic,
+                      intensity: topic.weight,
                       sampleSize: topic.sample_size,
-                      weak: weakTopicSet.has(topic.topic_id),
+                      weak: weakTopicSet.has(topic.topic) || topic.mastery < WEAK_THRESHOLD,
                     }))}
                   />
                 ) : null}
-                {row.percent !== null && row.conceptIds.length > 0 ? (
+                {row.percent !== null && row.topics.length > 0 ? (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Average mastery across{" "}
-                    {row.hotTopics
-                      .filter((topic) => conceptIdForTopic(topic.topic_id) !== null)
+                    Heat-weighted mastery across{" "}
+                    {row.topics
                       .slice(0, 4)
-                      .map((topic) => topicLabel(topic.topic_id))
+                      .map((topic) => topicLabel(topic.topic))
                       .join(" · ")}{" "}
-                    — the concepts behind this firm&apos;s hot topics.
+                    — the concepts behind this firm&apos;s most-asked topics.
                   </p>
                 ) : null}
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section className="space-y-4" aria-label="Achievements">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+            Milestones
+          </h2>
+          {today ? (
+            <p className="text-xs text-muted-foreground">
+              {achievements?.earned.length ?? 0} earned
+            </p>
+          ) : null}
+        </div>
+        {today ? (
+          <WarrenCallout mood={today.warren.mood} size={44}>
+            {today.warren.message}
+          </WarrenCallout>
+        ) : null}
+        {achievements && achievements.earned.length + achievements.locked.length > 0 ? (
+          <div className="space-y-3">
+            <ul className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-4">
+              {achievements.earned.slice(0, 5).map((achievement) => {
+                const face = tombstoneFace(achievement)
+                return (
+                  <li key={achievement.id} title={achievement.description}>
+                    <Tombstone id={achievement.id} face={face.face} what={face.what} earnedAt={achievement.earned_at} compact />
+                  </li>
+                )
+              })}
+              {achievements.locked.slice(0, Math.max(1, 5 - achievements.earned.length)).map((achievement) => {
+                const face = tombstoneFace(achievement)
+                return (
+                  <li key={achievement.id} title={achievement.description}>
+                    <Tombstone
+                      id={achievement.id}
+                      face={face.face}
+                      what={face.what}
+                      compact
+                      locked
+                      progress={achievement.progress ?? null}
+                      progressLabel={achievement.progress_label ?? null}
+                    />
+                  </li>
+                )
+              })}
+            </ul>
+            <Link href="/achievements" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
+              The full shelf →
+            </Link>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Milestones appear as you meet daily goals, clear concepts and raise firm readiness.
+          </p>
         )}
       </section>
 
@@ -702,7 +781,7 @@ export function ProgressIsland() {
                 </span>
                 <div className="flex-1">
                   {isCurrent ? (
-                    <Annotate type="circle" color="var(--ink)" padding={3}>
+                    <Annotate type="box" padding={3} block>
                       {cells}
                     </Annotate>
                   ) : (

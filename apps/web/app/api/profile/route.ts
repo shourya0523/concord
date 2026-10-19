@@ -5,16 +5,14 @@ import {
 } from "@/lib/api/http";
 import { getApiUser } from "@/lib/api/auth";
 import {
+  PrepProfilePatchSchema,
   PrepProfileResponseSchema,
-  PrepProfileSchema,
   getPrepProfile,
   putPrepProfile,
 } from "@/lib/data/profile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const UpdateProfileRequestSchema = PrepProfileSchema.omit({ updated_at: true });
 
 /** GET /api/profile — current user's prep profile (onboarding answers). */
 export async function GET() {
@@ -27,13 +25,16 @@ export async function GET() {
   }
 }
 
-/** PUT /api/profile — save prep profile. */
+/**
+ * PUT /api/profile — save prep profile. Partial: omitted fields keep their
+ * stored value (new preference fields are never wiped by an older client).
+ */
 export async function PUT(request: Request) {
   try {
     const user = await getApiUser("update prep profile");
     if (!user.ok) return user.response;
     const body = await request.json().catch(() => ({}));
-    const parsed = parseOrError(UpdateProfileRequestSchema, body);
+    const parsed = parseOrError(PrepProfilePatchSchema, body);
     if (!parsed.ok) return parsed.response;
     const result = await putPrepProfile({
       userId: user.userId,

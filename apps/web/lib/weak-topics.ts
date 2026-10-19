@@ -2,6 +2,7 @@
  * Pure weak-topic derivation (no server deps — safe for client islands).
  */
 import type { Mastery } from "@ibpe/contracts"
+import { WEAK_MASTERY_THRESHOLD } from "@/lib/grading/mastery"
 import { topicForConceptId } from "@/lib/topics"
 
 export type WeakTopic = {
@@ -11,7 +12,7 @@ export type WeakTopic = {
   reason: string
 }
 
-export const WEAK_THRESHOLD = 0.68
+export const WEAK_THRESHOLD = WEAK_MASTERY_THRESHOLD
 
 /**
  * Weak topics derived from real mastery records (concept-level), never a

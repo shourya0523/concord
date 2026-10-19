@@ -1,0 +1,13 @@
+{
+  "fixture_id": "finance-lbo-exit-equity-given",
+  "topic": "lbo",
+  "description": "Exit equity supplied directly → MOIC vs sponsor equity",
+  "inputs": {
+    "sponsor_equity": 100.0,
+    "exit_equity": 250.0
+  },
+  "expected": {
+    "exit_equity": 250.0,
+    "moic": 2.5
+  }
+}

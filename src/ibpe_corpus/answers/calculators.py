@@ -108,9 +108,168 @@ def ufcf(
     return ebit * (1.0 - tax_rate) + da - capex - delta_nwc
 
 
+def dcf_enterprise_value(
+    *,
+    fcff: list[float],
+    wacc: float,
+    terminal_growth: float,
+) -> dict[str, float]:
+    """Gordon-growth DCF: EV = Σ FCFF_t/(1+WACC)^t + TV_n/(1+WACC)^n."""
+    if not fcff:
+        raise CalculatorError("fcff must be a non-empty list")
+    if wacc <= terminal_growth:
+        raise CalculatorError("wacc must exceed terminal_growth")
+    pv_fcff = sum(float(cf) / (1.0 + wacc) ** (t + 1) for t, cf in enumerate(fcff))
+    n = len(fcff)
+    terminal_value = float(fcff[-1]) * (1.0 + terminal_growth) / (wacc - terminal_growth)
+    pv_tv = terminal_value / (1.0 + wacc) ** n
+    return {
+        "pv_fcff": pv_fcff,
+        "terminal_value": terminal_value,
+        "pv_terminal_value": pv_tv,
+        "enterprise_value": pv_fcff + pv_tv,
+    }
+
+
+def implied_valuation(
+    *,
+    multiple: float,
+    metric: float,
+    net_debt: float = 0.0,
+) -> dict[str, float]:
+    """Comps / precedents: implied EV = multiple × metric; equity = EV − net debt."""
+    if multiple < 0:
+        raise CalculatorError("multiple must be non-negative")
+    ev = float(multiple) * float(metric)
+    return {"implied_enterprise_value": ev, "implied_equity_value": ev - float(net_debt)}
+
+
+def net_working_capital(
+    *,
+    current_operating_assets: float,
+    current_operating_liabilities: float,
+    prior_nwc: float | None = None,
+) -> dict[str, float]:
+    """NWC = operating current assets − operating current liabilities (ex cash / debt)."""
+    nwc = float(current_operating_assets) - float(current_operating_liabilities)
+    out = {"nwc": nwc}
+    if prior_nwc is not None:
+        # An increase in NWC is a use of cash.
+        out["delta_nwc"] = nwc - float(prior_nwc)
+        out["cash_impact"] = -(nwc - float(prior_nwc))
+    return out
+
+
+def leverage_metrics(
+    *,
+    total_debt: float,
+    ebitda: float,
+    cash: float = 0.0,
+    interest_expense: float | None = None,
+) -> dict[str, float]:
+    """Gross / net leverage (x EBITDA) and interest coverage (EBITDA / interest)."""
+    if ebitda == 0:
+        raise CalculatorError("ebitda must be non-zero")
+    out = {
+        "gross_leverage": float(total_debt) / float(ebitda),
+        "net_leverage": (float(total_debt) - float(cash)) / float(ebitda),
+    }
+    if interest_expense:
+        out["interest_coverage"] = float(ebitda) / float(interest_expense)
+    return out
+
+
+def depreciation_flow(*, amount: float, tax_rate: float) -> dict[str, float]:
+    """Three-statement impact of an extra ``amount`` of depreciation."""
+    if tax_rate < 0 or tax_rate >= 1:
+        raise CalculatorError(f"tax_rate out of range: {tax_rate}")
+    ni = -float(amount) * (1.0 - tax_rate)
+    cash = ni + float(amount)
+    return {
+        "net_income_change": ni,
+        "cash_change": cash,
+        "ppe_change": -float(amount),
+        "equity_change": ni,
+    }
+
+
+def carried_interest(
+    *,
+    fund_size: float,
+    total_distributions: float,
+    carry_rate: float = 0.2,
+) -> dict[str, float]:
+    """Simple whole-fund carry on profits above returned capital (no hurdle/catch-up)."""
+    profit = max(0.0, float(total_distributions) - float(fund_size))
+    carry = profit * float(carry_rate)
+    return {
+        "fund_profit": profit,
+        "gp_carry": carry,
+        "lp_net_distributions": float(total_distributions) - carry,
+        "net_moic": (float(total_distributions) - carry) / float(fund_size),
+    }
+
+
+# Calculator ids referenced by rubric numeric checks (``calculator`` field).
+CALCULATOR_IDS: dict[str, str] = {
+    "wacc": "wacc",
+    "moic_irr": "moic",
+    "ev_bridge": "ev_bridge",
+    "lbo": "lbo_exit_equity",
+    "paper_lbo": "lbo_exit_equity",
+    "accretion_dilution": "accretion_dilution",
+    "ufcf": "ufcf",
+    "dcf": "dcf_enterprise_value",
+    "comps_precedents": "implied_valuation",
+    "valuation_multiples": "implied_valuation",
+    "working_capital": "net_working_capital",
+    "debt_credit": "leverage_metrics",
+    "three_statements": "depreciation_flow",
+    "pe_fund": "carried_interest",
+}
+
+
 def run_topic(topic: str, inputs: dict[str, Any]) -> dict[str, float]:
     """Dispatch calculator by topic key used in answer calculation_representation."""
     t = (topic or "").strip().lower()
+    if t == "dcf":
+        return dcf_enterprise_value(
+            fcff=[float(x) for x in inputs["fcff"]],
+            wacc=float(inputs["wacc"]),
+            terminal_growth=float(inputs["terminal_growth"]),
+        )
+    if t in {"comps_precedents", "valuation_multiples"}:
+        return implied_valuation(
+            multiple=float(inputs["multiple"]),
+            metric=float(inputs["metric"]),
+            net_debt=float(inputs.get("net_debt") or 0.0),
+        )
+    if t == "working_capital":
+        return net_working_capital(
+            current_operating_assets=float(inputs["current_operating_assets"]),
+            current_operating_liabilities=float(inputs["current_operating_liabilities"]),
+            prior_nwc=(float(inputs["prior_nwc"]) if inputs.get("prior_nwc") is not None else None),
+        )
+    if t == "debt_credit":
+        return leverage_metrics(
+            total_debt=float(inputs["total_debt"]),
+            ebitda=float(inputs["ebitda"]),
+            cash=float(inputs.get("cash") or 0.0),
+            interest_expense=(
+                float(inputs["interest_expense"]) if inputs.get("interest_expense") else None
+            ),
+        )
+    if t == "three_statements":
+        return depreciation_flow(
+            amount=float(inputs["depreciation"]),
+            tax_rate=float(inputs["tax_rate"]),
+        )
+    if t == "pe_fund":
+        return carried_interest(
+            fund_size=float(inputs["fund_size"]),
+            total_distributions=float(inputs["total_distributions"]),
+            carry_rate=float(inputs.get("carry_rate") or 0.2),
+        )
     if t == "wacc":
         return {"wacc": wacc(**{k: float(inputs[k]) for k in (
             "equity_weight", "cost_of_equity", "debt_weight", "cost_of_debt", "tax_rate"

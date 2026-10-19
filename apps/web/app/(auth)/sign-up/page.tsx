@@ -2,14 +2,21 @@ import { EditorialHeading } from "@ibpe/ui/components/editorial"
 
 import { NeonAuthForm } from "@/components/neon-auth-form"
 import { isNeonAuthConfigured } from "@/lib/auth/config"
+import { safeNextPath } from "@/lib/auth/gate"
 
 export const metadata = {
   title: "Sign up",
   description: "Create a Concord account",
 }
 
-export default function SignUpPage() {
+export default async function SignUpPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const configured = isNeonAuthConfigured()
+  const raw = (await searchParams).next
+  const next = safeNextPath(Array.isArray(raw) ? raw[0] : raw)
 
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col gap-6">
@@ -19,7 +26,7 @@ export default function SignUpPage() {
       <p className="text-[15px] text-muted-foreground">
         Save your prep path — then we&apos;ll set targets and interview date.
       </p>
-      <NeonAuthForm mode="sign-up" configured={configured} />
+      <NeonAuthForm mode="sign-up" configured={configured} next={next} />
     </div>
   )
 }

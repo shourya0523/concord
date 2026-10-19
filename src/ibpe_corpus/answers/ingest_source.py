@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import re
+
+from ibpe_corpus.canonical.taxonomy_rules import normalise_difficulty
 from ibpe_corpus.schemas.models import (
     Answer,
     AnswerProvenance,
@@ -27,6 +30,43 @@ _INGESTIBLE_EXTRACTION_CLASSES = frozenset(
         ExtractionClass.CANDIDATE_ATTEMPT,
     }
 )
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9$(\"“'])")
+CONCISE_MIN_CHARS = 120
+CONCISE_MAX_CHARS = 320
+SPLIT_MIN_CHARS = 260
+
+
+def split_concise_expanded(text: str) -> tuple[str, str]:
+    """Extractive concise/expanded split of a single source answer (plan P2.4).
+
+    Long multi-sentence source answers get a concise lead made of their own
+    opening sentences (verbatim — no invented words, so provenance stays
+    ``source_provided``) and keep the full text as the expanded explanation.
+    Short answers stay identical and are tagged ``needs_expansion`` later.
+    """
+    body = " ".join((text or "").split())
+    if len(body) < SPLIT_MIN_CHARS:
+        return body, body
+    sentences = [s for s in _SENTENCE_SPLIT_RE.split(body) if s.strip()]
+    if len(sentences) < 2:
+        if len(body) > 500:
+            return body[:497].rstrip() + "...", body
+        return body, body
+    lead: list[str] = []
+    for sent in sentences:
+        candidate = " ".join([*lead, sent])
+        if lead and len(candidate) > CONCISE_MAX_CHARS:
+            break
+        lead.append(sent)
+        if len(candidate) >= CONCISE_MIN_CHARS:
+            break
+    if len(lead) == len(sentences):
+        return body, body
+    concise = " ".join(lead)
+    if len(concise) > 500:
+        concise = concise[:497].rstrip() + "..."
+    return concise, body
 
 
 def ingest_question_response(
@@ -54,10 +94,11 @@ def ingest_question_response(
     if response.source_response_id:
         source_ids.append(response.source_response_id)
 
+    concise, expanded = split_concise_expanded(text)
     return Answer(
         canonical_question_id=cq_id,
-        concise_answer=text if len(text) <= 500 else text[:497] + "...",
-        expanded_explanation=text,
+        concise_answer=concise,
+        expanded_explanation=expanded,
         assumptions=[],
         calculation_representation=None,
         common_mistakes=[],
@@ -78,20 +119,39 @@ def ingest_extracted_record(
     *,
     canonical_question_id: str,
 ) -> Answer | None:
-    """Convert an ExtractedRecord source answer into Answer with SOURCE_PROVIDED."""
+    """Convert an ExtractedRecord source answer into Answer with SOURCE_PROVIDED.
+
+    Playbook records (coryjburk) carry ``deepdive`` / ``red_flag`` /
+    ``coaching`` metadata: model answer → concise, model answer + deep dive →
+    expanded, red flag → ``common_mistakes``, coaching → ``coaching_notes``
+    (rubric seed hints). All of it is verbatim source text.
+    """
     text = (record.exact_source_text or "").strip()
     if not text:
         return None
     if record.record_type not in _INGESTIBLE_EXTRACTION_CLASSES:
         return None
 
+    meta = record.extracted_metadata or {}
+    deep = " ".join(str(meta.get("deepdive") or "").split())
+    red_flag = " ".join(str(meta.get("red_flag") or "").split())
+    coaching = " ".join(str(meta.get("coaching") or "").split())
+    if deep:
+        concise = " ".join(text.split())
+        expanded = f"{concise}\n\n{deep}"
+    else:
+        concise, expanded = split_concise_expanded(text)
+    references: list[str] = []
+    if meta.get("category"):
+        references.append(f"Source category: {meta['category']}")
+
     return Answer(
         canonical_question_id=canonical_question_id,
-        concise_answer=text if len(text) <= 500 else text[:497] + "...",
-        expanded_explanation=text,
+        concise_answer=concise,
+        expanded_explanation=expanded,
         assumptions=[],
         calculation_representation=None,
-        common_mistakes=[],
+        common_mistakes=[red_flag] if red_flag else [],
         follow_ups=[],
         provenance_type=AnswerProvenance.SOURCE_PROVIDED,
         source_ids=[record.id, record.source_artefact_id],
@@ -99,6 +159,7 @@ def ingest_extracted_record(
         validator_version=None,
         validation_status=ValidationStatus.NOT_RUN,
         confidence=max(0.5, float(record.grounding_confidence or 0.5)),
-        difficulty=None,
-        references=[],
+        difficulty=normalise_difficulty(meta.get("difficulty")),
+        references=references,
+        coaching_notes=[coaching] if coaching else [],
     )

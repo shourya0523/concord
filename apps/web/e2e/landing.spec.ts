@@ -1,0 +1,108 @@
+/**
+ * Landing (DESIGN.md §17): the hero line and its call to action, the scroll
+ * stage down to the boarding pass, tearing the stub into sign-up, and the
+ * still frames served to reduced-motion visitors.
+ */
+import { expect, test, type Page } from "@playwright/test"
+
+function watchErrors(page: Page): string[] {
+  const errors: string[] = []
+  page.on("pageerror", (err) => errors.push(err.message))
+  page.on("console", (msg) => {
+    if (msg.type() === "error" && !/Failed to load resource/.test(msg.text())) errors.push(msg.text())
+  })
+  return errors
+}
+
+test("hero says what Concord is and offers a way in", async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto("/")
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/CS has LeetCode\.\s*You have Concord\./)
+  await expect(page.getByTestId("landing-stage")).toBeVisible()
+
+  const header = page.getByRole("banner")
+  await expect(header.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in")
+  await expect(header.getByRole("link", { name: "Start prepping" })).toHaveAttribute("href", "/sign-up")
+  await expect(page.getByRole("main").getByRole("link", { name: "Start prepping" }).first()).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test("scrolling folds the card into a plane and lands on the boarding pass", async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto("/")
+  // The fold moves the plane's polygon vertices.
+  const wing = page.getByTestId("landing-plane").locator("polygon").first()
+  const flat = await wing.getAttribute("points")
+
+  // Halfway through the fold scene.
+  await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>("[data-testid=landing-stage]")!
+    window.scrollTo(0, (el.offsetHeight - window.innerHeight) * 0.16)
+  })
+  await expect.poll(() => wing.getAttribute("points")).not.toBe(flat)
+
+  const pass = page.getByTestId("boarding-pass")
+  await pass.scrollIntoViewIfNeeded()
+  await expect(page.getByRole("heading", { name: "Would love to have you on board!" })).toBeVisible()
+  await pass.getByRole("link", { name: "Start prepping" }).click()
+  await expect(page).toHaveURL(/\/sign-up/)
+  expect(errors).toEqual([])
+})
+
+test("the desk animates in on load and the first scroll takes over at once", async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto("/")
+  // The intro is CSS on its own layer: still running right after load.
+  expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length)).toBeGreaterThan(0)
+  const wing = page.getByTestId("landing-plane").locator("polygon").first()
+  const flat = await wing.getAttribute("points")
+  // Scroll straight into the fold mid-intro: the plane responds without waiting.
+  await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>("[data-testid=landing-stage]")!
+    window.scrollTo(0, (el.offsetHeight - window.innerHeight) * 0.16)
+  })
+  await expect.poll(() => wing.getAttribute("points"), { timeout: 400 }).not.toBe(flat)
+  await expect(page.locator(".intro-card[data-touched]")).toHaveCount(1)
+  expect(errors).toEqual([])
+})
+
+test("the little things on the desk react to the pointer", async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto("/")
+  // Let the intro settle so the hover is the only thing moving.
+  await page.waitForTimeout(1600)
+  const animating = (selector: string) =>
+    page.locator(selector).first().evaluate((el) => el.getAnimations().filter((a) => a.playState === "running").length)
+
+  await page.locator(".desk-pencil").hover()
+  await expect.poll(() => animating(".desk-pencil > g")).toBeGreaterThan(0)
+
+  await page.locator(".desk-flutter").first().hover()
+  await expect.poll(() => animating(".desk-flutter > :first-child")).toBeGreaterThan(0)
+
+  await page.locator(".desk-peel").hover()
+  await expect.poll(() => animating(".desk-peel > :first-child")).toBeGreaterThan(0)
+
+  await page.getByTestId("landing-plane").hover()
+  await expect.poll(() => animating(".hero-clip")).toBeGreaterThan(0)
+  await expect
+    .poll(() => page.locator(".hero-sheet").evaluate((el) => getComputedStyle(el).transform))
+    .not.toBe("none")
+  expect(errors).toEqual([])
+})
+
+test.describe("reduced motion", () => {
+  test("shows the same scenes as still frames", async ({ page }) => {
+    const errors = watchErrors(page)
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await page.goto("/")
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("You have Concord.")
+    await expect(page.getByTestId("landing-stage")).toHaveCount(0)
+    for (const line of ["See what each firm actually asks.", "Get every answer graded.", "Drill the math until it's automatic."]) {
+      await expect(page.getByText(line)).toBeVisible()
+    }
+    await expect(page.getByText("It only takes about 12 minutes a day.")).toBeVisible()
+    await expect(page.getByTestId("boarding-pass")).toBeVisible()
+    expect(errors).toEqual([])
+  })
+})

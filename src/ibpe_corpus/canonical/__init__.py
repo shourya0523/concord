@@ -23,6 +23,7 @@ from ibpe_corpus.canonical.normalise import (
     normalise_for_hash,
     normalised_hash,
     strip_punctuation_light,
+    strip_question_prefix,
 )
 from ibpe_corpus.canonical.publish_gate import (
     filter_publishable_answers,
@@ -52,4 +53,5 @@ __all__ = [
     "same_answer_would_satisfy",
     "split_multi_questions",
     "strip_punctuation_light",
+    "strip_question_prefix",
 ]

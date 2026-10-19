@@ -32,7 +32,9 @@ def fill_answers(
     3. Deterministic synthesis (capped by ``max_generate`` when set)
     4. Validation (updates synthesised provenance)
 
-    Existing answers for a canonical id are preserved (not overwritten).
+    Existing answers for a canonical id are preserved (not overwritten) but
+    validated. Generic placeholders come back ``needs_generation`` and are
+    withheld by the publish gate.
     """
     by_q: dict[str, Answer] = {}
     for ans in existing_answers:
@@ -49,7 +51,9 @@ def fill_answers(
 
     for cq in canonical_questions:
         if cq.id in by_q:
-            output.append(by_q[cq.id])
+            # Existing (usually source-provided) answers keep their text and
+            # provenance but are quality-checked too (depth tags, garbage).
+            output.append(validate_answer(by_q[cq.id]))
             continue
 
         filled: Answer | None = None

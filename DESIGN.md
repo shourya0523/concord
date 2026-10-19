@@ -514,6 +514,14 @@ annotate(element, { type: 'circle', animate: !prefersReducedMotion });
 }
 ```
 
+**As implemented (`PaperSheet`, `packages/ui/src/styles/globals.css`; stocks and rewards in §16):**
+- Sheets use `--sheet` (#fcf9f1), one step lighter than the cream shell, so the tear reads against the shell; body carries a faint `--paper-grain`.
+- Layers back → front: `.paper-sheet-shadow` (drop-shadow following the tear) → `.paper-sheet-surface` (sheet fill + `--paper-fibre` + `--paper-grain`) masked by `.paper-torn` (baked seeded `--torn-top` / `--torn-bottom` SVG masks) → rough.js ink frame inset inside the tear → content. Text is never filtered or masked.
+- `hero` adds `.paper-torn-hero` (live `#torn-paper-hero` turbulence); reduced motion falls back to `#torn-paper-static`.
+- rough.js / rough-notation colours are resolved from `var(--token)` to concrete values before they reach SVG attributes (`resolveCssColor`).
+- `Annotate`: underline / highlight / strike-through follow each wrapped line; box / circle / bracket / crossed-off wrap the element once. Pass `block` when children are block-level.
+- Hover boxes (`RoughHover`, `InkHoverScope`) draw in one fixed body-level overlay so `overflow-hidden` / `truncate` ancestors can't clip them.
+
 **Binding constraint (performance):**
 - **Bake the effect into static pre-rendered assets** for routine, repeated cards (list items, drill cards). Use a **single shared filter with a fixed seed** applied via CSS.
 - **Reserve the live, dynamically recalculated filter** (`torn-paper-hero` with animated baseFrequency) for **one or two hero moments only** (e.g. final score reveal modal).
@@ -1469,3 +1477,176 @@ Present each journey. Explain technique used for each hard part. **STOP. Wait fo
 ---
 
 **END OF DESIGN.md — PHASE 0**
+
+---
+
+## 16. Working Papers — Paper Stocks & Career Gamification
+
+**Status:** built (paper stocks, career ladder, tally calendar, ceremony budget, tombstone shelf, league tiers, weekly recap). Pitch: the "Concord Working Papers" artifact.
+
+**Thesis.** Concord's paper is the paper on an analyst's desk. Its rewards are the things a banking career leaves behind: a title on a business card, tally marks on a desk calendar, a stamp on the morning's work, a tombstone on the shelf, a place on the league table. Same XP / streak / achievement / league data as before; only the presentation is finance-native.
+
+### 16.1 Material map (binding — one stock, one meaning)
+
+| Stock | Means | Edge | Where | Never |
+|-------|-------|------|-------|-------|
+| Laid cream (`body`) | The desk | — | Shell, sidebar, canvas | Cards |
+| Pad sheet (`PaperSheet stock="pad"`) | Prepared for you, now | Torn (hero: live tear) + ink frame | Session packs, feedback, score, recap, drill session sheet | Lists, nav, settings |
+| Index card (`stock="index"`, `.stock-index`) | Recall this | Clean cut, red header rule, blue lines | Daily-set question cards, notes | Long reading |
+| Ledger pad (`stock="ledger"`, `.stock-ledger`) | Work the numbers | Clean cut, green grid | Numeric drills | Prose |
+| Manila (`stock="manila"`, `.stock-manila`) | A container | Folder tab | Collections, module covers | A single item |
+| Onionskin (`WarrenCallout`, `.paper-onionskin`) | Warren's aside | Translucent, slight tilt | Warren only | Anything else |
+
+Textures are baked tiles (`--paper-grain`, `--paper-fibre`, torn masks). Body text never sits on anything louder than grain. Stacks peek behind a pack to show what's left; a paperclip holds the morning pack.
+
+### 16.2 Career ladder (levels → titles)
+
+`lib/career.ts`: existing thresholds `[0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 11000]`, then +3,500.
+
+- IB: Intern · Analyst I–III · Associate I–III · Vice President · Director · Managing Director (then "Managing Director, 2nd year"…).
+- PE (`track = "PE"`): Intern · Analyst I–II · Associate I–II · Senior Associate · Vice President · Principal · Director · Partner.
+- Shown on `BusinessCard` (Today) and Progress. Level-ups arrive as `activity.level_up` (with track-aware titles) and render the `PromotionMemo` hero.
+
+### 16.3 Desk objects
+
+| Mechanic | Object | Component |
+|----------|--------|-----------|
+| Streak | Tally marks: four uprights, fifth stroke across (strike-through = completed). Freeze-covered days in pencil, labelled "held". | `TallyCalendar` (`streak.run` from Today) |
+| Freezes in reserve | Paperclips on the calendar's top edge; a new one slides on (`activity.freeze_earned`) | `Paperclip` |
+| Daily goal | Morning pack of index cards, stamped FILED | `FiledStamp`, `DailySetPlayer` |
+| Achievements | Deal tombstones ("This announcement appears as a matter of record only."); locked = pencil outline + distance left | `Tombstone`, `/achievements`, `GET /api/achievements` |
+| Leagues | League tables in four tiers: Boutique → Middle Market → Bulge Bracket → Elite Boutique | `league-island`, migration 063 |
+| Weekly recap | This week vs last week on a pad sheet | `WeeklyRecapCard`, `GET /api/recap/weekly` |
+
+### 16.4 Ceremony budget (binding)
+
+| Moment | Mark | Weight |
+|--------|------|--------|
+| Correct answer | Highlight on the correct part of your answer; "+N XP" in the margin, a beat late | mark |
+| Drill set of five | Session sheet: accuracy, XP, next checkpoint | sheet |
+| Daily goal met | FILED stamp + one tally stroke (`activity.goal_met_now`) | stamp |
+| Freeze earned | Paperclip slides on | object |
+| Streak 3 / 7 / 14 / 30 / 50 / 100 / 200 / 365 | Handwritten headline "N days running" (Vivus) | headline |
+| Achievement | Tombstone placed on the shelf | object |
+| Level up | Promotion memo: live tear, Warren celebrating, paper burst | **hero** |
+| League result | Settled table with your row circled (hero tear first view only) | **hero** |
+
+The paper burst fires **only** on the promotion memo. All rewards render from server-confirmed `ActivityResult`, never on tap.
+
+### 16.5 Motion spec
+
+| Motion | Duration | Voice | Used for |
+|--------|----------|-------|----------|
+| Pen stroke draws on | 320 ms | calm ease-out | Today's tally mark |
+| Marker sweep | 520 ms | calm ease-out | Highlight on a correct answer (`.marker-sweep`) |
+| Number / bar change | 200 ms | calm ease-out | XP, readiness, ranks — numbers swap, never count up |
+| Card drawn off the pack | 280 ms | settle | Morning pack (`.motion-draw-card`) |
+| Object placed | 320 ms | settle | Paperclip, tombstone (`.motion-place`, `.motion-clip-on`) |
+| Hover lift | 140–200 ms | calm ease-out | Tombstones lift 2px; business card straightens (`.paper-lift`) |
+| Stamp | 340 ms | bounce, small (1.22 → 1) | FILED (`.motion-thunk`) |
+| Hand-drawn circle | 600 ms | calm ease-out | Your league row |
+| Handwritten underline | 1.2 s | calm ease-out | Promotion, streak milestones |
+| Live paper tear | 10 s loop | linear | Level-up and league-result sheets only |
+
+Nothing animates on page load except state-confirmed reactions. `prefers-reduced-motion` lands every row on its final frame.
+
+### 16.6 League tiers (migration 063)
+
+- `app.league_memberships` gains `tier`, `final_rank`, `league_size`, `result`, `settled_at`.
+- Top 20% promote, bottom 20% (5+ members) demote; clamped at both ends; a league of one holds.
+- Settlement is idempotent and runs twice over: lazily by the member under RLS on their next `/leagues` visit, and by the daily cron (`settleLeagueWeeks`) for weeks that ended more than a day ago.
+- Tier 0 keeps the pre-tier league key so leagues running when 063 lands aren't split. Without 063 the app runs tierless.
+- Apply with the **DB release** workflow (`league_tiers` input) or `psql -f migrations/063_league_tiers.sql`.
+
+### 16.7 Tests
+
+- Unit: `lib/career.test.ts`, `lib/data/streaks.test.ts` (run), `achievement-shelf.test.ts`, `weekly-recap.test.ts`, `leagues.test.ts` (tiers).
+- Opt-in Postgres: `lib/data/leagues.db.test.ts` (lazy settlement under RLS, via `scripts/dev/neon_http_shim.py`).
+- E2E: `apps/web/e2e/working-papers.spec.ts` (Playwright, stub mode) — `npm run build -w @ibpe/web && npm run e2e -w @ibpe/web`; runs in CI (`e2e` job).
+
+## 17. Landing — Paper Concorde
+
+`/` is the public landing (`app/page.tsx` → `components/landing/`). One long scroll stage (`h-[760svh]`, sticky 100svh viewport). The choreography is a pure function, `frameAt(p, narrow)` in `lib/landing/scroll-frame.ts` (unit tested): scroll progress in, opacity / transform for every animated piece out. Fold geometry and sky stops live in `lib/landing/plane-geometry.ts`.
+
+**Performance rules** (the first version restyled ~2,000 elements per frame and dropped to ~12 fps):
+- Never set inherited CSS custom properties on a stage ancestor per frame. The rAF handler writes `opacity` / `transform` directly onto the ~40 bound pieces (`data-piece` keys), and only when the value changed.
+- A piece at opacity 0 also gets `visibility: hidden`, so it skips paint and hit-testing (the hero CTA can't be clicked once faded).
+- The sky is one fixed gradient layer per `SKY_STOPS` entry, crossfaded by opacity (`skyBlend`), never a repainted gradient.
+- Moving / fading pieces carry `will-change`; heavy SVG filters (torn edges) are rasterised once on their own layers.
+- Repeated art uses SVG patterns (skyline windows), and the Earth is a short SVG band, not a 240vw disc. No `backdrop-filter` over the stage.
+
+| Progress | Scene | Art |
+|---|---|---|
+| 0–0.07 | Hero | Desk: index card ("Walk me through a DCF."), card stack + paperclip, sticky note, ledger corner, loose question cards, coffee ring, pencil |
+| 0.07–0.24 | Fold | The card folds into a paper Concorde; desk items drift |
+| 0.24–0.4 | Takeoff | Desk drops away, dawn sky, torn-paper sun, paper-cut skyline with lit windows, "Concord" title card |
+| 0.34–0.76 | Clouds | Torn-paper clouds at two depths, ink birds; product cards: Firm intel (manila heat map), graded answer (index card + red-pen stamp), drill set (ledger) |
+| 0.7–0.88 | Cruise | Night: stars, cratered paper moon, pencil constellations (the bull, the bear), shooting star, moonlit torn-paper cloud deck, Earth curve with city lights, distant paper planes, contrail, "Today's set" luggage tag (8 cards ≈ 12 min, matching `DEFAULT_SET_SIZE` × `MINUTES_PER_CARD`), tally scrap |
+| 0.88–1 | Land | Dusk, the skyline comes back up; then the boarding pass section |
+
+- **Copy** follows the owner's voice: plain statements, no slogans or em-dashes. Hero: "CS has LeetCode. You have Concord." + "Interview prep for investment banking and private equity."
+- **CTA**: "Start prepping" → `/sign-up` in the fixed header (always visible), the hero, and the boarding-pass stub. "Sign in" in the header and under the pass.
+- **Boarding pass** (the sign-up) is modelled on a 1990s Concorde pass, branded Concord only (no airline names or marks): charcoal coupon with a swoosh-over-small-caps CONCORD wordmark, white printed boxes (GATE blank, GATE CLOSES 0730, SEAT 01A) in grey dot-matrix mono, a NO CRAMMING strip with a green FAST TRACK sticker, passenger strip, fine print in the owner's voice, BOARDING PASS footer; a light stub ("Concord Air") with passenger / from-to / flight boxes, seat, baggage row, barcode and the CTA. Clicking the stub tears it off, then opens `/sign-up`. Clear mounting tabs top and bottom. Stacks vertically on phones.
+- **Reduced motion**: same scenes as still frames, no stage.
+- **Phones**: the plane flies higher during the product cards, which sit at the bottom.
+- e2e: `apps/web/e2e/landing.spec.ts`.
+
+### 17.1 Login gate
+
+The whole app sits behind Neon Auth sign-in; only the landing page is public.
+
+- **Policy** (`apps/web/lib/auth/gate.ts`, unit tested):
+  - Public paths: `/`, `/sign-in`, `/sign-up`, Neon Auth's `/api/auth/*` and `/auth/*`, `/api/health`, `/api/cron/*` (CRON_SECRET), `/api/notifications/unsubscribe` (signed email links), and static files.
+  - Everything else needs a session.
+- **Proxy** (`apps/web/proxy.ts` → `lib/auth/gate-proxy.ts`) matches every route except Next build output and files with an extension. It runs the Neon Auth middleware and rewrites its sign-in redirect:
+  - Pages go to `/sign-in?next=<path + query>`.
+  - APIs get `401 {"error":{"code":"unauthorized"}}` instead of an HTML redirect.
+  - Stale-session `Set-Cookie` headers are kept.
+- **Return path**: the sign-in/up pages validate `next` with `safeNextPath`. It accepts same-site paths only, never `//host`, absolute URLs, APIs or the auth pages. Returning users land back where they were headed; new accounts still go to onboarding first. Google sign-in uses `next` as its `callbackURL`, and switching between sign-in and sign-up keeps it.
+- **Without Neon Auth** (local dev, e2e stub mode) the gate is a passthrough and the app runs as `dev_stub_user`, matching the API layer.
+- **e2e**: the `gate` Playwright project starts a second server with Neon Auth configured against an unreachable URL. Signed-out requests never call the auth server, so `e2e/gate.spec.ts` exercises the real gate without credentials.
+
+### 17.2 Load intro, metadata and site logo
+
+**Intro** (`components/landing/landing-intro.css`) plays once on load, about 1.5 s, CSS only:
+- the header slides down
+- the question card drops onto the desk and settles
+- the headline rises line by line
+- desk items are tossed in from their own sides with a small settle
+- the subhead and CTA rise in
+- "Scroll" fades in and nudges
+
+**First touch stays live.** Intro keyframes animate only the individual `translate` / `rotate` / `scale` properties, plus opacity on elements whose opacity the scroll never writes; otherwise they go on an inner wrapper. The scroll stage writes `transform`, which composes with these, so a scroll or swipe mid-intro moves the page immediately while the intro finishes on top. The first scroll stops the card's idle float and the scroll nudge (`data-touched`). Reduced motion skips all of it (`prefers-reduced-motion: no-preference` guard).
+
+**Metadata** (`app/layout.tsx`):
+- `metadataBase` comes from `appBaseUrl()`, the same origin email links use.
+- Title template "%s · Concord"; the landing title is "Concord · Interview prep for IB and PE".
+- Description, keywords, Open Graph and a Twitter `summary_large_image` card.
+- Theme colour `#f7f1e4`, plus an apple web-app title.
+
+**Icons and share image** use app/ file conventions:
+- `favicon.ico` (16/32/48), `icon.png` (512) and `apple-icon.png` (180): the Concorde silhouette climbing at -32° on a cream paper tile.
+- `opengraph-image.png` / `twitter-image.png` (1200×630, with alt text): the headline, subhead, the folded paper plane and the "Walk me through a DCF." index card.
+- `manifest.ts` (start URL `/today`, 192/512 icons in `public/brand/`).
+
+All of these URLs end in a file extension, so the login gate leaves them public for signed-out crawlers; `e2e/gate.spec.ts` checks this.
+
+### 17.3 Desk hovers
+
+The small things on the hero react to the pointer (`landing-intro.css`).
+
+| Item | Effect |
+|---|---|
+| Pencil | wiggles on its centre, as if knocked |
+| Loose index cards | flutter, pinned at the top edge |
+| Sticky note | the bottom peels up and drops back |
+| Ledger | the top sheet lifts and settles |
+| Coffee ring | slides and turns a little |
+| Question card | lifts off the stack, and its paperclip jiggles |
+| CTA arrow | nudges forward |
+
+How they're built:
+- Each effect runs on the item's inner layer, because the item element itself carries the scroll transform and the load intro.
+- Each plays once per hover and fires on tap via `:active`.
+- All of it is skipped for reduced motion.
+- The desk items opt back into pointer events, while the hero copy wrapper passes them through (only the CTA stays clickable).

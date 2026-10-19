@@ -19,3 +19,15 @@ export function seedFrom(input: string): number {
   }
   return Math.abs(h) || 1
 }
+
+/**
+ * Resolve `var(--token)` against an element's computed style so rough.js /
+ * rough-notation get a concrete colour for SVG `stroke` / `fill` attributes.
+ * Non-var colours pass through untouched.
+ */
+export function resolveCssColor(el: Element, color: string): string {
+  const match = /^var\(\s*(--[\w-]+)\s*(?:,\s*(.+))?\)$/.exec(color.trim())
+  if (!match || typeof window === "undefined") return color
+  const value = getComputedStyle(el).getPropertyValue(match[1]!).trim()
+  return value || match[2]?.trim() || "currentColor"
+}

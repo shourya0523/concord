@@ -4,7 +4,7 @@ import * as React from "react"
 import rough from "roughjs"
 
 import { cn } from "@ibpe/ui/lib/utils"
-import { seedFrom } from "@/lib/mockups/motion"
+import { resolveCssColor, seedFrom } from "@/lib/mockups/motion"
 
 type RoughFrameProps = {
   seedKey: string
@@ -58,6 +58,7 @@ export function RoughFrame({
       svg.setAttribute("viewBox", `0 0 ${width} ${height}`)
       while (svg.firstChild) svg.removeChild(svg.firstChild)
       const rc = rough.svg(svg)
+      const color = resolveCssColor(host, STROKE[stroke])
       const x = padding / 2
       const y = padding / 2
       const w = Math.max(4, width - padding)
@@ -66,12 +67,12 @@ export function RoughFrame({
         seed,
         roughness: 1.05,
         bowing: 0.85,
-        stroke: STROKE[stroke],
+        stroke: color,
         strokeWidth: stroke === "lime" ? 1.35 : 1.2,
-        fill: hatch ? STROKE[stroke] : "transparent",
-        fillStyle: hatch ? "hachure" : "solid",
-        fillWeight: 0.6,
-        hachureGap: 6,
+        // No fill unless hatching — a "transparent" solid fill is a wasted path.
+        ...(hatch
+          ? { fill: color, fillStyle: "hachure", fillWeight: 0.6, hachureGap: 6 }
+          : {}),
       })
       svg.appendChild(node)
     }

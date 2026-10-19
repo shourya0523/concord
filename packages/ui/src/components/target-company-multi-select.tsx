@@ -43,15 +43,16 @@ function TargetCompanyMultiSelect({
 
   return (
     <div data-slot="target-company-multi-select" className={cn("relative w-full max-w-md", className)}>
-      <Button
-        type="button"
-        variant="outline"
-        className="h-auto min-h-9 w-full justify-between gap-2 px-2.5 py-1.5 font-normal"
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        onClick={() => setOpen((o) => !o)}
+      {/* Chip remove buttons can't nest inside the trigger <button> (invalid HTML,
+          hydration error) — the field is a div; the chevron trigger owns aria state. */}
+      <div
+        className="flex min-h-9 w-full items-center justify-between gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm shadow-xs"
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("button")) return
+          setOpen((o) => !o)
+        }}
       >
-        <span className="flex flex-wrap gap-1.5">
+        <span className="flex flex-1 flex-wrap gap-1.5">
           {selected.length === 0 ? (
             <span className="text-muted-foreground">{placeholder}</span>
           ) : (
@@ -65,10 +66,7 @@ function TargetCompanyMultiSelect({
                   type="button"
                   className="rounded-full p-0.5 hover:bg-background"
                   aria-label={`Remove ${c.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    toggle(c.id)
-                  }}
+                  onClick={() => toggle(c.id)}
                 >
                   <X className="size-3" />
                 </button>
@@ -76,8 +74,19 @@ function TargetCompanyMultiSelect({
             ))
           )}
         </span>
-        <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
-      </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-7 shrink-0"
+          aria-label={open ? "Close firm list" : "Open firm list"}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          onClick={() => setOpen((o) => !o)}
+        >
+          <ChevronsUpDown className="size-4 opacity-50" />
+        </Button>
+      </div>
 
       {open ? (
         <ul

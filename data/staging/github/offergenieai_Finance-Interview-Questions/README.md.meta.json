@@ -1,0 +1,10 @@
+{
+  "bytes": 9433,
+  "commit_sha": "03f814c1c987713e59ace3a5f32e28d07269b075",
+  "content_hash": "0ff487fd4a13cf6f103b55834886b535b81d9a8ff06c75a7579ff7819bfa9bcd",
+  "fetch_method": "git clone --depth 1 (read-only via agent git proxy)",
+  "path": "README.md",
+  "repo": "offergenieai/Finance-Interview-Questions",
+  "retrieved_at": "2026-09-23T00:54:00+00:00",
+  "source_url": "https://raw.githubusercontent.com/offergenieai/Finance-Interview-Questions/03f814c1c987713e59ace3a5f32e28d07269b075/README.md"
+}

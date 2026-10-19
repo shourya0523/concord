@@ -20,7 +20,7 @@
 
 ### P0 — harden real RAG
 1. Grounded LLM synthesis on pack (cite-only `generateText`) — retrieve works; answer paragraph optional.
-2. Put `GEMINI_API_KEY` (or `GOOGLE_GENERATIVE_AI_API_KEY`) on **Vercel** Production so prod RAG is dense, not lexical fallback.
+2. Put `OPENROUTER_API_KEY` on **Vercel** Production (and re-run `embed:rag` with it) so prod RAG is dense, not lexical fallback — see `docs/deployment/llm-stack.md`.
 3. Cron/worker to re-embed on teaching publish (`embed:rag` after `publish:teaching`).
 4. Topic tagging on Glassdoor heat (mostly `untagged`) — glassdoor/data-quality.
 

@@ -1,4 +1,5 @@
 import { SimulatorIsland } from "@/components/simulator-island"
+import { isFlagOn } from "@/lib/flags"
 
 export const metadata = {
   title: "Interview simulator · Concord",
@@ -20,7 +21,7 @@ export default function SimulatorPage() {
           that feed your mastery record.
         </p>
       </header>
-      <SimulatorIsland />
+      <SimulatorIsland voiceEnabled={isFlagOn("voice_answers")} />
     </div>
   )
 }

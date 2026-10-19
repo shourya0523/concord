@@ -17,4 +17,4 @@ Shared environment validation and feature flags for `apps/web`, `apps/worker`, a
 - Glassdoor credentials are **server/worker only** (manual captcha path; proxy optional).
 - Product auth is **Neon Auth** (Wave 2, ADR 0006) — never reuse Glassdoor login for end users; do not use Clerk.
 - Prefer Neon (`DATABASE_URL`), Vercel Blob, Upstash Redis (see ADR 0003).
-- On Vercel, prefer AI Gateway OIDC over long-lived `GEMINI_API_KEY` in the web app; keep Gemini key for Python enrich workers.
+- The web app's LLM calls go through OpenRouter: `OPENROUTER_API_KEY` (server-only) plus the `LLM_*_MODEL` tiers — see `docs/deployment/llm-stack.md`. `GEMINI_API_KEY` is no longer read by the TypeScript stack.

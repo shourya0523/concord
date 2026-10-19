@@ -179,7 +179,7 @@ export function buildRealRagPack(
   const limit = input.limit ?? 8;
   const weak_topics = input.weak_topics ?? [];
   const notes: string[] = [
-    "Backend: real RAG — Gemini embeddings (768-d) + hybrid heat/weakness rerank.",
+    "Backend: real RAG — OpenRouter embeddings (768-d) + hybrid heat/weakness rerank.",
     "Glassdoor bank rows used for topic heat only — pack items are teaching corpus with citations.",
   ];
   if (input.grounded_answer) {

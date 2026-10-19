@@ -4,6 +4,7 @@
 import {
   CanonicalQuestionSchema,
   QuestionStudyPayloadSchema,
+  type AnswerRubric,
   type CanonicalQuestion,
   type QuestionStudyPayload,
 } from "@ibpe/contracts";
@@ -17,6 +18,7 @@ import {
   diagramsForConcepts,
   getDiagramAssetForConcept,
 } from "@/lib/data/learning";
+import { parseRubric } from "@/lib/grading/rubric";
 import { conceptIdForTopic } from "@/lib/topics";
 
 type PublishedQuestionRow = {
@@ -484,4 +486,44 @@ export async function getQuestion(
       : {}),
     source: "bank_fallback",
   };
+}
+
+export type AnswerRubricRecord = {
+  answer_id: string;
+  rubric: AnswerRubric;
+  /** canonical.answers.rubric_status (null for rubrics that predate the column). */
+  status: string | null;
+};
+
+/**
+ * Grading rubric for a published teaching answer (canonical.answers.rubric_json,
+ * migration 044). Only approved rubrics grade learners (KD-4) unless
+ * GRADER_ALLOW_PENDING_RUBRICS=1 (review/preview environments).
+ */
+export async function getAnswerRubric(
+  answerId: string | null | undefined,
+): Promise<AnswerRubricRecord | null> {
+  if (!answerId || !isDatabaseConfigured()) return null;
+  try {
+    const sql = requireSql();
+    const rows = (await sql`
+      SELECT id, rubric_json, rubric_status
+      FROM canonical.answers
+      WHERE id = ${answerId} AND publishable = true AND rubric_json IS NOT NULL
+      LIMIT 1
+    `) as Array<{ id: string; rubric_json: unknown; rubric_status: string | null }>;
+    const row = rows[0];
+    if (!row) return null;
+    const rubric = parseRubric(row.rubric_json);
+    if (!rubric) return null;
+    const status = row.rubric_status ?? rubric.review_status ?? null;
+    const allowPending = ["1", "true", "yes"].includes(
+      (process.env.GRADER_ALLOW_PENDING_RUBRICS ?? "").toLowerCase(),
+    );
+    if (status !== "approved" && !(allowPending && status === "pending")) return null;
+    return { answer_id: row.id, rubric, status };
+  } catch (err) {
+    console.warn("[questions] rubric load failed", err);
+    return null;
+  }
 }

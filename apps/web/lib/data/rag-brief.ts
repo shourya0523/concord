@@ -1,8 +1,21 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google"
-import { DEFAULT_RAG_GENERATE_MODEL, googleApiKey } from "@ibpe/ai"
-import { generateText } from "ai"
+/**
+ * Cited session brief for RAG prep packs — a Jev-verified cascade
+ * (docs/vendor/jev/jev-verified-cascade.md):
+ *
+ *   1. the SMALL chat model (LLM_SMALL_MODEL) drafts a cited rewrite
+ *   2. `validateCitedBrief` keeps only sentences citing retrieved pack ids
+ *   3. ONE Jev choice (supported | unsupported | declined) checks the draft
+ *      against the pack snippets it was allowed to use
+ *   4. ship it only when supported at ≥ JEV_ACCEPT_CONFIDENCE (0.8); otherwise
+ *      the deterministic cite-only template (no frontier escalation)
+ *
+ * `brief_verified` is true only for a draft Jev accepted.
+ */
+import { chat, isLlmConfigured, verifyDraft, type ClientOptions } from "@ibpe/ai"
 
-type BriefSource = "gemini" | "template"
+type BriefSource = "llm" | "template"
+
+export const RAG_BRIEF_TIMEOUT_MS = 8_000
 
 export type RagBriefCitation = {
   item_id: string
@@ -26,11 +39,13 @@ export type RagBriefResult = {
   brief: string
   brief_source: BriefSource
   brief_citations: RagBriefCitation[]
+  /** True only when a model draft passed Jev verification (false for the template). */
+  brief_verified: boolean
   note?: string
 }
 
 type RewriteResult = Omit<RagBriefResult, "brief_source"> & {
-  brief_source: "gemini"
+  brief_source: "llm"
 }
 
 const MAX_ITEMS_FOR_PROMPT = 8
@@ -93,6 +108,7 @@ export function buildTemplateRagBrief(input: RagBriefInput): RagBriefResult {
         "No cited teaching-corpus items were retrieved for this pack; broaden the focus prompt or target firms before starting the study loop.",
       brief_source: "template",
       brief_citations: [],
+      brief_verified: false,
       note: "Template brief used because the pack returned no cited items.",
     }
   }
@@ -117,19 +133,21 @@ export function buildTemplateRagBrief(input: RagBriefInput): RagBriefResult {
       `${itemText} Use the cited teaching corpus as the answer source${firmText}; Glassdoor-derived signals only affect retrieval ranking ${citationLabel(items[0]!)}.${weakText}`.trim(),
     brief_source: "template",
     brief_citations: items.map(citationFor),
-    note: "Template brief used; Gemini rewrite unavailable or rejected by citation guard.",
+    brief_verified: false,
+    note: "Template brief used; AI rewrite unavailable or rejected by the citation guard / Jev verification.",
   }
 }
 
+export const RAG_BRIEF_SYSTEM =
+  "Rewrite an IB/PE interview-prep session brief using only the provided pack items. Every sentence must include at least one exact bracket citation like [item_id]. Do not make uncited firm-specific, market, Glassdoor, or web claims. Glassdoor signals are retrieval signals only, never answer evidence."
+
 export async function tryGenerateGroundedRagBrief(
   input: RagBriefInput,
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  client: Omit<ClientOptions, "env"> = {}
 ): Promise<RewriteResult | null> {
-  const apiKey = googleApiKey(env)
   const items = input.items.slice(0, MAX_ITEMS_FOR_PROMPT)
-  if (!apiKey || items.length === 0) return null
-
-  const google = createGoogleGenerativeAI({ apiKey })
+  if (!isLlmConfigured(env) || items.length === 0) return null
   const firmText =
     input.firm_names && input.firm_names.length > 0
       ? input.firm_names.join(", ")
@@ -145,14 +163,20 @@ export async function tryGenerateGroundedRagBrief(
     )
     .join("\n\n")
 
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), RAG_BRIEF_TIMEOUT_MS)
   try {
-    const { text } = await generateText({
-      model: google(DEFAULT_RAG_GENERATE_MODEL),
-      temperature: 0.2,
-      maxOutputTokens: 220,
-      instructions:
-        "Rewrite an IB/PE interview-prep session brief using only the provided pack items. Every sentence must include at least one exact bracket citation like [item_id]. Do not make uncited firm-specific, market, Glassdoor, or web claims. Glassdoor signals are retrieval signals only, never answer evidence.",
-      prompt: `User focus prompt: ${input.query}
+    const { text, model } = await chat(
+      {
+        tier: "small",
+        temperature: 0.2,
+        maxTokens: 220,
+        signal: controller.signal,
+        messages: [
+          { role: "system", content: RAG_BRIEF_SYSTEM },
+          {
+            role: "user",
+            content: `User focus prompt: ${input.query}
 Target firms used for retrieval context only: ${firmText}
 Weak topics: ${weakText}
 
@@ -160,24 +184,48 @@ PACK_ITEMS:
 ${packItems}
 
 Return 2-4 concise sentences. Use exact bracket citations from PACK_ITEMS in every sentence.`,
-    })
+          },
+        ],
+      },
+      { ...client, env }
+    )
 
     const validated = validateCitedBrief(text, items)
     if (!validated) return null
+    const verification = await verifyDraft(
+      {
+        sources: items.map(
+          (item) => `[${item.id}] ${item.title}: ${item.snippet?.slice(0, 360) ?? ""}`.trim()
+        ),
+        request: `2-4 sentence interview-prep session brief for the focus "${input.query}" (target firms: ${firmText}; weak topics: ${weakText}), citing pack items.`,
+        draft: validated.brief,
+      },
+      { signal: controller.signal },
+      { ...client, env }
+    )
+    if (!verification.accepted) {
+      console.info(
+        `[rag-brief] Jev rejected draft (${verification.verdict} @ ${verification.confidence}); using template`
+      )
+      return null
+    }
     const citationMap = new Map(
       items.map((item) => [item.id, citationFor(item)])
     )
     return {
       brief: validated.brief,
-      brief_source: "gemini",
+      brief_source: "llm",
       brief_citations: validated.citation_ids
         .map((id) => citationMap.get(id))
         .filter((citation): citation is RagBriefCitation => Boolean(citation)),
-      note: `Gemini brief rewrite accepted with ${validated.citation_ids.length} cited pack item(s).`,
+      brief_verified: true,
+      note: `AI brief rewrite (${model}) verified by Jev (${verification.verdict} @ ${verification.confidence.toFixed(2)}) with ${validated.citation_ids.length} cited pack item(s).`,
     }
   } catch (err) {
-    console.warn("[rag-brief] Gemini rewrite failed; using template", err)
+    console.warn("[rag-brief] AI rewrite or Jev verification failed; using template", err)
     return null
+  } finally {
+    clearTimeout(timer)
   }
 }
 

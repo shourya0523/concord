@@ -1,3 +1,21 @@
+# GitHub corpus sources. `import_priority` high|medium|low are imported by the
+# fixture pipeline from data/staging/github/<owner>_<repo>/<path>; pattern_only /
+# "no" are never imported. `license_status` feeds reports/license-review.md.
+
+owner_attestation:
+  date: "2026-09-23"
+  attested_by: repository owner (Concord)
+  recorded_by: content track (plan 2026-09-23-001, OQ-1 / P1.1)
+  scope: >-
+    All sources below with product_role teaching_qa
+    (ddeng5/Capital-Markets-Question-Bank-App, coryjburk/intv-playbook-ib_vc,
+    coryjburk/intv-playbook-pe_vc, HireAbo/awesome-interview-questions-5000-jobs,
+    offergenieai/Finance-Interview-Questions).
+  statement: >-
+    The repository owner confirmed on 2026-09-23 that Concord has permission to
+    use all listed sources for the teaching corpus. Attribution is kept on answer
+    provenance (source_ids, source artefact URLs).
+
 sources:
   - repo: ddeng5/Capital-Markets-Question-Bank-App
     commit_sha: 05dca57601532f95f7be72b83b76ce80a5c7dcca
@@ -8,8 +26,9 @@ sources:
     format: firebase_export_json
     import_priority: high
     product_role: teaching_qa
-    license_status: pending_review
-    notes: 385 IB-focused question/answer pairs; strongest specified ready-import source; review license before production import.
+    license_status: permission_granted_by_owner
+    imported_content: 385 IB question/answer pairs (Firebase export)
+    notes: 385 IB-focused question/answer pairs; strongest specified ready-import source.
 
   - repo: Marvin-Deng/Interview-Scraper
     commit_sha: fcfad8f7358dfd2b6ca6278315a272859fa346f1
@@ -69,15 +88,18 @@ sources:
   - repo: HireAbo/awesome-interview-questions-5000-jobs
     commit_sha: 837a40fbf61a502b3f6d68eca2d32c8d70e0eec5
     paths:
-      - Business and Management/Finance/*.md
       - Business and Management/Finance/Investment Banker.md
       - Business and Management/Finance/Private Equity Analyst.md
       - Business and Management/Finance/Mergers and Acquisitions MA Analyst.md
     format: markdown_numbered_question_lists
     import_priority: low
     product_role: teaching_qa
-    license_status: pending_review
-    notes: Finance subset has about 250 visible questions and no answers; broad templated source for supplemental question-only seeds.
+    license_status: permission_granted_by_owner
+    imported_content: 15 question titles (5 per IB / PE / M&A file), no answers — answers synthesised
+    notes: >-
+      Each job file shows only 5 sample questions (the rest sit behind a hireabo.com link),
+      so the finance subset is ~250 mostly off-track titles; only the IB, PE and M&A files are
+      imported. Fetched 2026-09-23 via shallow git clone.
 
   - repo: mikinty/Trading-Interview-Questions
     commit_sha: 933451601c57ccd5e978988a4c0d844c9bd030d9
@@ -87,40 +109,51 @@ sources:
       - appendix/sequences.md
       - site/src/games/*.tsx
     format: markdown_curriculum_plus_react_practice_games
-    import_priority: low
+    import_priority: pattern_only
     product_role: pattern_only
     license_status: not_imported
     notes: Quant trading curriculum, not IB/PE; only useful for optional trading/market-making appendix.
 
   - repo: offergenieai/Finance-Interview-Questions
-    commit_sha: b651edc039fe9fcded7a6b071eb65b23dfc76a5f
+    commit_sha: 03f814c1c987713e59ace3a5f32e28d07269b075
     paths:
       - README.md
-      - .github/workflows/update-daily.yml
     format: markdown_table_question_titles
     import_priority: medium
     product_role: teaching_qa
-    license_status: pending_review
-    notes: 20 JPMorgan/Goldman finance question titles with company/category/difficulty metadata; no answers.
+    license_status: permission_granted_by_owner
+    imported_content: 20 JPMorgan / Goldman question titles with category + difficulty, no answers — answers synthesised
+    notes: >-
+      README table refreshed daily upstream; pinned to the commit fetched 2026-09-23
+      (previous pin b651edc0). Titles only.
 
   - repo: coryjburk/intv-playbook-ib_vc
-    commit_sha: c174e326e0325c31c50a734c71d86fae254f44b6
+    commit_sha: 849a2b08c2c39b58936b49f76841b007b477b280
     paths:
       - index.html
+    reference_paths:
       - README.md
     format: single_file_html_js_structured_questions
     import_priority: high
     product_role: teaching_qa
-    license_status: pending_review
-    notes: 100 IB questions with model answers, deep dives, coaching notes, red flags, categories, and difficulty; review license before production import.
+    license_status: permission_granted_by_owner
+    imported_content: 100 IB questions — model answer, deep dive, coaching note, red flag, category, difficulty
+    notes: >-
+      Fetched 2026-09-23 via shallow git clone (HEAD 849a2b08; previous pin c174e326).
+      Mapping — model answer → concise, model answer + deep dive → expanded, red flag →
+      common_mistakes, coaching → coaching_notes (rubric hints), category/difficulty → taxonomy.
 
   - repo: coryjburk/intv-playbook-pe_vc
-    commit_sha: ae3b269379dd972277e6f3089e76b130ced1f098
+    commit_sha: d3f524b2f76e122ef2c7f41ec0fff31143da3a35
     paths:
       - index.html
+    reference_paths:
       - README.md
     format: single_file_html_js_structured_questions
     import_priority: high
     product_role: teaching_qa
-    license_status: pending_review
-    notes: 100 PE/value-creation questions with model answers, deep dives, coaching notes, red flags, categories, and difficulty; review license before production import.
+    license_status: permission_granted_by_owner
+    imported_content: 100 PE / portfolio-operations questions — model answer, deep dive, coaching note, red flag, category, difficulty
+    notes: >-
+      Fetched 2026-09-23 via shallow git clone (HEAD d3f524b2; previous pin ae3b2693).
+      Same mapping as the IB playbook.

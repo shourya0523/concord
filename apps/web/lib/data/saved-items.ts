@@ -16,9 +16,10 @@ import type {
 import { isDatabaseConfigured, requireSql } from "@/lib/db/client";
 import { withRlsUserId } from "@/lib/db/rls";
 import { ensureAppUserQuery } from "./users";
+import { memoryStore } from "./memory-store";
 
-const stubBookmarks = new Map<string, Bookmark[]>();
-const stubCollections = new Map<string, CollectionWithItems[]>();
+const stubBookmarks = memoryStore<string, Bookmark[]>("bookmarks");
+const stubCollections = memoryStore<string, CollectionWithItems[]>("collections");
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -342,4 +343,159 @@ export async function createCollection(options: {
       note: "DB collection write failed — saved collection in memory.",
     };
   }
+}
+
+/** Remove one bookmark; RLS scopes the DELETE to the caller's rows. */
+export async function deleteBookmark(
+  userId: string,
+  bookmarkId: string,
+): Promise<BookmarkListResponse> {
+  const remaining = (stubBookmarks.get(userId) ?? []).filter(
+    (item) => item.id !== bookmarkId,
+  );
+  stubBookmarks.set(userId, remaining);
+  if (!isDatabaseConfigured()) {
+    return { items: remaining, source: "stub" };
+  }
+  try {
+    const sql = requireSql();
+    await withRlsUserId(sql, userId, (s) => [
+      s`
+        DELETE FROM app.bookmarks
+        WHERE id = ${bookmarkId}
+          AND user_id IN (SELECT id FROM app.users WHERE neon_auth_user_id = ${userId})
+      `,
+    ]);
+    return listBookmarks(userId);
+  } catch (err) {
+    console.warn("[bookmarks] DB delete failed", err);
+    return { items: remaining, source: "stub", note: "DB bookmark delete failed." };
+  }
+}
+
+export class CollectionNotFoundError extends Error {
+  readonly status = 404;
+  constructor(collectionId: string) {
+    super(`Collection not found: ${collectionId}`);
+    this.name = "CollectionNotFoundError";
+  }
+}
+
+function stubCollectionFor(userId: string, collectionId: string): CollectionWithItems {
+  const found = (stubCollections.get(userId) ?? []).find(
+    (collection) => collection.id === collectionId,
+  );
+  if (!found) throw new CollectionNotFoundError(collectionId);
+  return found;
+}
+
+/** Append an item to a collection (no-op when it is already there). */
+export async function addCollectionItem(options: {
+  userId: string;
+  collectionId: string;
+  entityKind: "question" | "concept" | "module";
+  entityId: string;
+}): Promise<CollectionListResponse> {
+  const { userId, collectionId, entityKind, entityId } = options;
+
+  if (!isDatabaseConfigured()) {
+    const collection = stubCollectionFor(userId, collectionId);
+    const exists = collection.items.some(
+      (item) => item.entity_kind === entityKind && item.entity_id === entityId,
+    );
+    if (!exists) {
+      collection.items.push(
+        CollectionItemSchema.parse({
+          id: `ci_${randomUUID().replace(/-/g, "").slice(0, 24)}`,
+          collection_id: collectionId,
+          entity_kind: entityKind,
+          entity_id: entityId,
+          position: collection.items.length,
+          note: null,
+          created_at: nowIso(),
+        }),
+      );
+    }
+    return { items: stubCollections.get(userId) ?? [], source: "stub" };
+  }
+
+  const sql = requireSql();
+  const cols = collectionItemColumns(entityKind, entityId);
+  const results = await withRlsUserId(sql, userId, (s) => [
+    s`
+      SELECT c.id
+      FROM app.collections c
+      JOIN app.users u ON u.id = c.user_id
+      WHERE c.id = ${collectionId} AND u.neon_auth_user_id = ${userId}
+    `,
+    s`
+      INSERT INTO app.collection_items (id, collection_id, question_id, concept_id, module_id, position)
+      SELECT
+        ${`ci_${randomUUID().replace(/-/g, "").slice(0, 24)}`},
+        c.id,
+        ${cols.questionId},
+        ${cols.conceptId},
+        ${cols.moduleId},
+        (SELECT COALESCE(MAX(position) + 1, 0) FROM app.collection_items WHERE collection_id = c.id)
+      FROM app.collections c
+      JOIN app.users u ON u.id = c.user_id
+      WHERE c.id = ${collectionId} AND u.neon_auth_user_id = ${userId}
+      ON CONFLICT DO NOTHING
+    `,
+  ]);
+  if (((results[0] ?? []) as unknown[]).length === 0) {
+    throw new CollectionNotFoundError(collectionId);
+  }
+  return listCollections(userId);
+}
+
+/** Remove a single item from a collection. */
+export async function removeCollectionItem(options: {
+  userId: string;
+  collectionId: string;
+  itemId: string;
+}): Promise<CollectionListResponse> {
+  const { userId, collectionId, itemId } = options;
+  if (!isDatabaseConfigured()) {
+    const collection = stubCollectionFor(userId, collectionId);
+    collection.items = collection.items.filter((item) => item.id !== itemId);
+    return { items: stubCollections.get(userId) ?? [], source: "stub" };
+  }
+  const sql = requireSql();
+  await withRlsUserId(sql, userId, (s) => [
+    s`
+      DELETE FROM app.collection_items
+      WHERE id = ${itemId}
+        AND collection_id IN (
+          SELECT c.id FROM app.collections c
+          JOIN app.users u ON u.id = c.user_id
+          WHERE c.id = ${collectionId} AND u.neon_auth_user_id = ${userId}
+        )
+    `,
+  ]);
+  return listCollections(userId);
+}
+
+/** Delete a collection; its items cascade. */
+export async function deleteCollection(
+  userId: string,
+  collectionId: string,
+): Promise<CollectionListResponse> {
+  if (!isDatabaseConfigured()) {
+    stubCollectionFor(userId, collectionId);
+    const remaining = (stubCollections.get(userId) ?? []).filter(
+      (collection) => collection.id !== collectionId,
+    );
+    stubCollections.set(userId, remaining);
+    return { items: remaining, source: "stub" };
+  }
+  const sql = requireSql();
+  await withRlsUserId(sql, userId, (s) => [
+    s`
+      DELETE FROM app.collections
+      WHERE id = ${collectionId}
+        AND user_id IN (SELECT id FROM app.users WHERE neon_auth_user_id = ${userId})
+    `,
+  ]);
+  return listCollections(userId);
 }

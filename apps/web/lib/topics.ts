@@ -66,6 +66,9 @@ const CONCEPT_TOPIC: Record<string, string> = {
   concept_dcf_wacc: "valuation",
   concept_lbo_paper_lbo: "lbo",
   concept_behavioural_story: "behavioral",
+  concept_valuation_comps: "valuation",
+  concept_merger_model: "merger_models",
+  concept_pe_fund_mechanics: "returns",
 }
 
 const CONCEPT_SLUG: Record<string, string> = {
@@ -74,6 +77,9 @@ const CONCEPT_SLUG: Record<string, string> = {
   concept_dcf_wacc: "dcf-wacc",
   concept_lbo_paper_lbo: "lbo-paper-lbo",
   concept_behavioural_story: "behavioural-story",
+  concept_valuation_comps: "valuation-comps",
+  concept_merger_model: "merger-model",
+  concept_pe_fund_mechanics: "pe-fund-mechanics",
 }
 
 export function topicForConceptId(conceptId: string): string | null {

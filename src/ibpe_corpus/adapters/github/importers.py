@@ -106,6 +106,8 @@ def import_firebase_qb_export(
             pair_id = _pair_key(str(category), str(qid))
             q_meta: dict[str, Any] = {
                 "category": category,
+                # File-level source label: the export is an investment-banking bank.
+                "track": "investment banking" if "investment-banking" in path.name else None,
                 "source_question_id": str(qid),
                 "pair_id": pair_id,
                 "importer": "firebase_qb_export",
@@ -198,6 +200,8 @@ def import_markdown_questions(
                 extracted_metadata={
                     "list_index": int(num),
                     "source_file": path.name,
+                    # HireAbo files are per job role ("Private Equity Analyst.md").
+                    "track": path.stem,
                     "importer": "markdown_questions",
                     "has_source_answer": False,
                     **GITHUB_PROVENANCE,
@@ -453,6 +457,8 @@ def import_html_playbook(
     )
 
 
+_TITLE_LABEL_RE = re.compile(r"^\s*([A-Za-z][A-Za-z&/ \-]{1,40}):\s+\S")
+
 _MD_TABLE_ROW_RE = re.compile(
     r"^\s*\|(?P<cols>.+)\|\s*$",
     re.MULTILINE,
@@ -500,8 +506,12 @@ def import_markdown_table_titles(
         if is_interview_process_placeholder(question):
             continue
         company = row.get("company") or row.get("firm") or row.get("employer")
+        company = re.sub(r"^\*\*(.+)\*\*$", r"\1", company.strip()) if company else company
         category = row.get("category") or row.get("topic") or row.get("tag")
         difficulty = row.get("difficulty") or row.get("level")
+        # Titles often carry their own label ("M&A: Accretion/Dilution …").
+        label_match = _TITLE_LABEL_RE.match(question)
+        title_label = label_match.group(1).strip() if label_match else None
         extracted.append(
             ExtractedRecord(
                 source_artefact_id=art.id,
@@ -512,6 +522,7 @@ def import_markdown_table_titles(
                 extracted_metadata={
                     "company": company or None,
                     "category": category or None,
+                    "title_label": title_label,
                     "difficulty": difficulty or None,
                     "importer": "markdown_table_titles",
                     "has_source_answer": False,

@@ -1,26 +1,110 @@
 /**
- * AI helpers for IB/PE Gemini enrichment + real RAG embeddings.
+ * AI helpers: OpenRouter client + model tiers (Jev decisions, small chat,
+ * structured JSON, embeddings, transcription) and the enrichment proposal
+ * schemas.
  *
- * Embeddings use `@ai-sdk/google` with `GEMINI_API_KEY` /
- * `GOOGLE_GENERATIVE_AI_API_KEY`. Prefer AI Gateway model strings on Vercel.
+ * Everything calls OpenRouter with `OPENROUTER_API_KEY`; model ids come from
+ * the tiers in ./models.ts (docs/deployment/llm-stack.md). GEMINI_API_KEY is
+ * no longer used by the TypeScript stack.
  */
 import { z } from "zod";
+import { DEFAULT_SMALL_MODEL } from "./models.js";
 
 export {
   DEFAULT_EMBEDDING_DIMS,
   DEFAULT_EMBEDDING_MODEL,
-  DEFAULT_RAG_GENERATE_MODEL,
   cosineSimilarity,
   embedText,
   embedTexts,
-  embeddingModel,
-  googleApiKey,
+  embeddingModelId,
   isEmbeddingConfigured,
   toPgVectorLiteral,
 } from "./embeddings.js";
+export {
+  DEFAULT_GRADE_MODEL,
+  gradeModelConfig,
+  gradeModelId,
+  type GradeModelConfig,
+} from "./grade.js";
+export {
+  acceptDraft,
+  DRAFT_SUPPORT_QUESTION,
+  verifyDraft,
+  type DraftVerdict,
+  type DraftVerification,
+} from "./cascade.js";
+export {
+  DECISIONS_PATH,
+  decide,
+  decisionsUrl,
+  isTransientOpenRouterError,
+  parseDecisionAnswers,
+  validateQuestions,
+  type AnswerFor,
+  type ChoiceAnswer,
+  type ChoiceQuestion,
+  type DecideRequest,
+  type DecisionAnswer,
+  type DecisionAnswers,
+  type DecisionQuestion,
+  type DecisionQuestions,
+  type DecisionResult,
+  type DecisionUsage,
+  type NoulAnswer,
+  type NoulQuestion,
+  type ScoreAnswer,
+  type ScoreQuestion,
+} from "./decisions.js";
+export {
+  DEFAULT_DECISION_MODEL,
+  DEFAULT_EMBED_DIMS,
+  DEFAULT_EMBED_MODEL,
+  DEFAULT_JEV_ACCEPT_CONFIDENCE,
+  DEFAULT_JEV_CONFIDENCE_FLOOR,
+  DEFAULT_SMALL_MODEL,
+  DEFAULT_STT_MODEL,
+  decisionModel,
+  embedModel,
+  isJevModel,
+  isLlmConfigured,
+  jevAcceptConfidence,
+  jevConfidenceFloor,
+  modelForTier,
+  openRouterApiKey,
+  resetModelWarnings,
+  smallModel,
+  sttModel,
+  tierModels,
+  type LlmTier,
+} from "./models.js";
+export {
+  DEFAULT_OPENROUTER_BASE_URL,
+  OpenRouterError,
+  buildChatBody,
+  chat,
+  chatJson,
+  embed,
+  errorCodeForStatus,
+  extractJson,
+  parseJsonReply,
+  toJsonSchema,
+  transcribe,
+  type ChatJsonResult,
+  type ChatMessage,
+  type ChatRequest,
+  type ChatResult,
+  type ChatUsage,
+  type ClientOptions,
+  type OpenRouterErrorCode,
+  type TranscribeRequest,
+} from "./openrouter.js";
 
-/** Newest stable flash-class Gemini via AI Gateway (fetch models before bumping). */
-export const DEFAULT_ENRICH_MODEL = "google/gemini-2.5-flash";
+/**
+ * Enrichment model for TS callers (the Python enrich worker has its own
+ * config). `gemini_synthesised` below is a stored provenance value, not a
+ * statement about which model produced the text.
+ */
+export const DEFAULT_ENRICH_MODEL = DEFAULT_SMALL_MODEL;
 
 export const EnrichmentProvenanceEnum = z.enum([
   "gemini_synthesised",
@@ -70,7 +154,7 @@ export const ModeRoutingSchema = z.object({
   concept_learn_weight: z.number().min(0).max(1).default(0.5),
 });
 
-/** Structured Gemini enrichment proposal (staging only until validated). */
+/** Structured LLM enrichment proposal (staging only until validated). */
 export const EnrichmentProposalSchema = z.object({
   canonical_question_id: z.string(),
   track: z.string().nullable().optional(),
@@ -94,7 +178,7 @@ export const EnrichmentProposalSchema = z.object({
 
 export type EnrichmentProposal = z.infer<typeof EnrichmentProposalSchema>;
 
-/** Refuse laundering Gemini output as Glassdoor or GitHub teaching source. */
+/** Refuse laundering LLM output as Glassdoor or GitHub teaching source. */
 export function assertEnrichmentProvenance(provenance: string): void {
   const forbidden = new Set([
     "glassdoor",
