@@ -11,7 +11,7 @@ import { CONTACT_EMAIL, PLANS, planCtaHref } from "@/lib/billing/plans"
 /** Public pricing (DESIGN.md §17.4): Individual, Team, Custom. */
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "Concord is free for individuals with daily AI limits, $10 a month for credits, and $5 a seat for teams.",
+  description: "Standby is free with daily AI limits, Supersonic is $10 a month, Charter is $5 a seat for teams, and Fleet is custom.",
   alternates: { canonical: "/pricing" },
 }
 
@@ -54,15 +54,16 @@ export default async function PricingPage() {
             Free to prep. Pay when your group does.
           </h1>
           <p className="mt-4 max-w-xl text-[15px] text-muted-foreground">
-            Practice is free. AI grading, coaching and voice answers have daily free limits. Credits
-            or your own OpenRouter key lift them.
+            Practice is free. AI grading, coaching and voice answers have daily free limits.
+            Supersonic adds monthly credits. Charter and Fleet can run on your organisation&apos;s own
+            OpenRouter key.
           </p>
 
           <ul className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Plans">
             {PLANS.map((plan) => {
               const href = planCtaHref(plan.id, signedIn)
               const external = href.startsWith("mailto:")
-              const label = plan.id === "individual" && signedIn ? "You're on this plan" : plan.cta
+              const label = plan.id === "free" && signedIn ? "Open your plan" : plan.cta
               return (
                 <li
                   key={plan.id}
@@ -73,17 +74,19 @@ export default async function PricingPage() {
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <h2 className="font-display text-2xl tracking-tight">{plan.name}</h2>
+                    <div>
+                      <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">{plan.kind}</p>
+                      <h2 className="font-display text-2xl tracking-tight">{plan.name}</h2>
+                    </div>
                     {plan.featured ? (
                       <span className="rounded-full border border-ink px-2 py-0.5 font-mono text-[10px] tracking-wide uppercase">
-                        Start here
+                        Recommended
                       </span>
                     ) : null}
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">{plan.blurb}</p>
                   <p className="mt-6 font-display text-4xl leading-none tracking-tight">{plan.price}</p>
                   <p className="mt-2 font-mono text-[11px] tracking-wide text-muted-foreground uppercase">{plan.cadence}</p>
-                  {plan.upgrade ? <p className="mt-1 text-sm">{plan.upgrade}</p> : null}
                   <ul className="mt-6 flex-1 space-y-2 text-sm">
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex gap-2">

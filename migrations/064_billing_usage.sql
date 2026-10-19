@@ -3,7 +3,7 @@
 -- docs/product/pricing-unit-economics.md).
 --
 -- Every model-backed action (grade, coaching, voice) is charged in order:
---   1. the user's own OpenRouter key (byok) — never limited, logged only
+--   1. the organisation's OpenRouter key (byok, team / custom) — never limited
 --   2. the free daily allowance             — app.ai_usage_daily, UTC days
 --   3. monthly credits                       — app.billing_accounts
 -- and refused (deterministic fallback / 402) when all three are exhausted.
@@ -12,8 +12,11 @@
 -- checkout exists. Credits refill lazily: the first charge in a new UTC
 -- month resets credits_balance to monthly_credits.
 --
--- byok_ciphertext is AES-256-GCM under BYOK_ENCRYPTION_KEY (server env);
--- the plaintext key never touches the database or the browser.
+-- Bring-your-own-key is a team / custom perk: an admin stores the
+-- organisation's OpenRouter key on each seat (byok_ciphertext, AES-256-GCM
+-- under BYOK_ENCRYPTION_KEY). The app only uses it while the seat is on a
+-- team / custom plan; the plaintext key never touches the database or the
+-- browser.
 --
 -- The app tolerates this migration being absent (metering fails open and
 -- logs a warning; BYOK save answers 503).

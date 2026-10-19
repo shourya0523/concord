@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
  * otherwise). Also records the `mock_complete` learning activity.
  *
  * Coaching is metered (lib/billing/meter.ts): one "coaching" charge per
- * session (re-posts are free), on the user's own key when saved, refunded
+ * session (re-posts are free), on the organisation key for Charter / Fleet, refunded
  * when no AI paragraph ships.
  */
 export async function POST(

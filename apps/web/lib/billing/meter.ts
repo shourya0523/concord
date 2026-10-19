@@ -1,6 +1,10 @@
 /**
- * AI usage metering + bring-your-own-key service (DESIGN.md §17.4,
+ * AI usage metering + organisation-key service (DESIGN.md §17.4,
  * migration 064). Rules live in ./meter-core; this file stores them.
+ *
+ * Bring-your-own-key is a Charter / Fleet (team / custom) perk: an admin
+ * stores the organisation's OpenRouter key on each seat, and it is only used
+ * while the account is on one of those plans.
  *
  * Postgres (app.billing_accounts / ai_usage_daily / ai_usage_events, under
  * RLS) when DATABASE_URL is set, else a process-wide memory store like the
@@ -31,7 +35,7 @@ import {
   type Charge,
   type ChargeSource,
 } from "./meter-core"
-import { CREDIT_COST, CREDITS_PER_MONTH, FREE_DAILY_LIMITS, SEAT_CREDITS_PER_MONTH } from "./plans"
+import { CREDIT_COST, CREDITS_PER_MONTH, FREE_DAILY_LIMITS, ORG_KEY_PLANS, SEAT_CREDITS_PER_MONTH } from "./plans"
 
 type Account = {
   plan: AccountPlan
@@ -64,7 +68,7 @@ interface BillingStore {
   recordEvent(userId: string, event: UsageEvent, email?: string | null): Promise<boolean>
   refund(userId: string, event: UsageEvent, day: string, period: string): Promise<void>
   usedOn(userId: string, day: string): Promise<Record<AiAction, number>>
-  setByok(userId: string, blob: string | null, last4: string | null, email?: string | null): Promise<void>
+  setByok(userId: string, blob: string | null, last4: string | null): Promise<void>
   setPlan(userId: string, plan: AccountPlan, monthlyCredits: number, period: string): Promise<void>
 }
 
@@ -243,9 +247,9 @@ const sqlBillingStore: BillingStore = {
     }
     return used
   },
-  async setByok(userId, blob, last4, email) {
+  async setByok(userId, blob, last4) {
     await withRlsUserId(requireSql(), userId, (s) => [
-      ensureUser(s, userId, email),
+      ensureUser(s, userId),
       s`INSERT INTO app.billing_accounts (user_id, byok_ciphertext, byok_last4, byok_added_at)
         VALUES (${userId}, ${blob}, ${last4}, ${blob ? new Date().toISOString() : null})
         ON CONFLICT (user_id) DO UPDATE SET
@@ -283,7 +287,7 @@ function warn(step: string, err: unknown) {
 /* ------------------------------------------------------------------ */
 
 export type AiContext = {
-  /** Env for the AI helpers: the user's own key when they saved one. */
+  /** Env for the AI helpers: the organisation's key on a Charter / Fleet seat. */
   env: NodeJS.ProcessEnv
   byok: boolean
 }
@@ -293,7 +297,9 @@ export async function aiContext(userId: string): Promise<AiContext> {
   try {
     const account = await store().getAccount(userId)
     const cipherKey = byokCipherKey()
-    const key = account?.byokCiphertext && cipherKey ? decryptKey(account.byokCiphertext, cipherKey) : null
+    // A key only counts on an org-key plan, so a lapsed seat falls back to metering.
+    const eligible = account && (ORG_KEY_PLANS as readonly string[]).includes(account.plan)
+    const key = eligible && account.byokCiphertext && cipherKey ? decryptKey(account.byokCiphertext, cipherKey) : null
     return { env: envWithKey(key), byok: Boolean(key) }
   } catch (err) {
     warn("aiContext", err)
@@ -302,7 +308,7 @@ export async function aiContext(userId: string): Promise<AiContext> {
 }
 
 /**
- * Charge one AI action: own key → free daily allowance → credits. With a
+ * Charge one AI action: organisation key → free daily allowance → credits. With a
  * `ref`, the same action is charged at most once (re-posts are free).
  */
 export async function chargeAi(options: {
@@ -366,6 +372,7 @@ export async function refundAi(userId: string, charge: Charge, now = new Date())
 export type UsageSummary = {
   account_id: string
   plan: AccountPlan
+  /** Organisation key on this seat (Charter / Fleet only). */
   byok: { available: boolean; configured: boolean; last4: string | null }
   today: Record<AiAction, { used: number; limit: number }>
   credits: { balance: number; monthly: number }
@@ -383,7 +390,11 @@ export async function usageSummary(userId: string, now = new Date()): Promise<Us
   return {
     account_id: userId,
     plan: acct.plan,
-    byok: { available: isByokAvailable(), configured: Boolean(acct.byokCiphertext), last4: acct.byokLast4 },
+    byok: {
+      available: isByokAvailable(),
+      configured: Boolean(acct.byokCiphertext) && (ORG_KEY_PLANS as readonly string[]).includes(acct.plan),
+      last4: acct.byokLast4,
+    },
     today: Object.fromEntries(
       AI_ACTIONS.map((a) => [a, { used: Math.min(used?.[a] ?? 0, FREE_DAILY_LIMITS[a]), limit: FREE_DAILY_LIMITS[a] }]),
     ) as UsageSummary["today"],
@@ -396,22 +407,25 @@ export async function usageSummary(userId: string, now = new Date()): Promise<Us
 export class ByokUnavailableError extends Error {
   readonly status = 503
   constructor() {
-    super("Bring-your-own-key is not configured on this server (BYOK_ENCRYPTION_KEY).")
+    super("Organisation keys are not configured on this server (BYOK_ENCRYPTION_KEY).")
     this.name = "ByokUnavailableError"
   }
 }
 
-/** Store a verified key (encrypted). Callers verify it with OpenRouter first. */
-export async function saveByokKey(userId: string, key: string, email?: string | null): Promise<{ last4: string }> {
+/** Admin: store the organisation's verified key (encrypted) on a Charter / Fleet seat. */
+export async function saveOrgKey(userId: string, key: string): Promise<{ last4: string }> {
   const cipherKey = byokCipherKey()
   if (!cipherKey) throw new ByokUnavailableError()
   const last4 = keyLast4(key)
-  await store().setByok(userId, encryptKey(key, cipherKey), last4, email)
+  await store().setByok(userId, encryptKey(key, cipherKey), last4)
   return { last4 }
 }
 
-export async function removeByokKey(userId: string): Promise<void> {
+/** Admin: drop the organisation key from a seat. True when one was removed. */
+export async function clearOrgKey(userId: string): Promise<boolean> {
+  if (!(await store().getAccount(userId))?.byokCiphertext) return false
   await store().setByok(userId, null, null)
+  return true
 }
 
 /** Admin: move an account to a plan and fill this month's credits. */

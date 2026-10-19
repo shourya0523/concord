@@ -20,8 +20,8 @@ export const maxDuration = 60;
  * OPENROUTER_API_KEY is configured; otherwise 501 `transcription_unavailable` so the client keeps
  * the typed answer box. Session-gated like other practice APIs (proxy.ts).
  *
- * Metered as one "voice" action (lib/billing/meter.ts): on the user's own
- * OpenRouter key when saved, else the free daily allowance, then credits;
+ * Metered as one "voice" action (lib/billing/meter.ts): on the organisation's
+ * OpenRouter key (Charter / Fleet), else the free daily allowance, then credits;
  * 402 `limit_reached` when all are spent. Failed transcriptions are refunded.
  */
 export async function POST(request: Request) {

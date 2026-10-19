@@ -20,7 +20,7 @@ export default async function SignUpPage({
   const configured = isNeonAuthConfigured()
   const raw = (await searchParams).next
   const next = safeNextPath(Array.isArray(raw) ? raw[0] : raw)
-  // Team and Custom are arranged by email, so every new account starts on Individual.
+  // Paid plans are requested from Settings or by email, so every account starts on Standby.
   const plan = getPlan(DEFAULT_PLAN_ID)
 
   return (
@@ -35,7 +35,7 @@ export default async function SignUpPage({
         <span className="font-medium text-foreground">
           {plan.name} · {plan.price}
         </span>{" "}
-        — {plan.cadence.toLowerCase()}, {plan.upgrade}.{" "}
+        — {plan.name}, {plan.cadence.toLowerCase()}.{" "}
         <Link href="/pricing" className="text-foreground underline-offset-4 hover:underline">
           See plans
         </Link>

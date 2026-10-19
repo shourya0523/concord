@@ -3,7 +3,7 @@
  * lib/billing/meter.ts applies the order below with atomic store steps.
  *
  * Every model-backed action is charged in order:
- *   1. the user's own OpenRouter key (byok) — never limited
+ *   1. the organisation's OpenRouter key (byok, Charter / Fleet) — never limited
  *   2. the free daily allowance (UTC day)
  *   3. monthly credits (refilled lazily on the first charge of a UTC month)
  * and refused when all three are exhausted.
@@ -70,5 +70,5 @@ export function defaultMonthlyCredits(plan: AccountPlan, seatCredits: number, pa
 /** User-facing copy for a refused charge. */
 export function limitMessage(action: AiAction): string {
   const what = action === "grade" ? "AI grades" : action === "coaching" ? "coaching reports" : "voice answers"
-  return `You've used today's free ${what}. Credits or your own OpenRouter key lift the cap (Settings → Plan).`
+  return `You've used today's free ${what}. Supersonic credits lift the cap (Settings → Plan).`
 }

@@ -3,9 +3,7 @@ import test from "node:test"
 
 delete process.env.DATABASE_URL
 
-const { aiContext, chargeAi, refundAi, removeByokKey, saveByokKey, setAccountPlan, usageSummary } = await import(
-  "./meter"
-)
+const { aiContext, chargeAi, clearOrgKey, refundAi, saveOrgKey, setAccountPlan, usageSummary } = await import("./meter")
 const { FREE_DAILY_LIMITS } = await import("./plans")
 
 const now = new Date("2026-10-19T12:00:00Z")
@@ -52,24 +50,39 @@ test("a ref is charged once", async () => {
   assert.equal((await usageSummary(userId, now)).today.coaching.used, 1)
 })
 
-test("own key: AI runs on it, nothing counts against limits", async () => {
+test("Charter / Fleet org key: AI runs on it with no caps", async () => {
   const userId = user()
-  const key = "sk-or-v1-aaaaaaaaaaaaaaaaaaaaaaaa1234"
-  assert.deepEqual(await saveByokKey(userId, key), { last4: "1234" })
+  const key = "sk-or-v1-orgorgorgorgorgorgorgorg0002"
+  await setAccountPlan({ userId, plan: "team", now })
+  assert.deepEqual(await saveOrgKey(userId, key), { last4: "0002" })
 
   const ctx = await aiContext(userId)
   assert.equal(ctx.byok, true)
   assert.equal(ctx.env.OPENROUTER_API_KEY, key)
-
   for (let i = 0; i < FREE_DAILY_LIMITS.voice + 5; i++) {
     const charge = await chargeAi({ userId, action: "voice", byok: ctx.byok, now })
     assert.equal(charge.ok && charge.source, "byok")
   }
   const summary = await usageSummary(userId, now)
-  assert.deepEqual(summary.byok, { available: true, configured: true, last4: "1234" })
+  assert.deepEqual(summary.byok, { available: true, configured: true, last4: "0002" })
   assert.equal(summary.today.voice.used, 0)
   assert.ok(!JSON.stringify(summary).includes(key), "summary never carries the key")
 
-  await removeByokKey(userId)
+  assert.equal(await clearOrgKey(userId), true)
+  assert.equal(await clearOrgKey(userId), false)
   assert.equal((await aiContext(userId)).byok, false)
+})
+
+test("individual plans never run on a stored key", async () => {
+  const userId = user()
+  await setAccountPlan({ userId, plan: "custom", now })
+  await saveOrgKey(userId, "sk-or-v1-orgorgorgorgorgorgorgorg0003")
+  assert.equal((await aiContext(userId)).byok, true)
+
+  // Seat moved to Supersonic without the key being cleared: metering applies again.
+  await setAccountPlan({ userId, plan: "credits", now })
+  const ctx = await aiContext(userId)
+  assert.equal(ctx.byok, false)
+  assert.notEqual(ctx.env.OPENROUTER_API_KEY, "sk-or-v1-orgorgorgorgorgorgorgorg0003")
+  assert.equal((await usageSummary(userId, now)).byok.configured, false)
 })

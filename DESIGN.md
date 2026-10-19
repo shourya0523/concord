@@ -1655,23 +1655,25 @@ How they're built:
 
 `/pricing` is public, on the cream paper of the auth shell. The landing header links to it.
 
-| Tier | Price | AI allowance |
-|---|---|---|
-| Individual | Free, or $10/month for credits | Free daily limits: 10 graded answers, 1 coaching report, 3 voice answers. 1,500 credits a month lift the caps (grade 1, coaching 2, voice 3) |
-| Your own key | Free | No caps: AI runs on the user's OpenRouter key, which they pay for directly |
-| Team | $5 a seat a month, 3-seat minimum | 1,000 credits per seat |
-| Custom | Contact | Email sohumbalsara@gmail.com |
+Tier names follow the Paper Concorde theme:
 
-- **Plans**: `apps/web/lib/billing/plans.ts` (pure, unit tested) feeds the pricing page, the sign-up note and Settings → Plan.
-- **Metering** (`lib/billing/meter.ts`, migration 064): every model-backed action is charged in order: the user's own key (never limited), then the free daily allowance (UTC day), then credits (refilled on the first charge of a UTC month). When all are spent:
+| Tier (id) | For | Price | AI allowance |
+|---|---|---|---|
+| **Standby** (`free`) | Individual | Free | Daily limits: 10 graded answers, 1 coaching report, 3 voice answers |
+| **Supersonic** (`credits`) | Individual | $10 a month | 1,500 credits a month on top of the daily uses (grade 1, coaching 2, voice 3) |
+| **Charter** (`team`) | Team | $5 a seat a month, 3-seat minimum | 1,000 credits per seat, or the organisation's own OpenRouter key with no caps |
+| **Fleet** (`custom`) | Custom | Contact | Negotiated credits, or the organisation's own OpenRouter key |
+
+- **Plans**: `apps/web/lib/billing/plans.ts` (pure, unit tested) feeds the pricing page, the sign-up note and Settings → Plan. The ids match `billing_accounts.plan`.
+- **Metering** (`lib/billing/meter.ts`, migration 064): every model-backed action is charged in order: the organisation key (Charter / Fleet only, never limited), then the free daily allowance (UTC day), then credits (refilled on the first charge of a UTC month). When all are spent:
   - grading falls back to the deterministic grade, with a note in the feedback
   - coaching keeps the deterministic summary
   - `/api/transcribe` answers 402 `limit_reached`
 - **What counts**: a grade is charged once, only when a model runs. Cache hits and rule-based grades are free. Coaching is charged once per session. Failed model calls are refunded. Practice and RAG briefs are not metered.
 - **Atomic**: each step is one conditional SQL statement, so concurrent requests can't overspend (`meter.db.test.ts`). Metering fails open on database errors so grading never goes down with billing.
-- **Your own key**: Settings → Plan → "Your own OpenRouter key".
-  - `PUT /api/billing/byok` checks the key with OpenRouter (`GET /key`), then stores it AES-256-GCM encrypted under `BYOK_ENCRYPTION_KEY`.
-  - The browser only ever sees the last four characters, and `DELETE` removes the key.
-  - Without `BYOK_ENCRYPTION_KEY`, production turns the feature off.
-- **Granting plans** (until checkout exists): "Get credits" / "Get team access" emails include the user's account ID. An admin (`ADMIN_EMAILS`) calls `POST /api/admin/billing {user_id, plan, monthly_credits?}`.
-- **Why these numbers**: `docs/product/pricing-unit-economics.md` (generated with `scripts/unit_economics.py`). Break-even is about 10 paid Individuals or 17 Team seats against ~$75/month fixed costs.
+- **Bring your own key is a Charter / Fleet perk.** Individuals can't add a key.
+  - An admin sends `openrouter_key` with `POST /api/admin/billing`. It is checked with OpenRouter (`GET /key`), then stored AES-256-GCM encrypted under `BYOK_ENCRYPTION_KEY` on every seat.
+  - The key is only used while the seat is on Charter / Fleet. Members see "Organisation key" and the last four characters in Settings, and can't change it.
+  - Without `BYOK_ENCRYPTION_KEY`, production turns org keys off.
+- **Granting plans** (until checkout exists): the "Go Supersonic" / "Book a charter" emails include the user's account ID. An admin (`ADMIN_EMAILS`) calls `POST /api/admin/billing {user_id | user_ids, plan, monthly_credits?, openrouter_key?, remove_org_key?}`.
+- **Why these numbers**: `docs/product/pricing-unit-economics.md` (generated with `scripts/unit_economics.py`). Break-even is about 10 Supersonic subscribers or 17 Charter seats against ~$75/month fixed costs.

@@ -1,4 +1,4 @@
-"""Concord unit economics: break-even for Free / own key / Individual ($10) / Team ($5 a seat).
+"""Concord unit economics: break-even for Standby (free) / Supersonic ($10) / Charter ($5 a seat) / Fleet.
 
 Prices: docs/deployment/llm-stack.md (OpenRouter list, 2026-09-23) and vendor
 pages checked 2026-10-19. Rerun after any price or usage change:
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         print(f"  {k:6s} ${v:.6f} / ${loaded(v):.6f}")
     print(f"Typical paid user AI cost/month: ${month_cost(TYPICAL):.3f}")
     print(f"Typical free user cost/month (incl. infra): ${free_cost:.3f}")
-    print(f"Own-key user cost/month (infra only): ${MARGINAL_INFRA:.3f}")
+    print(f"Charter seat on the org's own key @10 seats: ${SEAT_PRICE - stripe(SEAT_PRICE * 10) / 10 - MARGINAL_INFRA:.2f}")
     print(f"Worst-case free user (maxes daily limits): ${worst_free:.3f}")
     print(f"Worst-case Individual (burns {PAID_CREDITS} credits): ${worst_paid:.3f}")
     print(f"Worst-case seat (burns {SEAT_CREDITS} credits): ${worst_seat:.3f}")

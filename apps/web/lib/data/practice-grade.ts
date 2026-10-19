@@ -7,7 +7,7 @@
  * selection (Jev decisions via LLM_DECISION_MODEL, small-model escalation via
  * LLM_SMALL_MODEL), the grade router (models only when required) and logs.
  * AI metering (lib/billing/meter.ts): a grade is charged once, only when a
- * model runs, on the user's own OpenRouter key when they saved one; a failed
+ * model runs, on the organisation's OpenRouter key on Charter / Fleet seats; a failed
  * model grade is refunded.
  */
 import { GRADER_VERSION } from "@ibpe/contracts";

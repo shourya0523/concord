@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic"
 
 /**
  * GET /api/billing/usage — plan, today's free AI usage against the daily
- * limits, credit balance, and whether an own OpenRouter key is saved (last
+ * limits, credit balance, and whether an organisation OpenRouter key is set (last
  * four characters only; the key itself never leaves the server).
  */
 export async function GET() {

@@ -24,7 +24,7 @@ describe("AI metering on Postgres (opt-in)", { skip: !enabled }, () => {
     const { resetDbClients } = await import("@ibpe/database")
     resetDbClients()
 
-    const { aiContext, chargeAi, refundAi, removeByokKey, saveByokKey, setAccountPlan, usageSummary } = await import(
+    const { aiContext, chargeAi, clearOrgKey, refundAi, saveOrgKey, setAccountPlan, usageSummary } = await import(
       "./meter"
     )
     const { FREE_DAILY_LIMITS } = await import("./plans")
@@ -67,9 +67,10 @@ describe("AI metering on Postgres (opt-in)", { skip: !enabled }, () => {
     assert.equal(first.ok && first.repeat, false)
     assert.equal(again.ok && again.repeat, true)
 
-    // Own key: stored encrypted, AI env uses it, no caps.
+    // Charter seat with the organisation's key: stored encrypted, AI runs on it, no caps.
     const key = `sk-or-v1-${"b".repeat(32)}9876`
-    await saveByokKey(bob, key)
+    await setAccountPlan({ userId: bob, plan: "team", now })
+    await saveOrgKey(bob, key)
     const ctx = await aiContext(bob)
     assert.equal(ctx.byok, true)
     assert.equal(ctx.env.OPENROUTER_API_KEY, key)
@@ -80,13 +81,15 @@ describe("AI metering on Postgres (opt-in)", { skip: !enabled }, () => {
     summary = await usageSummary(bob, now)
     assert.deepEqual(summary.byok, { available: true, configured: true, last4: "9876" })
     assert.equal(summary.today.voice.used, 0)
-    assert.equal(summary.plan, "free")
+    assert.equal(summary.plan, "team")
 
-    // Isolation: Bob's plan and Alice's usage don't leak across accounts.
-    assert.equal((await usageSummary(bob, now)).credits.monthly, 0)
+    // Isolation: Bob's key and plan don't leak to Alice.
     assert.equal((await aiContext(alice)).byok, false)
+    assert.equal((await usageSummary(alice, now)).plan, "credits")
 
-    await removeByokKey(bob)
+    // Off Charter, the key stops counting; then the admin clears it.
+    await setAccountPlan({ userId: bob, plan: "credits", now })
     assert.equal((await aiContext(bob)).byok, false)
+    assert.equal(await clearOrgKey(bob), true)
   })
 })

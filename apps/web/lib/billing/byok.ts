@@ -1,5 +1,7 @@
 /**
- * Bring-your-own OpenRouter key (DESIGN.md §17.4, migration 064).
+ * Organisation OpenRouter keys: the bring-your-own-key perk on Charter /
+ * Fleet (team / custom) seats (DESIGN.md §17.4, migration 064). Admins set
+ * them via POST /api/admin/billing; individuals can't add one.
  *
  * The key is encrypted with AES-256-GCM under BYOK_ENCRYPTION_KEY before it
  * is stored, decrypted only on the server for the request that needs it, and
