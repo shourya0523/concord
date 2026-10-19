@@ -806,6 +806,9 @@ export function LandingHeader() {
           <span className="hidden font-display text-xl tracking-tight text-ink sm:inline">Concord</span>
         </Link>
         <nav aria-label="Account" className="flex items-center gap-1">
+          <Link href="/pricing" className="rounded-md px-3 py-2 text-sm font-medium text-ink underline-offset-4 hover:underline">
+            Pricing
+          </Link>
           <Link href="/sign-in" className="rounded-md px-3 py-2 text-sm font-medium text-ink underline-offset-4 hover:underline">
             Sign in
           </Link>

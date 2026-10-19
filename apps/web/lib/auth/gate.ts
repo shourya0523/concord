@@ -1,6 +1,6 @@
 /**
- * Login gate policy (DESIGN.md §17): the landing page and the auth flow are
- * public; every other page and API needs a Neon Auth session. Pure — no
+ * Login gate policy (DESIGN.md §17): the landing page, pricing and the auth
+ * flow are public; every other page and API needs a Neon Auth session. Pure — no
  * Next.js or auth imports — so proxy.ts, the sign-in pages and tests share it.
  */
 
@@ -8,7 +8,14 @@ export const SIGN_IN_PATH = "/sign-in"
 export const SIGN_UP_PATH = "/sign-up"
 
 /** Exact public pages. */
-const PUBLIC_EXACT = new Set(["/", SIGN_IN_PATH, SIGN_UP_PATH, "/api/health", "/api/notifications/unsubscribe"])
+const PUBLIC_EXACT = new Set([
+  "/",
+  "/pricing",
+  SIGN_IN_PATH,
+  SIGN_UP_PATH,
+  "/api/health",
+  "/api/notifications/unsubscribe",
+])
 
 /**
  * Public prefixes: Neon Auth's handler and callbacks, and the cron endpoint

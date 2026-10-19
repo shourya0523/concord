@@ -3,9 +3,10 @@ import test from "node:test"
 
 import { isApiPath, isLoginRedirect, isPublicPath, safeNextPath, signInRedirectPath, withNext } from "./gate"
 
-test("only the landing, auth flow, health, cron, unsubscribe and static files are public", () => {
+test("only the landing, pricing, auth flow, health, cron, unsubscribe and static files are public", () => {
   for (const path of [
     "/",
+    "/pricing",
     "/sign-in",
     "/sign-up",
     "/api/auth/get-session",
@@ -39,6 +40,7 @@ test("only the landing, auth flow, health, cron, unsubscribe and static files ar
     "/api/notifications/prefs",
     "/api/profile",
     "/sign-inx",
+    "/pricing/team",
     "/api/healthz",
   ]) {
     assert.ok(!isPublicPath(path), path)

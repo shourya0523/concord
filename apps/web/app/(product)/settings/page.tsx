@@ -1,12 +1,13 @@
 import { neonAuthPublicStatus } from "@/lib/auth/config"
 import { SettingsAccountPanel } from "@/components/settings-account-panel"
+import { SettingsPlanPanel } from "@/components/settings-plan-panel"
 import { SettingsProfileIsland } from "@/components/settings-island"
 import { TargetSelectIsland } from "@/components/target-select-island"
 import { ThemePreference } from "@/components/theme-preference"
 
 export const metadata = {
   title: "Settings · Concord",
-  description: "Targets, prep profile, and account",
+  description: "Targets, prep profile, plan, and account",
 }
 
 export default function SettingsPage() {
@@ -44,6 +45,13 @@ export default function SettingsPage() {
           Theme
         </h2>
         <ThemePreference />
+      </section>
+
+      <section className="space-y-3 border border-border px-4 py-4">
+        <h2 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+          Plan
+        </h2>
+        <SettingsPlanPanel />
       </section>
 
       <section className="space-y-3 border border-border px-4 py-4">

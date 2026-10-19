@@ -1596,7 +1596,7 @@ Nothing animates on page load except state-confirmed reactions. `prefers-reduced
 The whole app sits behind Neon Auth sign-in; only the landing page is public.
 
 - **Policy** (`apps/web/lib/auth/gate.ts`, unit tested):
-  - Public paths: `/`, `/sign-in`, `/sign-up`, Neon Auth's `/api/auth/*` and `/auth/*`, `/api/health`, `/api/cron/*` (CRON_SECRET), `/api/notifications/unsubscribe` (signed email links), and static files.
+  - Public paths: `/`, `/pricing`, `/sign-in`, `/sign-up`, Neon Auth's `/api/auth/*` and `/auth/*`, `/api/health`, `/api/cron/*` (CRON_SECRET), `/api/notifications/unsubscribe` (signed email links), and static files.
   - Everything else needs a session.
 - **Proxy** (`apps/web/proxy.ts` → `lib/auth/gate-proxy.ts`) matches every route except Next build output and files with an extension. It runs the Neon Auth middleware and rewrites its sign-in redirect:
   - Pages go to `/sign-in?next=<path + query>`.
@@ -1650,3 +1650,18 @@ How they're built:
 - Each plays once per hover and fires on tap via `:active`.
 - All of it is skipped for reduced motion.
 - The desk items opt back into pointer events, while the hero copy wrapper passes them through (only the CTA stays clickable).
+
+### 17.4 Pricing
+
+`/pricing` is public, on the cream paper of the auth shell. The landing header links to it.
+
+| Tier | Price | AI allowance |
+|---|---|---|
+| Individual | Free, or $10/month for credits | Free daily limits: 10 graded answers, 1 coaching report, 3 voice answers. 1,500 credits a month lift the caps (grade 1, coaching 2, voice 3) |
+| Team | $5 a seat a month, 3-seat minimum | 1,000 credits per seat, pooled |
+| Custom | Contact | Email sohumbalsara@gmail.com |
+
+- **Source of truth**: `apps/web/lib/billing/plans.ts` (pure, unit tested). The pricing page, the sign-up plan note and Settings → Plan all read it.
+- **Billing is not wired yet.** Every Neon Auth account is on free Individual. "Get credits", Team and Custom open a `mailto:` until checkout exists, and the limits are not enforced yet.
+- **Why these numbers**: `docs/product/pricing-unit-economics.md` (generated with `scripts/unit_economics.py`). Break-even is about 10 paid Individuals or 17 Team seats against ~$75/month fixed costs.
+- Practice (bank, heat, daily sets, drills, leagues) is never metered; only model calls are.
