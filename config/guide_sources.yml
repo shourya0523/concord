@@ -1,0 +1,21 @@
+# Licensed interview guides — primary teaching truth (ADR 0007).
+# Raw PDFs live in data/guides/ (gitignored). Copy from local attachments before ingest.
+
+guides:
+  - id: biws_400_2026
+    title: "BIWS 400 Questions Guide for Investment Banking Interviews (2025/2026 Edition)"
+    filename: "400_Questions_2026.pdf"
+    content_hash: "2d41e70dfc269fe32c641756de5f532850d64ad3f0b770dacc4fffcf95b502f9"
+    provenance: licensed_guide
+    product_role: teaching_qa
+    domain: ib
+    priority: 1  # preferred on dedupe conflict
+
+  - id: mi_400_ib
+    title: "M&I 400 Investment Banking Interview Questions & Answers"
+    filename: "M_I_400_Investment_Banking_Questions.pdf"
+    content_hash: "0cec7ff54484c4a526219d551abe1e616c2e07bbcbc3a83c5aa4ac22e7fae52a"
+    provenance: licensed_guide
+    product_role: teaching_qa
+    domain: ib
+    priority: 2
