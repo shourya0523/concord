@@ -64,11 +64,15 @@ export async function publicConcept(slug: string) {
 }
 
 export async function publicModule(slug: string) {
-  const [detail, concepts] = await Promise.all([getLearningModule(slug), publicConcepts()])
+  const [detail, concepts, modules] = await Promise.all([getLearningModule(slug), publicConcepts(), publicModules()])
   if (!detail || detail.module.slug !== slug) return null
   const learningModule = detail.module
   const byId = new Map(concepts.map((c) => [c.id, c]))
+  const moduleById = new Map(modules.map((m) => [m.id, m]))
+  const index = modules.findIndex((m) => m.id === learningModule.id)
   return {
+    prerequisiteModules: learningModule.prereq_module_ids.flatMap((id) => moduleById.get(id) ?? []),
+    nextModule: index >= 0 ? (modules[index + 1] ?? null) : null,
     module: learningModule,
     concepts: learningModule.concept_ids.flatMap((id) => byId.get(id) ?? []),
     checkpoints: [...detail.checkpoints].sort((a, b) => a.position - b.position),

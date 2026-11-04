@@ -31,12 +31,15 @@ export default async function GuideModulePage({ params }: Props) {
   const { slug } = await params
   const data = await publicModule(slug)
   if (!data) notFound()
-  const { module: learningModule, concepts, checkpoints } = data
+  const { module: learningModule, concepts, checkpoints, prerequisiteModules, nextModule } = data
 
   return (
     <article className="space-y-10">
       <header className="space-y-3">
-        <Breadcrumbs items={[{ label: "Guides", href: guidePaths.hub }, { label: learningModule.title }]} />
+        <Breadcrumbs
+          items={[{ label: "Guides", href: guidePaths.hub }, { label: learningModule.title }]}
+          currentPath={guidePaths.module(learningModule.slug)}
+        />
         <h1 className="font-display text-4xl leading-[1.05] tracking-tight md:text-6xl">{learningModule.title}</h1>
         <p className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
           {String(learningModule.domain).toUpperCase()} · about {learningModule.estimated_minutes} min
@@ -62,6 +65,22 @@ export default async function GuideModulePage({ params }: Props) {
               <li key={checkpoint.id}>{checkpoint.title}</li>
             ))}
           </ol>
+        </GuideSection>
+      ) : null}
+
+      {prerequisiteModules.length > 0 ? (
+        <GuideSection title="Study these modules first">
+          <LinkList items={prerequisiteModules.map((m) => ({ href: guidePaths.module(m.slug), label: m.title }))} />
+        </GuideSection>
+      ) : null}
+
+      {nextModule ? (
+        <GuideSection title="Next module">
+          <LinkList
+            items={[
+              { href: guidePaths.module(nextModule.slug), label: nextModule.title, note: `${nextModule.estimated_minutes} min` },
+            ]}
+          />
         </GuideSection>
       ) : null}
 

@@ -1659,4 +1659,6 @@ Plan and rationale: `docs/research/seo-geo-plan.md`.
 - Content comes from `lib/seo/public-content.ts`: concept summaries, diagrams, prerequisites, module outlines, firm names and **aggregate** topic heat. Never raw scraped question or answer text.
 - Every page has a unique title, description and canonical, visible breadcrumbs, cross-links (concept ↔ firm, concept → prerequisites and siblings, module → concepts) and a sign-up CTA whose `next` points at the in-app page.
 - Firms with zero signals get no page (thin content).
+- **Cross-linking (step 3):** `Breadcrumbs` also emits `BreadcrumbList` JSON-LD; modules link their prerequisite modules and the next module; firm topics link to their concept page or render as plain text (no vague hub links). The landing page ends with `GuideLinksFooter` (top concepts and firms), so key guide pages are one click from `/`.
+- **Link audit:** `lib/seo/link-audit.ts` (unit tested) + `e2e/seo-links-gate.spec.ts` crawl the signed-out site in CI and fail on orphan sitemap pages, pages more than 3 clicks from `/`, and internal links that aren't 200 (404s or redirects into the login gate).
 - `app/robots.ts` keeps crawlers off `/api/`, `/admin`, `/mockups`, `/ds`, auth pages; `app/sitemap.ts` lists `/`, `/guide` and every guide page. Both end in a file extension, so the gate leaves them public.

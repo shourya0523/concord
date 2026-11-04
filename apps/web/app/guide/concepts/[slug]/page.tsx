@@ -49,6 +49,7 @@ export default async function GuideConceptPage({ params }: Props) {
               : []),
             { label: concept.title },
           ]}
+          currentPath={guidePaths.concept(concept.slug)}
         />
         <h1 className="font-display text-4xl leading-[1.05] tracking-tight md:text-6xl">{concept.title}</h1>
         {topic ? (

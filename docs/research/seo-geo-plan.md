@@ -2,7 +2,9 @@
 
 _Research date: 2026-11-04. Site: https://concord-umber.vercel.app_
 
-> **Status (2026-11-04):** Steps 1 and 2 shipped. Public pages live under
+> **Status (2026-11-04):** Steps 1, 2 and 3 shipped (step 3: breadcrumb JSON-LD,
+> module ↔ module links, landing → top guides footer, CI link audit in
+> `e2e/seo-links-gate.spec.ts`). Public pages live under
 > `/guide` (hub, `/guide/concepts/[slug]`, `/guide/modules/[slug]`,
 > `/guide/firms/[firm]`) rather than opening the in-app URLs, because the app
 > pages call signed-in APIs from the browser. Plus `robots.txt` and `sitemap.xml`.

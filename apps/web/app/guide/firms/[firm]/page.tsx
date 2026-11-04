@@ -45,7 +45,7 @@ export default async function GuideFirmPage({ params }: Props) {
   return (
     <article className="space-y-10">
       <header className="space-y-3">
-        <Breadcrumbs items={[{ label: "Guides", href: guidePaths.hub }, { label: firm.name }]} />
+        <Breadcrumbs items={[{ label: "Guides", href: guidePaths.hub }, { label: firm.name }]} currentPath={guidePaths.firm(firm.slug)} />
         <h1 className="font-display text-4xl leading-[1.05] tracking-tight md:text-6xl">
           {firm.name} interview prep
         </h1>
@@ -61,7 +61,7 @@ export default async function GuideFirmPage({ params }: Props) {
             items={topics.map((t) => {
               const conceptSlug = conceptSlugForTopic(t.topic)
               return {
-                href: conceptSlug ? guidePaths.concept(conceptSlug) : guidePaths.hub,
+                href: conceptSlug ? guidePaths.concept(conceptSlug) : undefined,
                 label: topicLabel(t.topic),
                 note: heatWord(t.intensity),
               }

@@ -18,7 +18,7 @@ export default async function GuideHubPage() {
   return (
     <div className="space-y-12">
       <header className="space-y-3">
-        <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides" }]} />
+        <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides" }]} currentPath={guidePaths.hub} />
         <h1 className="font-display text-4xl leading-[1.05] tracking-tight md:text-6xl">
           IB and PE interview guides
         </h1>
