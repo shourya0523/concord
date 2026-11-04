@@ -6,6 +6,7 @@
  */
 import { getFirmBySlugOrId, listFirmCatalog, type FirmCatalogItem } from "@/lib/data/catalog"
 import { getFirmTopicHeat } from "@/lib/data/firms"
+import { getMultiFirmHeat } from "@/lib/data/prep"
 import { getConceptDetail, getLearningModule, listConcepts, listLearningModules } from "@/lib/data/learning"
 import { withNext } from "@/lib/auth/gate"
 
@@ -16,6 +17,7 @@ export const guidePaths = {
   concept: (slug: string) => `${GUIDE_PATH}/concepts/${slug}`,
   module: (slug: string) => `${GUIDE_PATH}/modules/${slug}`,
   firm: (slug: string) => `${GUIDE_PATH}/firms/${slug}`,
+  topicFrequency: `${GUIDE_PATH}/research/most-asked-interview-topics`,
 }
 
 /** Sign-up link that lands the new user on the in-app version of a page. */
@@ -99,4 +101,81 @@ export async function publicFirm(slug: string) {
     console.warn("[guide] firm heat read failed", err)
   }
   return { firm, topics, relevantConcepts: relevant, coreConcepts: concepts }
+}
+
+/** A firm "asks a topic often" when it has at least this many reports on it. */
+export const FIRM_TOPIC_MIN_REPORTS = 10
+
+export type TopicFrequencyRow = {
+  topic: string
+  /** Tagged interview reports on this topic, across all firms. */
+  reports: number
+  /** Share of all tagged reports (0–1). */
+  share: number
+  /** Firms with at least FIRM_TOPIC_MIN_REPORTS reports on this topic. */
+  firmsAskingOften: number
+}
+
+export type TopicFrequency = {
+  rows: TopicFrequencyRow[]
+  firmCount: number
+  taggedReports: number
+  totalReports: number
+  /** Top technical (non-behavioural) topic per firm, biggest firms first. */
+  byFirm: Array<{ firm: FirmCatalogItem; topic: string; share: number }>
+}
+
+/**
+ * Original-data piece (SEO/GEO plan step 4): which technical topics IB and PE
+ * interviews ask most, aggregated across every firm in the catalog. Counts
+ * only — no question text.
+ */
+export async function topicFrequency(): Promise<TopicFrequency> {
+  const firms = await publicFirms()
+  const empty: TopicFrequency = { rows: [], firmCount: firms.length, taggedReports: 0, totalReports: 0, byFirm: [] }
+  if (firms.length === 0) return empty
+  let heat
+  try {
+    heat = await getMultiFirmHeat(firms.map((firm) => firm.id))
+  } catch (err) {
+    console.warn("[guide] topic frequency read failed", err)
+    return empty
+  }
+  const tagged = heat.topics.filter((row) => row.topic_id !== "untagged" && row.sample_size > 0)
+  const totals = new Map<string, { reports: number; often: number }>()
+  const perFirm = new Map<string, Map<string, number>>()
+  for (const row of tagged) {
+    const total = totals.get(row.topic_id) ?? { reports: 0, often: 0 }
+    total.reports += row.sample_size
+    if (row.sample_size >= FIRM_TOPIC_MIN_REPORTS) total.often += 1
+    totals.set(row.topic_id, total)
+    const firmTopics = perFirm.get(row.firm_id) ?? new Map<string, number>()
+    firmTopics.set(row.topic_id, (firmTopics.get(row.topic_id) ?? 0) + row.sample_size)
+    perFirm.set(row.firm_id, firmTopics)
+  }
+  const taggedReports = [...totals.values()].reduce((sum, total) => sum + total.reports, 0)
+  const rows = [...totals.entries()]
+    .map(([topic, total]) => ({
+      topic,
+      reports: total.reports,
+      share: taggedReports ? total.reports / taggedReports : 0,
+      firmsAskingOften: total.often,
+    }))
+    .sort((a, b) => b.reports - a.reports || a.topic.localeCompare(b.topic))
+  const byFirm = firms.flatMap((firm) => {
+    const technical = [...(perFirm.get(firm.id) ?? new Map<string, number>()).entries()].filter(
+      ([topic]) => topic !== "behavioral",
+    )
+    if (technical.length === 0) return []
+    const firmTotal = technical.reduce((sum, [, n]) => sum + n, 0)
+    const [topic, count] = technical.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]!
+    return [{ firm, topic, share: firmTotal ? count / firmTotal : 0 }]
+  })
+  return {
+    rows,
+    firmCount: firms.length,
+    taggedReports,
+    totalReports: firms.reduce((sum, firm) => sum + firm.signals, 0),
+    byFirm,
+  }
 }

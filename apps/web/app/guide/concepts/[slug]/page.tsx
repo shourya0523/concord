@@ -1,10 +1,14 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { DiagramIsland } from "@/components/diagram-island"
-import { Breadcrumbs, GuideSection, LinkList, SignUpCta } from "@/components/guide/guide-ui"
+import { Breadcrumbs, GuideSection, JsonLd, LinkList, SignUpCta } from "@/components/guide/guide-ui"
+import { LessonMarkdown } from "@/components/lesson-markdown"
 import { pitfallForTopic } from "@/lib/pitfalls"
+import { lessonExcerptsForConcept } from "@/lib/seo/lesson-excerpts"
 import { guidePaths, publicConcept, signUpFor } from "@/lib/seo/public-content"
+import { learningResourceLd } from "@/lib/seo/structured-data"
 import { topicLabel } from "@/lib/topics"
 
 export const revalidate = 3600
@@ -37,9 +41,19 @@ export default async function GuideConceptPage({ params }: Props) {
   const data = await publicConcept(slug)
   if (!data) notFound()
   const { concept, topic, diagram, parentModule, prerequisites, related, askedAt } = data
+  const lessons = lessonExcerptsForConcept(concept.id)
+  const fullLessonHref = signUpFor(parentModule ? `/learn/${parentModule.slug}` : `/concepts/${concept.slug}`)
 
   return (
     <article className="space-y-10">
+      <JsonLd
+        data={learningResourceLd({
+          name: concept.title,
+          description: concept.summary ?? null,
+          path: guidePaths.concept(concept.slug),
+          course: parentModule ? { name: parentModule.title, path: guidePaths.module(parentModule.slug) } : null,
+        })}
+      />
       <header className="space-y-3">
         <Breadcrumbs
           items={[
@@ -59,6 +73,31 @@ export default async function GuideConceptPage({ params }: Props) {
         ) : null}
         {concept.summary ? <p className="max-w-2xl text-[17px] leading-relaxed">{concept.summary}</p> : null}
       </header>
+
+      {lessons.map((lesson) => (
+        <section key={lesson.checkpointId} className="space-y-4" aria-labelledby={lesson.checkpointId}>
+          <h2 id={lesson.checkpointId} className="font-display text-2xl tracking-tight md:text-3xl">
+            {lesson.title}
+          </h2>
+          <div className="max-w-2xl space-y-2">
+            <h3 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+              {lesson.lead.heading}
+            </h3>
+            <LessonMarkdown markdown={lesson.lead.body} />
+          </div>
+          {lesson.answer ? (
+            <div className="max-w-2xl space-y-2 rounded-lg border border-border bg-background/40 px-5 py-4">
+              <h3 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+                How to answer in an interview
+              </h3>
+              <LessonMarkdown markdown={lesson.answer.body} />
+            </div>
+          ) : null}
+          <Link href={fullLessonHref} className="inline-block text-sm underline underline-offset-4">
+            Read the full lesson in Concord
+          </Link>
+        </section>
+      ))}
 
       {diagram ? (
         <section className="space-y-2">

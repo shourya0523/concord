@@ -29,6 +29,25 @@ test("the guide, robots.txt and sitemap are public for crawlers", async ({ page,
   const sitemap = await request.get("/sitemap.xml", { maxRedirects: 0 })
   expect(sitemap.status()).toBe(200)
   expect(await sitemap.text()).toContain("/guide/concepts/")
+
+  const llms = await request.get("/llms.txt", { maxRedirects: 0 })
+  expect(llms.status()).toBe(200)
+  const llmsText = await llms.text()
+  expect(llmsText.startsWith("# Concord")).toBe(true)
+  expect(llmsText).toContain("/guide/research/most-asked-interview-topics")
+})
+
+test("guide pages lead with lesson answers and carry structured data", async ({ page }) => {
+  await page.goto("/guide/concepts/dcf-wacc")
+  await expect(page.getByRole("heading", { name: "How to answer in an interview" }).first()).toBeVisible()
+  const types = await page
+    .locator('script[type="application/ld+json"]')
+    .evaluateAll((nodes) => nodes.map((node) => JSON.parse(node.textContent ?? "{}")["@type"]))
+  expect(types).toEqual(expect.arrayContaining(["BreadcrumbList", "LearningResource"]))
+
+  await page.goto("/guide/research/most-asked-interview-topics")
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("most-asked")
+  await expect(page.getByRole("table").first()).toBeVisible()
 })
 
 test("signed-out visitors are sent to sign-in and remembered", async ({ page }) => {

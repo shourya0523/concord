@@ -2,7 +2,9 @@
 
 _Research date: 2026-11-04. Site: https://concord-umber.vercel.app_
 
-> **Status (2026-11-04):** Steps 1, 2 and 3 shipped (step 3: breadcrumb JSON-LD,
+> **Status (2026-11-04):** Steps 1–4 shipped. Step 4: lesson excerpts with
+> interview answers on concept pages, JSON-LD, `/llms.txt`, and the original-data
+> page `/guide/research/most-asked-interview-topics`. Steps 1, 2 and 3 shipped (step 3: breadcrumb JSON-LD,
 > module ↔ module links, landing → top guides footer, CI link audit in
 > `e2e/seo-links-gate.spec.ts`). Public pages live under
 > `/guide` (hub, `/guide/concepts/[slug]`, `/guide/modules/[slug]`,

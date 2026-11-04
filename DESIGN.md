@@ -1661,4 +1661,9 @@ Plan and rationale: `docs/research/seo-geo-plan.md`.
 - Firms with zero signals get no page (thin content).
 - **Cross-linking (step 3):** `Breadcrumbs` also emits `BreadcrumbList` JSON-LD; modules link their prerequisite modules and the next module; firm topics link to their concept page or render as plain text (no vague hub links). The landing page ends with `GuideLinksFooter` (top concepts and firms), so key guide pages are one click from `/`.
 - **Link audit:** `lib/seo/link-audit.ts` (unit tested) + `e2e/seo-links-gate.spec.ts` crawl the signed-out site in CI and fail on orphan sitemap pages, pages more than 3 clicks from `/`, and internal links that aren't 200 (404s or redirects into the login gate).
-- `app/robots.ts` keeps crawlers off `/api/`, `/admin`, `/mockups`, `/ds`, auth pages; `app/sitemap.ts` lists `/`, `/guide` and every guide page. Both end in a file extension, so the gate leaves them public.
+- **GEO (step 4):**
+  - Concept pages lead with excerpts of Concord's own lessons (`lib/seo/lesson-excerpts.ts`): each lesson's opening section plus its "Interview answer" / "One-line answer" section, with a link to the full lesson in the app.
+  - JSON-LD (`lib/seo/structured-data.ts`): `Organization` + `WebSite` on `/`, `LearningResource` on concepts, `Course` on modules, `Dataset` on the research page, `BreadcrumbList` everywhere.
+  - `/guide/research/most-asked-interview-topics`: original data — topic share of tagged interview reports across all firms, and each firm's top technical topic. Counts only; headline sentence is generated from the data.
+  - `/llms.txt` (`app/llms.txt/route.ts`, builder `lib/seo/llms-txt.ts`): Markdown map of the public site per llmstxt.org.
+- `app/robots.ts` keeps crawlers off `/api/`, `/admin`, `/mockups`, `/ds`, auth pages; `app/sitemap.ts` lists `/`, `/guide` and every guide page. These and `/llms.txt` end in a file extension, so the gate leaves them public.

@@ -28,6 +28,18 @@ export default async function GuideHubPage() {
         </p>
       </header>
 
+      <GuideSection title="Research" id="research">
+        <LinkList
+          items={[
+            {
+              href: guidePaths.topicFrequency,
+              label: "The most-asked IB and PE interview topics",
+              note: "Data, by firm",
+            },
+          ]}
+        />
+      </GuideSection>
+
       <GuideSection title="Technical concepts" id="concepts">
         <LinkList
           items={concepts.map((concept) => ({

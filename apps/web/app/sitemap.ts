@@ -17,6 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     entry("/", 1),
     entry(guidePaths.hub, 0.9),
+    entry(guidePaths.topicFrequency, 0.9),
     ...modules.map((m) => entry(guidePaths.module(m.slug), 0.8)),
     ...concepts.map((c) => entry(guidePaths.concept(c.slug), 0.8)),
     ...firms.map((f) => entry(guidePaths.firm(f.slug), 0.7)),

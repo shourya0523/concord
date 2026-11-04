@@ -26,6 +26,12 @@ export async function GuideLinksFooter() {
           <Link href={guidePaths.hub} className="mt-2 inline-block text-sm text-ink underline underline-offset-4">
             Browse all guides
           </Link>
+          <Link
+            href={guidePaths.topicFrequency}
+            className="mt-2 block text-sm text-ink underline-offset-4 hover:underline"
+          >
+            The most-asked interview topics
+          </Link>
         </div>
         {columns.map((column) => (
           <nav key={column.title} aria-label={column.title}>

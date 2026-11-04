@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
-import { Breadcrumbs, GuideSection, LinkList, SignUpCta } from "@/components/guide/guide-ui"
+import { Breadcrumbs, GuideSection, JsonLd, LinkList, SignUpCta } from "@/components/guide/guide-ui"
 import { guidePaths, publicModule, signUpFor } from "@/lib/seo/public-content"
+import { courseLd } from "@/lib/seo/structured-data"
 
 export const revalidate = 3600
 
@@ -35,6 +36,14 @@ export default async function GuideModulePage({ params }: Props) {
 
   return (
     <article className="space-y-10">
+      <JsonLd
+        data={courseLd({
+          name: learningModule.title,
+          description: learningModule.summary,
+          path: guidePaths.module(learningModule.slug),
+          minutes: learningModule.estimated_minutes,
+        })}
+      />
       <header className="space-y-3">
         <Breadcrumbs
           items={[{ label: "Guides", href: guidePaths.hub }, { label: learningModule.title }]}
