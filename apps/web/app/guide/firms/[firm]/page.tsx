@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
-import { Breadcrumbs, GuideSection, LinkList, SignUpCta } from "@/components/guide/guide-ui"
+import { Breadcrumbs, GuideSection, LinkList, LockedCard, SignUpCta } from "@/components/guide/guide-ui"
+import { PUBLIC_FIRM_TOPIC_COUNT, splitPublic, unlockHref } from "@/lib/seo/access-policy"
 import { guidePaths, publicFirm, signUpFor } from "@/lib/seo/public-content"
 import { conceptSlugForTopic, topicLabel } from "@/lib/topics"
 
@@ -40,6 +41,7 @@ export default async function GuideFirmPage({ params }: Props) {
   const data = await publicFirm(slug)
   if (!data) notFound()
   const { firm, topics, relevantConcepts, coreConcepts } = data
+  const visibleTopics = splitPublic(topics, PUBLIC_FIRM_TOPIC_COUNT)
   const conceptsToPrep = relevantConcepts.length > 0 ? relevantConcepts : coreConcepts
 
   return (
@@ -51,14 +53,14 @@ export default async function GuideFirmPage({ params }: Props) {
         </h1>
         <p className="max-w-2xl text-[17px] leading-relaxed">
           Concord has tracked {firm.signals} interview {firm.signals === 1 ? "report" : "reports"} for {firm.name}.
-          {topics.length > 0 ? " These are the technical topics that come up, from most to least frequent." : ""}
+          {topics.length > 0 ? " These are the topics that come up most often." : ""}
         </p>
       </header>
 
       {topics.length > 0 ? (
         <GuideSection title={`What ${firm.name} asks about`}>
           <LinkList
-            items={topics.map((t) => {
+            items={visibleTopics.shown.map((t) => {
               const conceptSlug = conceptSlugForTopic(t.topic)
               return {
                 href: conceptSlug ? guidePaths.concept(conceptSlug) : undefined,
@@ -67,6 +69,14 @@ export default async function GuideFirmPage({ params }: Props) {
               }
             })}
           />
+          {visibleTopics.locked > 0 ? (
+            <LockedCard
+              label={`${visibleTopics.locked} more ${visibleTopics.locked === 1 ? "topic" : "topics"}`}
+              teaser={`The full ranked list of what ${firm.name} asks, with the questions candidates reported and practice for each.`}
+              href={unlockHref(`/companies/${firm.slug}`)}
+              cta={`Open the ${firm.name} prep room free`}
+            />
+          ) : null}
         </GuideSection>
       ) : null}
 

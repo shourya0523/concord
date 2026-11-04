@@ -3,9 +3,10 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { DiagramIsland } from "@/components/diagram-island"
-import { Breadcrumbs, GuideSection, JsonLd, LinkList, SignUpCta } from "@/components/guide/guide-ui"
+import { Breadcrumbs, GuideSection, JsonLd, LinkList, LockedCard, SignUpCta } from "@/components/guide/guide-ui"
 import { LessonMarkdown } from "@/components/lesson-markdown"
 import { pitfallForTopic } from "@/lib/pitfalls"
+import { isAnswerPublic, unlockHref } from "@/lib/seo/access-policy"
 import { lessonExcerptsForConcept } from "@/lib/seo/lesson-excerpts"
 import { guidePaths, publicConcept, signUpFor } from "@/lib/seo/public-content"
 import { learningResourceLd } from "@/lib/seo/structured-data"
@@ -42,7 +43,9 @@ export default async function GuideConceptPage({ params }: Props) {
   if (!data) notFound()
   const { concept, topic, diagram, parentModule, prerequisites, related, askedAt } = data
   const lessons = lessonExcerptsForConcept(concept.id)
-  const fullLessonHref = signUpFor(parentModule ? `/learn/${parentModule.slug}` : `/concepts/${concept.slug}`)
+  const lessonAppPath = parentModule ? `/learn/${parentModule.slug}` : `/concepts/${concept.slug}`
+  const fullLessonHref = unlockHref(lessonAppPath)
+  const answersPublic = isAnswerPublic(concept.slug)
 
   return (
     <article className="space-y-10">
@@ -85,7 +88,15 @@ export default async function GuideConceptPage({ params }: Props) {
             </h3>
             <LessonMarkdown markdown={lesson.lead.body} />
           </div>
-          {lesson.answer ? (
+          {lesson.answer && !answersPublic ? (
+            <LockedCard
+              label="How to answer in an interview"
+              teaser={`Concord's word-for-word interview answer for “${lesson.title}”, plus the full lesson and graded practice.`}
+              href={fullLessonHref}
+              cta="See the answer with a free account"
+            />
+          ) : null}
+          {lesson.answer && answersPublic ? (
             <div className="max-w-2xl space-y-2 rounded-lg border border-border bg-background/40 px-5 py-4">
               <h3 className="font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
                 How to answer in an interview

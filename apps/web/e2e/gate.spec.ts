@@ -38,8 +38,18 @@ test("the guide, robots.txt and sitemap are public for crawlers", async ({ page,
 })
 
 test("guide pages lead with lesson answers and carry structured data", async ({ page }) => {
+  // Open concept: the full interview answer is public.
   await page.goto("/guide/concepts/dcf-wacc")
   await expect(page.getByRole("heading", { name: "How to answer in an interview" }).first()).toBeVisible()
+
+  // Locked concept: a lock card, and the answer script is not in the HTML at all.
+  const res = await page.goto("/guide/concepts/lbo-paper-lbo")
+  const html = (await res!.text()) ?? ""
+  expect(html).not.toContain("A sponsor buys a company with mostly debt")
+  await expect(page.getByRole("link", { name: "See the answer with a free account" }).first()).toHaveAttribute(
+    "href",
+    /^\/sign-up\?next=/,
+  )
   const types = await page
     .locator('script[type="application/ld+json"]')
     .evaluateAll((nodes) => nodes.map((node) => JSON.parse(node.textContent ?? "{}")["@type"]))

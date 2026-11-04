@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { Lock } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { appBaseUrl } from "@/lib/notify/config"
@@ -98,5 +99,34 @@ export function SignUpCta({ href, children }: { href: string; children: ReactNod
         Practise this free
       </Link>
     </aside>
+  )
+}
+
+/**
+ * A locked section (lib/seo/access-policy.ts). Only the label and a teaser
+ * line are rendered — the locked content itself never reaches the HTML.
+ */
+export function LockedCard({
+  label,
+  teaser,
+  href,
+  cta = "Unlock with a free account",
+}: {
+  label: string
+  teaser: string
+  href: string
+  cta?: string
+}) {
+  return (
+    <div className="max-w-2xl rounded-lg border border-dashed border-border bg-background/40 px-5 py-4">
+      <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+        <Lock aria-hidden className="size-3.5" />
+        {label}
+      </p>
+      <p className="mt-2 text-[15px] leading-relaxed">{teaser}</p>
+      <Link href={href} className="mt-3 inline-block text-sm font-medium underline underline-offset-4">
+        {cta}
+      </Link>
+    </div>
   )
 }
