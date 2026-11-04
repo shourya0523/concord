@@ -3,7 +3,7 @@ import test from "node:test"
 
 import { isApiPath, isLoginRedirect, isPublicPath, safeNextPath, signInRedirectPath, withNext } from "./gate"
 
-test("only the landing, auth flow, health, cron, unsubscribe and static files are public", () => {
+test("only the landing, guide, auth flow, health, cron, unsubscribe and static files are public", () => {
   for (const path of [
     "/",
     "/sign-in",
@@ -22,6 +22,12 @@ test("only the landing, auth flow, health, cron, unsubscribe and static files ar
     "/opengraph-image.png",
     "/twitter-image.png",
     "/manifest.webmanifest",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/guide",
+    "/guide/concepts/dcf",
+    "/guide/modules/valuation",
+    "/guide/firms/goldman-sachs",
   ]) {
     assert.ok(isPublicPath(path), path)
   }
@@ -40,6 +46,9 @@ test("only the landing, auth flow, health, cron, unsubscribe and static files ar
     "/api/profile",
     "/sign-inx",
     "/api/healthz",
+    "/guides",
+    "/guidebook",
+    "/concepts/dcf",
   ]) {
     assert.ok(!isPublicPath(path), path)
   }

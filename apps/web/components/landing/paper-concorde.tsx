@@ -459,6 +459,10 @@ export function BoardingPass({ reduced }: { reduced: boolean }) {
         <Link href="/sign-in" className="text-ink underline underline-offset-4">
           Sign in
         </Link>
+        {" · "}
+        <Link href="/guide" className="text-ink underline underline-offset-4">
+          Browse free interview guides
+        </Link>
       </p>
     </section>
   )
@@ -806,6 +810,9 @@ export function LandingHeader() {
           <span className="hidden font-display text-xl tracking-tight text-ink sm:inline">Concord</span>
         </Link>
         <nav aria-label="Account" className="flex items-center gap-1">
+          <Link href="/guide" className="hidden rounded-md px-3 py-2 text-sm font-medium text-ink underline-offset-4 hover:underline sm:inline">
+            Guides
+          </Link>
           <Link href="/sign-in" className="rounded-md px-3 py-2 text-sm font-medium text-ink underline-offset-4 hover:underline">
             Sign in
           </Link>

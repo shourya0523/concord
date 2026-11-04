@@ -15,6 +15,22 @@ test("the landing page and auth pages stay public", async ({ page }) => {
   expect(health.status()).not.toBe(401)
 })
 
+test("the guide, robots.txt and sitemap are public for crawlers", async ({ page, request }) => {
+  await page.goto("/guide")
+  await expect(page).toHaveURL(/\/guide$/)
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("interview guides")
+  await page.getByRole("link", { name: "DCF and WACC" }).first().click()
+  await expect(page).toHaveURL(/\/guide\/concepts\//)
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("DCF")
+
+  const robots = await request.get("/robots.txt", { maxRedirects: 0 })
+  expect(robots.status()).toBe(200)
+  expect(await robots.text()).toContain("Sitemap:")
+  const sitemap = await request.get("/sitemap.xml", { maxRedirects: 0 })
+  expect(sitemap.status()).toBe(200)
+  expect(await sitemap.text()).toContain("/guide/concepts/")
+})
+
 test("signed-out visitors are sent to sign-in and remembered", async ({ page }) => {
   for (const path of ["/today", "/companies", "/prep/heat", "/achievements"]) {
     await page.goto(path)

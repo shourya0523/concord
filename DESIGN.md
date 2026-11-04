@@ -1593,10 +1593,10 @@ Nothing animates on page load except state-confirmed reactions. `prefers-reduced
 
 ### 17.1 Login gate
 
-The whole app sits behind Neon Auth sign-in; only the landing page is public.
+The whole app sits behind Neon Auth sign-in; only the landing page and the read-only guide (`/guide/*`) are public.
 
 - **Policy** (`apps/web/lib/auth/gate.ts`, unit tested):
-  - Public paths: `/`, `/sign-in`, `/sign-up`, Neon Auth's `/api/auth/*` and `/auth/*`, `/api/health`, `/api/cron/*` (CRON_SECRET), `/api/notifications/unsubscribe` (signed email links), and static files.
+  - Public paths: `/`, `/guide` and `/guide/*` (server-rendered SEO guide, §17.4), `/sign-in`, `/sign-up`, Neon Auth's `/api/auth/*` and `/auth/*`, `/api/health`, `/api/cron/*` (CRON_SECRET), `/api/notifications/unsubscribe` (signed email links), and static files.
   - Everything else needs a session.
 - **Proxy** (`apps/web/proxy.ts` → `lib/auth/gate-proxy.ts`) matches every route except Next build output and files with an extension. It runs the Neon Auth middleware and rewrites its sign-in redirect:
   - Pages go to `/sign-in?next=<path + query>`.
@@ -1650,3 +1650,13 @@ How they're built:
 - Each plays once per hover and fires on tap via `:active`.
 - All of it is skipped for reduced motion.
 - The desk items opt back into pointer events, while the hero copy wrapper passes them through (only the CTA stays clickable).
+
+### 17.4 Public guide and crawl files (SEO)
+
+Plan and rationale: `docs/research/seo-geo-plan.md`.
+
+- **`/guide`** hub, **`/guide/concepts/[slug]`**, **`/guide/modules/[slug]`**, **`/guide/firms/[firm]`** (`apps/web/app/guide/`). Server-rendered, ISR (`revalidate = 3600`), no signed-in API calls, own header/footer (not `AppShell`).
+- Content comes from `lib/seo/public-content.ts`: concept summaries, diagrams, prerequisites, module outlines, firm names and **aggregate** topic heat. Never raw scraped question or answer text.
+- Every page has a unique title, description and canonical, visible breadcrumbs, cross-links (concept ↔ firm, concept → prerequisites and siblings, module → concepts) and a sign-up CTA whose `next` points at the in-app page.
+- Firms with zero signals get no page (thin content).
+- `app/robots.ts` keeps crawlers off `/api/`, `/admin`, `/mockups`, `/ds`, auth pages; `app/sitemap.ts` lists `/`, `/guide` and every guide page. Both end in a file extension, so the gate leaves them public.

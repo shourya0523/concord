@@ -8,13 +8,14 @@ export const SIGN_IN_PATH = "/sign-in"
 export const SIGN_UP_PATH = "/sign-up"
 
 /** Exact public pages. */
-const PUBLIC_EXACT = new Set(["/", SIGN_IN_PATH, SIGN_UP_PATH, "/api/health", "/api/notifications/unsubscribe"])
+const PUBLIC_EXACT = new Set(["/", "/guide", SIGN_IN_PATH, SIGN_UP_PATH, "/api/health", "/api/notifications/unsubscribe"])
 
 /**
- * Public prefixes: Neon Auth's handler and callbacks, and the cron endpoint
- * (it authenticates with CRON_SECRET, not a session).
+ * Public prefixes: Neon Auth's handler and callbacks, the cron endpoint
+ * (it authenticates with CRON_SECRET, not a session) and the read-only
+ * crawlable guide (/guide/*, SEO — docs/research/seo-geo-plan.md).
  */
-const PUBLIC_PREFIXES = [`${SIGN_IN_PATH}/`, `${SIGN_UP_PATH}/`, "/api/auth/", "/auth/", "/api/cron/"]
+const PUBLIC_PREFIXES = [`${SIGN_IN_PATH}/`, `${SIGN_UP_PATH}/`, "/api/auth/", "/auth/", "/api/cron/", "/guide/"]
 
 /** Static files served from /public or by Next (never gated). */
 const STATIC_FILE = /\.(?:png|jpe?g|gif|svg|webp|avif|ico|txt|xml|webmanifest|json|js|css|map|woff2?)$/i

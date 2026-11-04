@@ -2,6 +2,12 @@
 
 _Research date: 2026-11-04. Site: https://concord-umber.vercel.app_
 
+> **Status (2026-11-04):** Steps 1 and 2 shipped. Public pages live under
+> `/guide` (hub, `/guide/concepts/[slug]`, `/guide/modules/[slug]`,
+> `/guide/firms/[firm]`) rather than opening the in-app URLs, because the app
+> pages call signed-in APIs from the browser. Plus `robots.txt` and `sitemap.xml`.
+> Spec: DESIGN.md §17.4.
+
 **SEO** means ranking in Google and Bing. **GEO** (generative engine
 optimisation, also called AEO) means getting ChatGPT, Perplexity, Gemini,
 Google AI Overviews and Claude to **cite** Concord in their answers.
